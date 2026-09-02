@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Menu, 
   Search, 
@@ -38,16 +38,59 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [dbStatus, setDbStatus] = useState<{ connected: boolean; dbName?: string }>({ connected: false });
+  const [currentUser, setCurrentUser] = useState(() => StorageService.getCurrentUser());
 
-  const adminUser = StorageService.getAdminUser() || { 
-    name: 'Admin User', 
-    email: 'admin@thestocetimes.com', 
-    role: 'Editor-in-Chief', 
-    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80' 
+  const quickAddRef = useRef<HTMLDivElement>(null);
+  const profileRef = useRef<HTMLDivElement>(null);
+
+  const toggleQuickAdd = () => {
+    setQuickAddOpen(prev => {
+      if (!prev) setProfileDropdownOpen(false);
+      return !prev;
+    });
+  };
+
+  const toggleProfile = () => {
+    setProfileDropdownOpen(prev => {
+      if (!prev) setQuickAddOpen(false);
+      return !prev;
+    });
   };
 
   useEffect(() => {
     ApiService.checkBackendStatus().then(setDbStatus);
+
+    const handleUpdate = () => {
+      setCurrentUser(StorageService.getCurrentUser());
+    };
+
+    const handleClickOutside = (event: MouseEvent) => {
+      if (quickAddRef.current && !quickAddRef.current.contains(event.target as Node)) {
+        setQuickAddOpen(false);
+      }
+      if (profileRef.current && !profileRef.current.contains(event.target as Node)) {
+        setProfileDropdownOpen(false);
+      }
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setQuickAddOpen(false);
+        setProfileDropdownOpen(false);
+      }
+    };
+
+    window.addEventListener('user-profile-updated', handleUpdate);
+    window.addEventListener('storage', handleUpdate);
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      window.removeEventListener('user-profile-updated', handleUpdate);
+      window.removeEventListener('storage', handleUpdate);
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
   }, []);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
@@ -97,33 +140,33 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
         </button>
 
         {/* Quick + Add Action Dropdown */}
-        <div className="relative">
+        <div className="relative" ref={quickAddRef}>
           <button
-            onClick={() => setQuickAddOpen(!quickAddOpen)}
-            className="bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs px-3.5 py-2 rounded-xl shadow-sm flex items-center gap-1.5 transition-colors cursor-pointer"
+            onClick={toggleQuickAdd}
+            className="bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs px-3.5 py-2 rounded-xl shadow-sm flex items-center gap-1.5 transition-all cursor-pointer"
           >
             <Plus className="w-4 h-4" />
             <span className="hidden sm:inline">Add New</span>
-            <ChevronDown className="w-3.5 h-3.5" />
+            <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${quickAddOpen ? 'rotate-180' : ''}`} />
           </button>
 
           {quickAddOpen && (
-            <div className="absolute right-0 mt-2 w-48 bg-white rounded-2xl shadow-xl border border-slate-200 py-2 z-50 animate-in fade-in duration-150">
+            <div className="absolute right-0 mt-2 w-48 bg-white rounded-2xl shadow-2xl border border-slate-200 py-2 z-50 animate-in fade-in duration-150">
               <button
                 onClick={() => { setQuickAddOpen(false); onQuickAction('new-article'); }}
-                className="w-full text-left px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-50 hover:text-emerald-600 flex items-center gap-2"
+                className="w-full text-left px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-50 hover:text-emerald-600 flex items-center gap-2 cursor-pointer"
               >
                 <FileText className="w-4 h-4 text-emerald-600" /> New Article
               </button>
               <button
                 onClick={() => { setQuickAddOpen(false); onQuickAction('new-category'); }}
-                className="w-full text-left px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-50 hover:text-emerald-600 flex items-center gap-2"
+                className="w-full text-left px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-50 hover:text-emerald-600 flex items-center gap-2 cursor-pointer"
               >
                 <FolderPlus className="w-4 h-4 text-blue-600" /> New Category
               </button>
               <button
                 onClick={() => { setQuickAddOpen(false); onQuickAction('upload-media'); }}
-                className="w-full text-left px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-50 hover:text-emerald-600 flex items-center gap-2"
+                className="w-full text-left px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-50 hover:text-emerald-600 flex items-center gap-2 cursor-pointer"
               >
                 <Upload className="w-4 h-4 text-purple-600" /> Upload Media
               </button>
@@ -132,40 +175,40 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
         </div>
 
         {/* Profile Dropdown */}
-        <div className="relative">
+        <div className="relative" ref={profileRef}>
           <button
-            onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
-            className="flex items-center gap-2 p-1 rounded-xl hover:bg-slate-100 transition-colors"
+            onClick={toggleProfile}
+            className="flex items-center gap-2 p-1 rounded-xl hover:bg-slate-100 transition-colors cursor-pointer"
           >
             <img
-              src={adminUser.avatar}
-              alt={adminUser.name}
+              src={currentUser.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80'}
+              alt={currentUser.name}
               className="w-8 h-8 rounded-full object-cover border border-emerald-500 shadow-sm"
             />
-            <span className="hidden md:inline font-bold text-xs text-slate-800">{adminUser.name}</span>
-            <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+            <span className="hidden md:inline font-bold text-xs text-slate-800">{currentUser.name}</span>
+            <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 ${profileDropdownOpen ? 'rotate-180' : ''}`} />
           </button>
 
           {profileDropdownOpen && (
-            <div className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-xl border border-slate-200 py-2 z-50 animate-in fade-in duration-150 space-y-1">
+            <div className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-2xl border border-slate-200 py-2 z-50 animate-in fade-in duration-150 space-y-1">
               <div className="px-4 py-2.5 border-b border-slate-100">
-                <span className="font-extrabold text-xs text-slate-900 block">{adminUser.name}</span>
-                <span className="text-[10px] text-slate-500 font-mono block">{adminUser.email}</span>
+                <span className="font-extrabold text-xs text-slate-900 block">{currentUser.name}</span>
+                <span className="text-[10px] text-slate-500 font-mono block">{currentUser.email}</span>
                 <span className="inline-block bg-emerald-50 text-emerald-700 text-[9px] font-bold px-2 py-0.5 rounded-full mt-1 border border-emerald-200 uppercase">
-                  {adminUser.role}
+                  {currentUser.role}
                 </span>
               </div>
 
               <button
                 onClick={() => { setProfileDropdownOpen(false); onQuickAction('profile'); }}
-                className="w-full text-left px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-2"
+                className="w-full text-left px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-2 cursor-pointer"
               >
                 <User className="w-4 h-4 text-slate-400" /> Profile & Credentials
               </button>
               
               <button
                 onClick={() => { setProfileDropdownOpen(false); onQuickAction('settings'); }}
-                className="w-full text-left px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-2"
+                className="w-full text-left px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-2 cursor-pointer"
               >
                 <Settings className="w-4 h-4 text-slate-400" /> System Settings
               </button>
@@ -173,7 +216,7 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
               <div className="border-t border-slate-100 pt-1">
                 <button
                   onClick={() => { setProfileDropdownOpen(false); onLogout(); }}
-                  className="w-full text-left px-4 py-2 text-xs font-bold text-rose-600 hover:bg-rose-50 flex items-center gap-2"
+                  className="w-full text-left px-4 py-2 text-xs font-bold text-rose-600 hover:bg-rose-50 flex items-center gap-2 cursor-pointer"
                 >
                   <LogOut className="w-4 h-4 text-rose-600" /> Sign Out
                 </button>

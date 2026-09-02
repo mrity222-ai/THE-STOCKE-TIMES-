@@ -40,6 +40,7 @@ export interface Article {
   content: string; // HTML formatted content
   highlights: string[]; // Important points / AI Summary key points
   aiSummary?: string[];
+  galleryImages?: ArticleImage[];
   sources?: string[];
   authorId: string;
   publishedAt: string; // ISO date string
@@ -163,6 +164,36 @@ export interface UserAccount {
   bio?: string;
   credentials?: string;
   createdAt: string;
+}
+
+export interface LegalPageRevision {
+  id: string;
+  updatedAt: string;
+  updatedBy: string;
+  title: string;
+  content: string;
+}
+
+export interface LegalPageItem {
+  id: string; // 'privacy' | 'terms' | 'disclaimer' | 'cookies' | 'editorial' | 'corrections' | 'refund' | 'guidelines' | 'about' | 'contact'
+  slug: string;
+  title: string;
+  content: string; // HTML format
+  seoTitle?: string;
+  seoDescription?: string;
+  status: 'published' | 'draft';
+  updatedAt: string;
+  revisions?: LegalPageRevision[];
+}
+
+export interface ArticleImage {
+  id: string;
+  url: string;
+  title?: string;
+  caption?: string;
+  altText?: string;
+  sourceCredit?: string;
+  order: number;
 }
 
 export interface Subscriber {

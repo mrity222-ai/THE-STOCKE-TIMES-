@@ -22,7 +22,8 @@ import {
   Calculator,
   Layers,
   DollarSign,
-  Mail
+  Mail,
+  Camera
 } from 'lucide-react';
 import { StorageService } from '../../services/storageService';
 
@@ -45,7 +46,20 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
   onCloseMobile,
   onLogout
 }) => {
-  const currentUser = StorageService.getCurrentUser();
+  const [currentUser, setCurrentUser] = React.useState(() => StorageService.getCurrentUser());
+
+  React.useEffect(() => {
+    const handleUpdate = () => {
+      setCurrentUser(StorageService.getCurrentUser());
+    };
+    window.addEventListener('user-profile-updated', handleUpdate);
+    window.addEventListener('storage', handleUpdate);
+    return () => {
+      window.removeEventListener('user-profile-updated', handleUpdate);
+      window.removeEventListener('storage', handleUpdate);
+    };
+  }, []);
+
   const isAuthorRole = currentUser.role === 'author';
 
   const navItems = [
@@ -72,6 +86,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
     { key: 'featured', label: 'Featured Articles', icon: Sparkles, adminOnly: true },
     { key: 'analytics', label: 'Analytics', icon: BarChart3, adminOnly: true },
     { key: 'comments', label: 'Comments', icon: MessageSquare, adminOnly: true },
+    { key: 'legal', label: 'Legal & Policies', icon: ShieldCheck, adminOnly: true },
     { key: 'settings', label: 'Settings', icon: Settings, adminOnly: true }
   ];
 
@@ -186,12 +201,38 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
         {/* User Info & Footer */}
         <div className="p-3 border-t border-slate-800 space-y-2">
           {!collapsed && (
-            <div className="flex items-center gap-3 px-2 py-1.5 bg-slate-800/60 rounded-xl border border-slate-800">
-              <img 
-                src={currentUser.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80'} 
-                alt={currentUser.name} 
-                className="w-8 h-8 rounded-full object-cover border border-emerald-500"
-              />
+            <div className="flex items-center gap-3 px-2.5 py-2 bg-slate-800/60 rounded-xl border border-slate-800 relative group">
+              <label className="relative cursor-pointer shrink-0" title="Click to change profile picture">
+                <img 
+                  src={currentUser.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80'} 
+                  alt={currentUser.name} 
+                  className="w-9 h-9 rounded-full object-cover border-2 border-[#16A34A] group-hover:opacity-80 transition-opacity"
+                />
+                <div className="absolute inset-0 rounded-full bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-white">
+                  <Camera className="w-3.5 h-3.5" />
+                </div>
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      const reader = new FileReader();
+                      reader.onload = (evt) => {
+                        const dataUrl = evt.target?.result as string;
+                        if (dataUrl) {
+                          const updatedUser = { ...currentUser, avatar: dataUrl };
+                          StorageService.setCurrentUser(updatedUser);
+                          StorageService.saveUser(updatedUser);
+                        }
+                      };
+                      reader.readAsDataURL(file);
+                    }
+                  }}
+                />
+              </label>
+
               <div className="flex flex-col overflow-hidden text-xs">
                 <span className="font-bold text-white truncate">{currentUser.name}</span>
                 <span className="text-[10px] text-emerald-400 font-mono capitalize">{currentUser.role}</span>

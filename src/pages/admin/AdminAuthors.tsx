@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { StorageService } from '../../services/storageService';
 import { Author, UserAccount } from '../../types';
-import { Plus, Edit3, Trash2, Users, Eye, Twitter, Linkedin, CheckCircle2, X, Shield, Lock, Mail, UserCheck, UserX } from 'lucide-react';
+import { Plus, Edit3, Trash2, Users, Eye, Twitter, Linkedin, CheckCircle2, X, Shield, Lock, Mail, UserCheck, UserX, Upload } from 'lucide-react';
 
 export const AdminAuthors: React.FC = () => {
   const [users, setUsers] = useState<UserAccount[]>(() => StorageService.getUsers());
@@ -277,14 +277,51 @@ export const AdminAuthors: React.FC = () => {
               </div>
 
               <div>
-                <label className="font-bold text-slate-700 block mb-1">Profile Image URL</label>
-                <input
-                  type="text"
-                  value={editingUser.avatar || ''}
-                  onChange={(e) => setEditingUser({ ...editingUser, avatar: e.target.value })}
-                  placeholder="https://..."
-                  className="w-full px-3 py-2 rounded-xl border border-slate-300 font-mono"
-                />
+                <label className="font-bold text-slate-700 block mb-1">Profile Image / Avatar *</label>
+                <div className="flex items-center gap-3">
+                  {editingUser.avatar && (
+                    <img
+                      src={editingUser.avatar}
+                      alt="Avatar Preview"
+                      className="w-12 h-12 rounded-full object-cover border-2 border-[#16A34A] shadow-sm shrink-0"
+                    />
+                  )}
+                  <div className="flex-1 space-y-1.5">
+                    <div className="flex items-center gap-2">
+                      <label className="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-xs cursor-pointer flex items-center gap-1.5 shadow-sm transition-all">
+                        <Upload className="w-3.5 h-3.5" />
+                        <span>Upload Local Image</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              const reader = new FileReader();
+                              reader.onload = (event) => {
+                                const dataUrl = event.target?.result as string;
+                                if (dataUrl) {
+                                  setEditingUser(prev => prev ? ({ ...prev, avatar: dataUrl }) : null);
+                                }
+                              };
+                              reader.readAsDataURL(file);
+                            }
+                          }}
+                        />
+                      </label>
+                      <span className="text-[11px] text-slate-400 font-medium">Upload from computer or paste URL</span>
+                    </div>
+
+                    <input
+                      type="text"
+                      value={editingUser.avatar || ''}
+                      onChange={(e) => setEditingUser({ ...editingUser, avatar: e.target.value })}
+                      placeholder="https://..."
+                      className="w-full px-3 py-2 rounded-xl border border-slate-300 font-mono text-xs"
+                    />
+                  </div>
+                </div>
               </div>
 
               <div>

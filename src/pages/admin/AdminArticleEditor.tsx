@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { StorageService } from '../../services/storageService';
-import { Article, Category, Author } from '../../types';
+import { Article, Category, Author, ArticleImage } from '../../types';
 import { RichTextEditor } from '../../components/admin/RichTextEditor';
 import { MediaLibraryModal } from '../../components/admin/MediaLibraryModal';
 import { SeoPreviewBox } from '../../components/admin/SeoPreviewBox';
@@ -66,6 +66,62 @@ export const AdminArticleEditor: React.FC<AdminArticleEditorProps> = ({ initialA
   const showToast = (msg: string) => {
     setToastMsg(msg);
     setTimeout(() => setToastMsg(''), 3000);
+  };
+
+  // Multiple Article Images & Drag-and-Drop State
+  const [galleryImages, setGalleryImages] = useState<ArticleImage[]>(initialArticle?.galleryImages || []);
+  const [isDragOver, setIsDragOver] = useState(false);
+
+  const handleMultipleFilesUpload = (files: FileList | File[]) => {
+    const fileArray = Array.from(files);
+    let processedCount = 0;
+    const newImages: ArticleImage[] = [];
+
+    fileArray.forEach((file, index) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const dataUrl = e.target?.result as string;
+        if (dataUrl) {
+          const imgObj: ArticleImage = {
+            id: `img-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+            url: dataUrl,
+            title: file.name.replace(/\.[^/.]+$/, ""),
+            caption: file.name.replace(/\.[^/.]+$/, ""),
+            altText: file.name,
+            sourceCredit: 'The Stoce Times Studio',
+            order: galleryImages.length + index + 1
+          };
+          newImages.push(imgObj);
+          StorageService.addMediaItem({
+            name: file.name,
+            url: dataUrl,
+            altText: file.name
+          });
+        }
+        processedCount++;
+        if (processedCount === fileArray.length) {
+          setGalleryImages(prev => [...prev, ...newImages]);
+          showToast(`Uploaded & optimized ${newImages.length} article images!`);
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleInsertSingleImageIntoContent = (img: ArticleImage) => {
+    const figureHtml = `\n<figure style="margin: 20px 0; text-align: center;">\n  <img src="${img.url}" alt="${img.altText || img.title || 'Article image'}" style="width: 100%; max-height: 480px; object-fit: cover; border-radius: 16px; border: 1px solid #e2e8f0;" />\n  ${img.caption ? `<figcaption style="font-size: 12px; color: #64748b; margin-top: 8px; font-style: italic;">${img.caption} ${img.sourceCredit ? `(Credit: ${img.sourceCredit})` : ''}</figcaption>` : ''}\n</figure>\n`;
+    setFormData(prev => ({ ...prev, content: (prev.content || '') + figureHtml }));
+    showToast('Image inserted into article body!');
+  };
+
+  const handleInsertGalleryGridIntoContent = () => {
+    if (galleryImages.length === 0) {
+      alert('Please upload article images first.');
+      return;
+    }
+    const gridHtml = `\n<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin: 24px 0;">\n${galleryImages.map(img => `  <figure style="margin:0;">\n    <img src="${img.url}" alt="${img.altText || 'Gallery image'}" style="width: 100%; height: 200px; object-fit: cover; border-radius: 12px;" />\n    ${img.caption ? `<figcaption style="font-size: 11px; color: #64748b; margin-top: 4px;">${img.caption}</figcaption>` : ''}\n  </figure>`).join('\n')}\n</div>\n`;
+    setFormData(prev => ({ ...prev, content: (prev.content || '') + gridHtml }));
+    showToast('Image gallery grid inserted into article content!');
   };
 
 
@@ -262,6 +318,7 @@ export const AdminArticleEditor: React.FC<AdminArticleEditorProps> = ({ initialA
 
     const saved = StorageService.saveArticle({
       ...formData,
+      galleryImages,
       authorId: authorToUse,
       status,
       publishedAt: finalPublishDate,
@@ -603,6 +660,120 @@ export const AdminArticleEditor: React.FC<AdminArticleEditorProps> = ({ initialA
                 />
               </div>
             </div>
+          </div>
+
+          {/* MULTIPLE ARTICLE IMAGES & GALLERY UPLOADER CARD */}
+          <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4 font-sans text-xs">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <h3 className="font-extrabold text-slate-900 text-sm flex items-center gap-2">
+                <ImageIcon className="w-4 h-4 text-emerald-600" /> Multiple Article Images ({galleryImages.length})
+              </h3>
+              {galleryImages.length > 0 && (
+                <button
+                  type="button"
+                  onClick={handleInsertGalleryGridIntoContent}
+                  className="text-[11px] font-extrabold text-blue-600 hover:underline bg-blue-50 px-2.5 py-1 rounded-lg border border-blue-200 cursor-pointer"
+                >
+                  Insert Grid Gallery
+                </button>
+              )}
+            </div>
+
+            {/* Drag and Drop Zone */}
+            <div
+              onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
+              onDragLeave={() => setIsDragOver(false)}
+              onDrop={(e) => {
+                e.preventDefault();
+                setIsDragOver(false);
+                if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                  handleMultipleFilesUpload(e.dataTransfer.files);
+                }
+              }}
+              className={`p-6 border-2 border-dashed rounded-2xl text-center space-y-2 transition-all ${
+                isDragOver ? 'border-emerald-500 bg-emerald-50/50' : 'border-slate-300 bg-slate-50/50 hover:bg-slate-100/60'
+              }`}
+            >
+              <Upload className="w-6 h-6 text-emerald-600 mx-auto" />
+              <p className="font-bold text-slate-700">Drag & Drop Multiple Images Here</p>
+              <p className="text-[11px] text-slate-400">Supports PNG, JPG, WebP. Multiple selection supported.</p>
+              
+              <label className="inline-block mt-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold rounded-xl shadow cursor-pointer transition-all">
+                <span>Browse Multiple Images</span>
+                <input
+                  type="file"
+                  multiple
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    if (e.target.files && e.target.files.length > 0) {
+                      handleMultipleFilesUpload(e.target.files);
+                    }
+                  }}
+                />
+              </label>
+            </div>
+
+            {/* List of Uploaded Article Images */}
+            {galleryImages.length > 0 && (
+              <div className="space-y-4 pt-2">
+                {galleryImages.map((img) => (
+                  <div key={img.id} className="p-3 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
+                    <div className="flex items-center gap-3">
+                      <img src={img.url} alt={img.title} className="w-16 h-16 rounded-xl object-cover border shrink-0" />
+                      <div className="flex-1 space-y-1">
+                        <input
+                          type="text"
+                          value={img.title || ''}
+                          onChange={(e) => {
+                            const newTitle = e.target.value;
+                            setGalleryImages(prev => prev.map(item => item.id === img.id ? { ...item, title: newTitle } : item));
+                          }}
+                          placeholder="Image Title..."
+                          className="w-full px-2 py-1 rounded-lg border border-slate-300 font-bold text-xs"
+                        />
+                        <input
+                          type="text"
+                          value={img.caption || ''}
+                          onChange={(e) => {
+                            const newCaption = e.target.value;
+                            setGalleryImages(prev => prev.map(item => item.id === img.id ? { ...item, caption: newCaption } : item));
+                          }}
+                          placeholder="Caption & Source Credit..."
+                          className="w-full px-2 py-1 rounded-lg border border-slate-300 text-[11px]"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap items-center justify-between gap-1.5 text-[11px] pt-1 border-t border-slate-200">
+                      <button
+                        type="button"
+                        onClick={() => handleInsertSingleImageIntoContent(img)}
+                        className="text-emerald-700 font-bold hover:underline cursor-pointer"
+                      >
+                        📌 Insert into Article
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setFormData(prev => ({ ...prev, featuredImage: img.url }))}
+                        className="text-blue-700 font-bold hover:underline cursor-pointer"
+                      >
+                        📸 Set Featured
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setGalleryImages(prev => prev.filter(item => item.id !== img.id))}
+                        className="text-rose-600 font-bold hover:underline cursor-pointer"
+                      >
+                        🗑️ Remove
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Featured Image Card */}

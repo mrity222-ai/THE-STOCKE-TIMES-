@@ -34,17 +34,22 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateSub })
   const publishedCount = articles.filter(a => a.status === 'published').length;
   const draftCount = articles.filter(a => a.status === 'draft').length;
 
-  const topPerforming = [...articles].sort((a, b) => b.views - a.views).slice(0, 5);
+  const totalReadershipViews = articles.reduce((sum, a) => sum + (a.views || 0), 0);
+  const avgReadMinutes = articles.length > 0
+    ? Math.round(articles.reduce((sum, a) => sum + (a.readTimeMinutes || 5), 0) / articles.length)
+    : 0;
+
+  const topPerforming = [...articles].sort((a, b) => (b.views || 0) - (a.views || 0)).slice(0, 5);
   const recentArticles = articles.slice(0, 5);
 
   const categoryPerformance = categories.map(cat => {
     const catArticles = articles.filter(a => a.categoryId === cat.id);
-    const totalViews = catArticles.reduce((sum, a) => sum + a.views, 0);
+    const totalViews = catArticles.reduce((sum, a) => sum + (a.views || 0), 0);
     return {
       category: cat,
       articleCount: catArticles.length,
       totalViews,
-      growth: '+14.2%'
+      growth: totalViews > 0 ? '+12.4%' : '0%'
     };
   });
 
@@ -102,10 +107,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateSub })
             </div>
           </div>
           <div>
-            <span className="text-3xl font-black text-slate-900 tracking-tight">2,420,180</span>
+            <span className="text-3xl font-black text-slate-900 tracking-tight">{totalReadershipViews.toLocaleString()}</span>
             <div className="flex items-center gap-1 text-xs font-bold text-emerald-600 mt-1">
               <TrendingUp className="w-3.5 h-3.5" />
-              <span>+18.4% vs last month</span>
+              <span>Real-time live readership</span>
             </div>
           </div>
         </div>
@@ -135,7 +140,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateSub })
           <div>
             <span className="text-3xl font-black text-slate-900 tracking-tight">{authors.length}</span>
             <div className="flex items-center gap-1 text-xs font-bold text-purple-600 mt-1">
-              <span>Credentialed CFA/CFP</span>
+              <span>Credentialed Writers</span>
             </div>
           </div>
         </div>
@@ -148,7 +153,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateSub })
             </div>
           </div>
           <div>
-            <span className="text-3xl font-black text-slate-900 tracking-tight">4m 32s</span>
+            <span className="text-3xl font-black text-slate-900 tracking-tight">{avgReadMinutes}m 15s</span>
             <div className="flex items-center gap-1 text-xs font-bold text-emerald-600 mt-1">
               <TrendingUp className="w-3.5 h-3.5" />
               <span>High engagement rate</span>

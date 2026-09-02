@@ -1,4 +1,4 @@
-import { Article, Author, Category, MediaItem, TagItem, MarketIndex, CommentItem, SiteSettings, AnalyticsSummary, UserAccount, Subscriber } from '../types';
+import { Article, Author, Category, MediaItem, TagItem, MarketIndex, CommentItem, SiteSettings, AnalyticsSummary, UserAccount, Subscriber, LegalPageItem } from '../types';
 import { INITIAL_ARTICLES, INITIAL_AUTHORS, INITIAL_CATEGORIES, INITIAL_MARKET_INDICES } from '../data/initialData';
 
 const ARTICLES_STORAGE_KEY = 'finance_pulse_articles_v3';
@@ -216,6 +216,28 @@ export class StorageService {
     return this.getArticles().find(a => a.id === id);
   }
 
+  static incrementArticleViews(idOrSlug: string): number {
+    try {
+      const articles = this.getArticles();
+      const target = articles.find(a => a.id === idOrSlug || a.slug === idOrSlug);
+      if (target) {
+        target.views = (target.views || 0) + 1;
+        localStorage.setItem(ARTICLES_STORAGE_KEY, JSON.stringify(articles));
+
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('article-views-updated', { detail: { id: target.id, views: target.views } }));
+        }
+
+        try {
+          fetch(`http://localhost:5000/api/articles/${target.id}/view`, { method: 'POST' }).catch(() => {});
+        } catch (e) {}
+
+        return target.views;
+      }
+    } catch (e) {}
+    return 0;
+  }
+
   // AUTHORS
   static getAuthors(): Author[] {
     try {
@@ -245,7 +267,22 @@ export class StorageService {
   }
 
   static getAuthorById(id: string): Author | undefined {
-    return this.getAuthors().find(a => a.id === id);
+    const currentUser = this.getCurrentUser();
+    const authors = this.getAuthors();
+    const found = authors.find(a => a.id === id);
+
+    if ((currentUser.role === 'admin' && (id === currentUser.id || id === 'usr-admin-1' || id === 'author-1')) || !found) {
+      return {
+        id: currentUser.id,
+        name: currentUser.name || 'Primary Admin',
+        role: 'Editor-in-Chief & Primary Admin',
+        avatar: currentUser.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=250&q=80',
+        bio: currentUser.bio || 'Editor-in-Chief & Financial Market Analyst',
+        credentials: currentUser.credentials || 'Primary Admin'
+      };
+    }
+
+    return found;
   }
 
   // CATEGORIES
@@ -382,25 +419,33 @@ export class StorageService {
 
   // ANALYTICS DATA
   static getAnalyticsSummary(): AnalyticsSummary {
+    const articles = this.getArticles();
+    const totalViewsNum = articles.reduce((sum, a) => sum + (a.views || 0), 0);
+    const avgMinutes = articles.length > 0 
+      ? Math.round(articles.reduce((sum, a) => sum + (a.readTimeMinutes || 5), 0) / articles.length) 
+      : 0;
+
+    const approxVisitors = Math.round(totalViewsNum * 0.72);
+
     return {
-      totalVisitors: '482.5K',
-      pageViews: '2,420,180',
-      avgReadingTime: '4m 32s',
-      bounceRate: '38.4%',
+      totalVisitors: approxVisitors.toLocaleString(),
+      pageViews: totalViewsNum.toLocaleString(),
+      avgReadingTime: `${avgMinutes}m 15s`,
+      bounceRate: '32.1%',
       trafficOverTime: [
-        { date: 'Mon', views: 42000, visitors: 18500 },
-        { date: 'Tue', views: 58000, visitors: 24100 },
-        { date: 'Wed', views: 64000, visitors: 27800 },
-        { date: 'Thu', views: 71000, visitors: 31200 },
-        { date: 'Fri', views: 89000, visitors: 39500 },
-        { date: 'Sat', views: 52000, visitors: 21000 },
-        { date: 'Sun', views: 61000, visitors: 26400 }
+        { date: 'Mon', views: Math.round(totalViewsNum * 0.1), visitors: Math.round(totalViewsNum * 0.07) },
+        { date: 'Tue', views: Math.round(totalViewsNum * 0.15), visitors: Math.round(totalViewsNum * 0.1) },
+        { date: 'Wed', views: Math.round(totalViewsNum * 0.18), visitors: Math.round(totalViewsNum * 0.12) },
+        { date: 'Thu', views: Math.round(totalViewsNum * 0.14), visitors: Math.round(totalViewsNum * 0.09) },
+        { date: 'Fri', views: Math.round(totalViewsNum * 0.22), visitors: Math.round(totalViewsNum * 0.16) },
+        { date: 'Sat', views: Math.round(totalViewsNum * 0.11), visitors: Math.round(totalViewsNum * 0.08) },
+        { date: 'Sun', views: Math.round(totalViewsNum * 0.1), visitors: Math.round(totalViewsNum * 0.07) }
       ],
       topSources: [
-        { source: 'Google Organic Search (SEO)', percentage: 64 },
-        { source: 'Direct / Bookmarks', percentage: 18 },
-        { source: 'Social Media (Twitter, LinkedIn)', percentage: 11 },
-        { source: 'Newsletter Referrals', percentage: 7 }
+        { source: 'Google Organic Search (SEO)', percentage: 65 },
+        { source: 'Direct / Bookmarks', percentage: 20 },
+        { source: 'Social Media (X, LinkedIn)', percentage: 10 },
+        { source: 'Newsletter Subscribers', percentage: 5 }
       ]
     };
   }
@@ -500,6 +545,13 @@ export class StorageService {
       localStorage.setItem(AUTHORS_STORAGE_KEY, JSON.stringify(authors));
     }
 
+    const current = this.getCurrentUser();
+    if (current && current.id === updatedUser.id) {
+      this.setCurrentUser(updatedUser);
+    } else if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('user-profile-updated', { detail: updatedUser }));
+    }
+
     try {
       fetch('http://localhost:5000/api/users', {
         method: 'POST',
@@ -540,6 +592,9 @@ export class StorageService {
 
   static setCurrentUser(user: UserAccount): void {
     localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(user));
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('user-profile-updated', { detail: user }));
+    }
   }
 
   // NEWSLETTER SUBSCRIBERS MANAGEMENT
@@ -634,6 +689,192 @@ export class StorageService {
     } catch (e) {
       return false;
     }
+  }
+
+  // LEGAL & POLICY PAGES STORAGE
+  static getLegalPages(): LegalPageItem[] {
+    try {
+      const data = localStorage.getItem('finance_pulse_legal_pages_v1');
+      if (data) return JSON.parse(data);
+    } catch (e) {}
+
+    const defaults: LegalPageItem[] = [
+      {
+        id: 'privacy',
+        slug: 'privacy',
+        title: 'Privacy Policy',
+        content: '<h2>Privacy Policy for The Stoce Times</h2><p>Your privacy is important to us. This Privacy Policy document contains types of information that is collected and recorded by The Stoce Times and how we use it.</p>',
+        seoTitle: 'Privacy Policy | The Stoce Times',
+        seoDescription: 'Read the official Privacy Policy of The Stoce Times.',
+        status: 'published',
+        updatedAt: new Date().toISOString(),
+        revisions: []
+      },
+      {
+        id: 'terms',
+        slug: 'terms',
+        title: 'Terms and Conditions',
+        content: '<h2>Terms & Conditions</h2><p>By accessing and using The Stoce Times website, you accept and agree to be bound by the terms and provision of this agreement.</p>',
+        seoTitle: 'Terms & Conditions | The Stoce Times',
+        seoDescription: 'Read the Terms and Conditions for accessing The Stoce Times.',
+        status: 'published',
+        updatedAt: new Date().toISOString(),
+        revisions: []
+      },
+      {
+        id: 'disclaimer',
+        slug: 'disclaimer',
+        title: 'Financial & Investment Disclaimer',
+        content: '<h2>Financial Disclaimer</h2><p>All information provided on The Stoce Times is strictly for educational and informational purposes only. It should not be considered as personal financial advice.</p>',
+        seoTitle: 'Financial Disclaimer | The Stoce Times',
+        seoDescription: 'Financial and investment disclaimer for readers of The Stoce Times.',
+        status: 'published',
+        updatedAt: new Date().toISOString(),
+        revisions: []
+      },
+      {
+        id: 'cookies',
+        slug: 'cookies',
+        title: 'Cookie Policy',
+        content: '<h2>Cookie Policy</h2><p>This Cookie Policy explains how The Stoce Times uses cookies and similar technologies to recognize you when you visit our website.</p>',
+        seoTitle: 'Cookie Policy | The Stoce Times',
+        seoDescription: 'Cookie policy and consent usage guidelines.',
+        status: 'published',
+        updatedAt: new Date().toISOString(),
+        revisions: []
+      },
+      {
+        id: 'editorial',
+        slug: 'editorial',
+        title: 'Editorial Policy',
+        content: '<h2>Editorial Guidelines & Independence</h2><p>The Stoce Times adheres to strict journalistic standards of integrity, transparency, and accuracy across all financial news reports.</p>',
+        seoTitle: 'Editorial Policy | The Stoce Times',
+        seoDescription: 'Editorial independence and publishing standards.',
+        status: 'published',
+        updatedAt: new Date().toISOString(),
+        revisions: []
+      },
+      {
+        id: 'corrections',
+        slug: 'corrections',
+        title: 'Corrections Policy',
+        content: '<h2>Corrections & Fact-Checking Policy</h2><p>We are committed to correcting errors promptly and transparently. If you notice a factual error, please contact our editorial room.</p>',
+        seoTitle: 'Corrections Policy | The Stoce Times',
+        seoDescription: 'Fact checking and error correction policies.',
+        status: 'published',
+        updatedAt: new Date().toISOString(),
+        revisions: []
+      },
+      {
+        id: 'refund',
+        slug: 'refund',
+        title: 'Refund Policy',
+        content: '<h2>Refund Policy</h2><p>Details regarding premium subscriptions, digital product purchases, and refund request processing terms.</p>',
+        seoTitle: 'Refund Policy | The Stoce Times',
+        seoDescription: 'Refund policy for paid services and digital subscriptions.',
+        status: 'published',
+        updatedAt: new Date().toISOString(),
+        revisions: []
+      },
+      {
+        id: 'guidelines',
+        slug: 'guidelines',
+        title: 'Community Guidelines',
+        content: '<h2>Community Guidelines</h2><p>We encourage respectful discourse in our comments and reader forums. Harassment, spam, and financial scams are strictly prohibited.</p>',
+        seoTitle: 'Community Guidelines | The Stoce Times',
+        seoDescription: 'Rules of conduct for comments and reader participation.',
+        status: 'published',
+        updatedAt: new Date().toISOString(),
+        revisions: []
+      },
+      {
+        id: 'about',
+        slug: 'about',
+        title: 'About Us',
+        content: '<h2>About The Stoce Times</h2><p>The Stoce Times is a leading independent financial news publication dedicated to delivering institutional market breakdowns, personal finance strategies, and financial tools.</p>',
+        seoTitle: 'About Us | The Stoce Times Editorial Room',
+        seoDescription: 'Learn about The Stoce Times mission, editorial team, and values.',
+        status: 'published',
+        updatedAt: new Date().toISOString(),
+        revisions: []
+      },
+      {
+        id: 'contact',
+        slug: 'contact',
+        title: 'Contact Us',
+        content: '<h2>Get In Touch</h2><p>Have news tips, editorial inquiries, or support requests? Contact our newsroom team at editor@thestocetimes.com.</p>',
+        seoTitle: 'Contact Us | The Stoce Times Desk',
+        seoDescription: 'Contact info for editorial and support inquiries.',
+        status: 'published',
+        updatedAt: new Date().toISOString(),
+        revisions: []
+      }
+    ];
+
+    try {
+      localStorage.setItem('finance_pulse_legal_pages_v1', JSON.stringify(defaults));
+    } catch (e) {}
+
+    return defaults;
+  }
+
+  static getLegalPageById(id: string): LegalPageItem | undefined {
+    return this.getLegalPages().find(p => p.id === id || p.slug === id);
+  }
+
+  static saveLegalPage(page: LegalPageItem, editorName: string = 'Admin'): LegalPageItem {
+    const pages = this.getLegalPages();
+    const idx = pages.findIndex(p => p.id === page.id);
+    
+    // Build revision history
+    const existing = idx >= 0 ? pages[idx] : null;
+    const revisions = existing?.revisions || [];
+    if (existing) {
+      revisions.unshift({
+        id: `rev-${Date.now()}`,
+        updatedAt: existing.updatedAt,
+        updatedBy: editorName,
+        title: existing.title,
+        content: existing.content
+      });
+    }
+
+    const updatedPage: LegalPageItem = {
+      ...page,
+      updatedAt: new Date().toISOString(),
+      revisions: revisions.slice(0, 10) // Store last 10 revisions
+    };
+
+    if (idx >= 0) {
+      pages[idx] = updatedPage;
+    } else {
+      pages.push(updatedPage);
+    }
+
+    try {
+      localStorage.setItem('finance_pulse_legal_pages_v1', JSON.stringify(pages));
+    } catch (e) {}
+
+    return updatedPage;
+  }
+
+  static restoreLegalPageRevision(pageId: string, revisionId: string): LegalPageItem | null {
+    const pages = this.getLegalPages();
+    const target = pages.find(p => p.id === pageId);
+    if (!target || !target.revisions) return null;
+
+    const rev = target.revisions.find(r => r.id === revisionId);
+    if (!rev) return null;
+
+    target.title = rev.title;
+    target.content = rev.content;
+    target.updatedAt = new Date().toISOString();
+
+    try {
+      localStorage.setItem('finance_pulse_legal_pages_v1', JSON.stringify(pages));
+    } catch (e) {}
+
+    return target;
   }
 
   // RESET ALL DATA TO FACTORY INITIAL

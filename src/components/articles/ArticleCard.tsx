@@ -10,7 +10,19 @@ interface ArticleCardProps {
 }
 
 export const ArticleCard: React.FC<ArticleCardProps> = ({ article, onNavigate, layout = 'standard' }) => {
-  const author: Author | undefined = StorageService.getAuthorById(article.authorId);
+  const [author, setAuthor] = React.useState<Author | undefined>(() => StorageService.getAuthorById(article.authorId));
+
+  React.useEffect(() => {
+    const handleUpdate = () => {
+      setAuthor(StorageService.getAuthorById(article.authorId));
+    };
+    window.addEventListener('user-profile-updated', handleUpdate);
+    window.addEventListener('storage', handleUpdate);
+    return () => {
+      window.removeEventListener('user-profile-updated', handleUpdate);
+      window.removeEventListener('storage', handleUpdate);
+    };
+  }, [article.authorId]);
 
   const formattedDate = new Date(article.publishedAt).toLocaleDateString('en-US', {
     month: 'short',

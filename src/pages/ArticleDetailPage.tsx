@@ -83,6 +83,33 @@ export const ArticleDetailPage: React.FC<ArticleDetailPageProps> = ({ slug, onNa
     return StorageService.getArticleBySlug(slug) || StorageService.getArticles()[0];
   }, [slug]);
 
+  const [currentViews, setCurrentViews] = useState<number>(article?.views || 0);
+
+  // Author dynamic lookup state for instant avatar sync
+  const [author, setAuthor] = useState(() => StorageService.getAuthorById(article.authorId) || StorageService.getAuthors()[0]);
+
+  useEffect(() => {
+    if (article?.id) {
+      const liveViews = StorageService.incrementArticleViews(article.id);
+      setCurrentViews(liveViews);
+    }
+  }, [article.id]);
+
+  useEffect(() => {
+    const handleProfileUpdate = () => {
+      if (article?.authorId) {
+        const freshAuthor = StorageService.getAuthorById(article.authorId) || StorageService.getAuthors()[0];
+        setAuthor(freshAuthor);
+      }
+    };
+    window.addEventListener('user-profile-updated', handleProfileUpdate);
+    window.addEventListener('storage', handleProfileUpdate);
+    return () => {
+      window.removeEventListener('user-profile-updated', handleProfileUpdate);
+      window.removeEventListener('storage', handleProfileUpdate);
+    };
+  }, [article.authorId]);
+
   useEffect(() => {
     const loadArticleFaqs = async () => {
       try {
@@ -97,10 +124,6 @@ export const ArticleDetailPage: React.FC<ArticleDetailPageProps> = ({ slug, onNa
     };
     loadArticleFaqs();
   }, [article.id]);
-
-  const author = useMemo(() => {
-    return StorageService.getAuthorById(article.authorId) || StorageService.getAuthors()[0];
-  }, [article.authorId]);
 
   const allArticles = useMemo(() => {
     return StorageService.getArticles().filter(a => a.status === 'published');
@@ -369,7 +392,7 @@ export const ArticleDetailPage: React.FC<ArticleDetailPageProps> = ({ slug, onNa
               <span>·</span>
               <span>{article.readTimeMinutes} min read</span>
               <span>·</span>
-              <span>{(article.views ?? 0).toLocaleString()} views</span>
+              <span>{currentViews.toLocaleString()} views</span>
               {formattedUpdatedDate && (
                 <>
                   <span>·</span>

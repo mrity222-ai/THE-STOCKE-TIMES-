@@ -17,6 +17,7 @@ import { AdminFinancialRules } from './admin/AdminFinancialRules';
 import { AdminComparisonCatalogs } from './admin/AdminComparisonCatalogs';
 import { AdminAds } from './admin/AdminAds';
 import { AdminSubscribers } from './admin/AdminSubscribers';
+import { AdminLegal } from './admin/AdminLegal';
 import { MediaLibraryModal } from '../components/admin/MediaLibraryModal';
 
 interface AdminPageProps {
@@ -159,6 +160,9 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onNavigate }) => {
 
       case 'comments':
         return <AdminComments />;
+
+      case 'legal':
+        return <AdminLegal />;
 
       case 'settings':
         return <AdminSettings />;

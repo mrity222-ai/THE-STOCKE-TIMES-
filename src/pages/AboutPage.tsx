@@ -9,6 +9,7 @@ interface AboutPageProps {
 
 export const AboutPage: React.FC<AboutPageProps> = ({ onNavigate }) => {
   const authors = StorageService.getAuthors();
+  const dynamicAbout = StorageService.getLegalPageById('about');
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-12 font-sans">
@@ -21,7 +22,7 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onNavigate }) => {
         </div>
 
         <h1 className="text-3xl sm:text-5xl font-extrabold font-serif tracking-tight leading-tight">
-          About The Stoce Times
+          {dynamicAbout?.title || 'About The Stoce Times'}
         </h1>
 
         <p className="text-sm sm:text-base text-slate-300 font-medium leading-relaxed max-w-2xl">
@@ -29,19 +30,26 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onNavigate }) => {
         </p>
       </div>
 
-      {/* Main Narrative */}
+      {/* Main Narrative Dynamic Content */}
       <div className="bg-white rounded-3xl p-8 sm:p-10 border border-slate-200 shadow-sm space-y-6 text-sm text-slate-800 leading-relaxed font-sans">
-        <div className="space-y-4">
-          <h2 className="text-2xl font-extrabold text-[#0B1F33] font-serif border-b border-slate-100 pb-3">
-            Our Mission & Aim
-          </h2>
-          <p className="text-base text-slate-700 font-medium leading-relaxed">
-            Our aim is simple: <strong className="text-[#0B1F33] font-bold">to make financial information easier to understand, research and follow.</strong>
-          </p>
-          <p className="text-slate-600 font-normal">
-            We cover market developments, stock market trends, investment topics, banking, personal finance, financial tools and other topics that matter to everyday investors and readers who want clear, neutral and straightforward analysis.
-          </p>
-        </div>
+        {dynamicAbout?.content ? (
+          <div
+            className="prose max-w-none text-slate-800 text-sm leading-relaxed space-y-4"
+            dangerouslySetInnerHTML={{ __html: dynamicAbout.content }}
+          />
+        ) : (
+          <div className="space-y-4">
+            <h2 className="text-2xl font-extrabold text-[#0B1F33] font-serif border-b border-slate-100 pb-3">
+              Our Mission & Aim
+            </h2>
+            <p className="text-base text-slate-700 font-medium leading-relaxed">
+              Our aim is simple: <strong className="text-[#0B1F33] font-bold">to make financial information easier to understand, research and follow.</strong>
+            </p>
+            <p className="text-slate-600 font-normal">
+              We cover market developments, stock market trends, investment topics, banking, personal finance, financial tools and other topics that matter to everyday investors and readers who want clear, neutral and straightforward analysis.
+            </p>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4 border-t border-slate-100">
           <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2">
