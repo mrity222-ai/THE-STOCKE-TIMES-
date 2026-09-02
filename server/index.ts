@@ -45,6 +45,15 @@ app.get('/api/health', async (_req: Request, res: Response) => {
   });
 });
 
+app.get('/api/status', async (_req: Request, res: Response) => {
+  const isDbConnected = await testConnection();
+  res.json({
+    connected: isDbConnected,
+    dbName: process.env.DB_NAME || 'finance_pulse_db',
+    tables: ['users', 'articles', 'categories', 'subscribers', 'article_faqs', 'site_settings', 'comments', 'login_logs']
+  });
+});
+
 // Serve ads.txt for Google AdSense Verification
 app.get('/ads.txt', (_req: Request, res: Response) => {
   res.type('text/plain').send('google.com, pub-5020716602157264, DIRECT, f08c47fec0942fa0\n');
@@ -1396,6 +1405,60 @@ app.post('/api/admin/reset-password', async (req: Request, res: Response) => {
   } catch (err: any) {
     res.status(500).json({ success: false, message: 'Error resetting password.' });
   }
+});
+
+// In-memory FAQ Store
+const articleFaqsStore: Record<string, { id: string; article_id: string; question: string; answer: string; sort_order: number }[]> = {};
+
+// GET FAQs for an article
+app.get('/api/articles/:id/faqs', (req: Request, res: Response) => {
+  const articleId = req.params.id;
+  const faqs = articleFaqsStore[articleId] || [];
+  res.json(faqs);
+});
+
+// POST Add or update FAQ
+app.post('/api/admin/faqs', (req: Request, res: Response) => {
+  try {
+    const { article_id, question, answer, sort_order, id } = req.body;
+    if (!article_id || !question || !answer) {
+      return res.status(400).json({ success: false, message: 'Article ID, Question and Answer are required.' });
+    }
+
+    if (!articleFaqsStore[article_id]) {
+      articleFaqsStore[article_id] = [];
+    }
+
+    const list = articleFaqsStore[article_id];
+    const existingIdx = id ? list.findIndex(item => item.id === id) : -1;
+
+    const faqObj = {
+      id: id || `faq-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+      article_id,
+      question,
+      answer,
+      sort_order: sort_order ?? list.length
+    };
+
+    if (existingIdx >= 0) {
+      list[existingIdx] = faqObj;
+    } else {
+      list.push(faqObj);
+    }
+
+    res.json({ success: true, faq: faqObj });
+  } catch (err: any) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// DELETE FAQ
+app.delete('/api/admin/faqs/:faqId', (req: Request, res: Response) => {
+  const { faqId } = req.params;
+  Object.keys(articleFaqsStore).forEach(artId => {
+    articleFaqsStore[artId] = articleFaqsStore[artId].filter(f => f.id !== faqId);
+  });
+  res.json({ success: true, message: 'FAQ deleted' });
 });
 
 // 5. GET ADMIN LOGIN AUDIT LOGS

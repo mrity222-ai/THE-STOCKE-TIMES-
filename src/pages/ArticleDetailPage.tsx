@@ -111,19 +111,25 @@ export const ArticleDetailPage: React.FC<ArticleDetailPageProps> = ({ slug, onNa
   }, [article.authorId]);
 
   useEffect(() => {
-    const loadArticleFaqs = async () => {
-      try {
-        const response = await fetch(`http://localhost:5000/api/articles/${article.id}/faqs`);
-        if (response.ok) {
-          const data = await response.json();
-          setFaqs(data);
+    if (article?.faqs && article.faqs.length > 0) {
+      setFaqs(article.faqs);
+    } else {
+      const loadArticleFaqs = async () => {
+        try {
+          const response = await fetch(`http://localhost:5000/api/articles/${article.id}/faqs`);
+          if (response.ok) {
+            const data = await response.json();
+            if (Array.isArray(data) && data.length > 0) {
+              setFaqs(data);
+            }
+          }
+        } catch (error) {
+          setFaqs([]);
         }
-      } catch (error) {
-        setFaqs([]);
-      }
-    };
-    loadArticleFaqs();
-  }, [article.id]);
+      };
+      loadArticleFaqs();
+    }
+  }, [article]);
 
   const allArticles = useMemo(() => {
     return StorageService.getArticles().filter(a => a.status === 'published');

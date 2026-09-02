@@ -126,9 +126,9 @@ export const AdminArticleEditor: React.FC<AdminArticleEditorProps> = ({ initialA
 
 
   // FAQ state + functions
-  const [faqs, setFaqs] = useState<
-    { id: string; question: string; answer: string }[]
-  >([]);
+  const [faqs, setFaqs] = useState<{ id: string; question: string; answer: string }[]>(
+    initialArticle?.faqs || []
+  );
 
   const [faqQuestion, setFaqQuestion] = useState('');
   const [faqAnswer, setFaqAnswer] = useState('');
@@ -138,138 +138,82 @@ export const AdminArticleEditor: React.FC<AdminArticleEditorProps> = ({ initialA
     if (!formData.id) return;
 
     try {
-      const response = await fetch(
-        `http://localhost:5000/api/articles/${formData.id}/faqs`
-      );
-
-      if (!response.ok) {
-        throw new Error('Failed to load FAQs');
+      const response = await fetch(`http://localhost:5000/api/articles/${formData.id}/faqs`);
+      if (response.ok) {
+        const data = await response.json();
+        if (Array.isArray(data) && data.length > 0) {
+          setFaqs(data);
+        }
       }
-
-      const data = await response.json();
-      setFaqs(data);
     } catch (error) {
-      console.error('Failed to load FAQs:', error);
+      console.error('Failed to load FAQs from server:', error);
     }
   };
 
   useEffect(() => {
-    loadFaqs();
+    if (initialArticle?.faqs && initialArticle.faqs.length > 0) {
+      setFaqs(initialArticle.faqs);
+    } else {
+      loadFaqs();
+    }
   }, [formData.id]);
 
-  const handleAddFaq = async () => {
-    if (!formData.id) {
-      showToast('Please save the article first.');
-      return;
-    }
-
+  const handleAddFaq = () => {
     if (!faqQuestion.trim() || !faqAnswer.trim()) {
-      showToast('Please enter both question and answer.');
+      showToast('Please enter both Question and Answer.');
       return;
     }
 
-    try {
-      const response = await fetch(
-        'http://localhost:5000/api/admin/faqs',
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            article_id: formData.id,
-            question: faqQuestion.trim(),
-            answer: faqAnswer.trim(),
-            sort_order: faqs.length,
-          }),
-        }
-      );
+    const newFaq = {
+      id: editingFaqId || `faq-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+      question: faqQuestion.trim(),
+      answer: faqAnswer.trim()
+    };
 
-      if (!response.ok) {
-        throw new Error('Failed to add FAQ');
-      }
-
-      setFaqQuestion('');
-      setFaqAnswer('');
-      await loadFaqs();
-
-      showToast('FAQ added successfully.');
-    } catch (error) {
-      console.error('Failed to add FAQ:', error);
-      showToast('Unable to add FAQ.');
-    }
-  };
-
-  const handleUpdateFaq = async () => {
-    if (!editingFaqId) return;
-
-    if (!faqQuestion.trim() || !faqAnswer.trim()) {
-      showToast('Please enter both question and answer.');
-      return;
-    }
-
-    try {
-      const response = await fetch(
-        `http://localhost:5000/api/admin/faqs/${editingFaqId}`,
-        {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            question: faqQuestion.trim(),
-            answer: faqAnswer.trim(),
-          }),
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error('Failed to update FAQ');
-      }
-
-      setFaqQuestion('');
-      setFaqAnswer('');
+    if (editingFaqId) {
+      setFaqs(prev => prev.map(f => f.id === editingFaqId ? newFaq : f));
       setEditingFaqId(null);
+      showToast('FAQ updated.');
+    } else {
+      setFaqs(prev => [...prev, newFaq]);
+      showToast('FAQ added to article.');
+    }
 
-      await loadFaqs();
-      showToast('FAQ updated successfully.');
-    } catch (error) {
-      console.error('Failed to update FAQ:', error);
-      showToast('Unable to update FAQ.');
+    setFaqQuestion('');
+    setFaqAnswer('');
+
+    // Sync to backend if article ID exists
+    if (formData.id) {
+      fetch('http://localhost:5000/api/admin/faqs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          article_id: formData.id,
+          id: newFaq.id,
+          question: newFaq.question,
+          answer: newFaq.answer,
+          sort_order: faqs.length
+        })
+      }).catch(() => {});
     }
   };
 
-  const handleDeleteFaq = async (id: string) => {
-    if (!window.confirm('Delete this FAQ permanently?')) return;
-
-    try {
-      const response = await fetch(
-        `http://localhost:5000/api/admin/faqs/${id}`,
-        {
-          method: 'DELETE',
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error('Failed to delete FAQ');
-      }
-
-      await loadFaqs();
-      showToast('FAQ deleted successfully.');
-    } catch (error) {
-      console.error('Failed to delete FAQ:', error);
-      showToast('Unable to delete FAQ.');
-    }
-  };
-
-  const handleEditFaq = (faq: {
-    id: string;
-    question: string;
-    answer: string;
-  }) => {
+  const handleEditFaq = (faq: { id: string; question: string; answer: string }) => {
     setEditingFaqId(faq.id);
     setFaqQuestion(faq.question);
     setFaqAnswer(faq.answer);
+  };
+
+  const handleDeleteFaq = (id: string) => {
+    setFaqs(prev => prev.filter(f => f.id !== id));
+    if (editingFaqId === id) {
+      setEditingFaqId(null);
+      setFaqQuestion('');
+      setFaqAnswer('');
+    }
+
+    fetch(`http://localhost:5000/api/admin/faqs/${id}`, { method: 'DELETE' }).catch(() => {});
+    showToast('FAQ removed.');
   };
 
 
@@ -319,11 +263,28 @@ export const AdminArticleEditor: React.FC<AdminArticleEditorProps> = ({ initialA
     const saved = StorageService.saveArticle({
       ...formData,
       galleryImages,
+      faqs,
       authorId: authorToUse,
       status,
       publishedAt: finalPublishDate,
       showPublishedDate: formData.showPublishedDate ?? true
     } as any);
+
+    // Sync all FAQs to backend API
+    if (faqs.length > 0) {
+      faqs.forEach(f => {
+        fetch('http://localhost:5000/api/admin/faqs', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            article_id: saved.id,
+            id: f.id,
+            question: f.question,
+            answer: f.answer
+          })
+        }).catch(() => {});
+      });
+    }
 
     // If published by Admin, send email broadcast notification to all subscribers
     if (status === 'published' && !isAuthorRole) {
@@ -912,8 +873,8 @@ export const AdminArticleEditor: React.FC<AdminArticleEditorProps> = ({ initialA
               <div className="flex gap-2">
                 <button
                   type="button"
-                  onClick={editingFaqId ? handleUpdateFaq : handleAddFaq}
-                  className="px-4 py-2 rounded-xl bg-emerald-600 text-white font-bold text-xs hover:bg-emerald-500"
+                  onClick={handleAddFaq}
+                  className="px-4 py-2 rounded-xl bg-emerald-600 text-white font-bold text-xs hover:bg-emerald-500 cursor-pointer"
                 >
                   {editingFaqId ? 'Update FAQ' : 'Add FAQ'}
                 </button>

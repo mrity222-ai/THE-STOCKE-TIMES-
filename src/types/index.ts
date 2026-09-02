@@ -41,6 +41,7 @@ export interface Article {
   highlights: string[]; // Important points / AI Summary key points
   aiSummary?: string[];
   galleryImages?: ArticleImage[];
+  faqs?: { id: string; question: string; answer: string }[];
   sources?: string[];
   authorId: string;
   publishedAt: string; // ISO date string
@@ -63,11 +64,6 @@ export interface Article {
   ogTitle?: string;
   ogDescription?: string;
   socialShareImage?: string;
-  faqs?: {
-    id: string;
-    question: string;
-    answer: string;
-  }[];
 }
 
 export interface MediaItem {
