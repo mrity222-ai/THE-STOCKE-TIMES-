@@ -1,0 +1,171 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --font-editorial: "Source Serif 4", Georgia, serif;
+    --font-interface: "Inter", system-ui, -apple-system, sans-serif;
+    --color-primary-navy: #0B1F33;
+    --color-financial-blue: #155EEF;
+    --color-market-green: #16A34A;
+    --color-market-red: #DC2626;
+    --color-bg: #F8FAFC;
+    --color-card: #FFFFFF;
+    --color-text-main: #111827;
+    --color-text-sub: #64748B;
+    --color-border: #E2E8F0;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    font-family: var(--font-interface);
+    font-size: 16px;
+    line-height: 1.65;
+    background-color: #F8FAFC;
+    color: #111827;
+  }
+
+  h1, h2, h3, h4,
+  .article-title,
+  .section-title,
+  .site-logo {
+    font-family: var(--font-editorial);
+  }
+}
+
+.article-title {
+  font-size: clamp(2rem, 4vw, 3.5rem);
+  font-weight: 700;
+  line-height: 1.06;
+  letter-spacing: -0.025em;
+  text-wrap: balance;
+}
+
+.stock-price,
+.market-table {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Global Font Utility Classes */
+.font-serif {
+  font-family: var(--font-editorial) !important;
+}
+
+.font-sans {
+  font-family: var(--font-interface) !important;
+}
+
+/* Admin Dashboard — Strictly Inter Font Only */
+.admin-dashboard,
+.admin-dashboard * {
+  font-family: var(--font-interface) !important;
+}
+
+/* Global Component Utility Classes */
+.btn-primary {
+  @apply bg-[#155EEF] hover:bg-[#155EEF]/90 text-white font-semibold text-xs px-4 py-2.5 rounded-xl transition-all duration-150 cursor-pointer shadow-sm;
+}
+
+.btn-navy {
+  @apply bg-[#0B1F33] hover:bg-[#0B1F33]/90 text-white font-semibold text-xs px-4 py-2.5 rounded-xl transition-all duration-150 cursor-pointer shadow-sm;
+}
+
+.card-editorial {
+  @apply bg-white border border-[#E2E8F0] rounded-2xl p-6 shadow-sm hover:border-[#155EEF]/40 hover:shadow-lg transition-all duration-200;
+}
+
+.badge-positive {
+  @apply bg-emerald-50 text-[#16A34A] border border-emerald-200 text-[10px] font-bold px-2.5 py-0.5 rounded-md uppercase tracking-wider font-mono;
+}
+
+.badge-negative {
+  @apply bg-rose-50 text-[#DC2626] border border-rose-200 text-[10px] font-bold px-2.5 py-0.5 rounded-md uppercase tracking-wider font-mono;
+}
+
+.badge-navy {
+  @apply bg-[#0B1F33] text-white text-[10px] font-bold px-2.5 py-0.5 rounded-md uppercase tracking-wider font-sans;
+}
+
+.input-editorial {
+  @apply bg-white border border-[#E2E8F0] text-xs text-[#111827] placeholder-slate-400 rounded-xl px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#155EEF] focus:border-transparent transition-all font-sans;
+}
+
+/* Custom scrollbar for financial terminal ticker and TOC */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #0B1F33;
+}
+::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #155EEF;
+}
+
+/* Article typography and editorial readability optimizations */
+.article-body {
+  font-family: var(--font-interface);
+}
+
+.article-body p {
+  @apply mb-6 text-slate-800 leading-relaxed text-lg font-normal;
+}
+
+.article-body h2 {
+  font-family: var(--font-editorial);
+  @apply text-2xl sm:text-3xl font-bold text-[#0B1F33] mt-12 mb-4 tracking-tight border-b border-slate-200 pb-3 scroll-mt-24;
+}
+
+.article-body h3 {
+  font-family: var(--font-editorial);
+  @apply text-xl sm:text-2xl font-bold text-[#0B1F33] mt-8 mb-3 scroll-mt-24;
+}
+
+.article-body ul {
+  @apply list-disc list-inside mb-6 space-y-2 text-slate-800 text-lg pl-2;
+}
+
+.article-body ol {
+  @apply list-decimal list-inside mb-6 space-y-2 text-slate-800 text-lg pl-2;
+}
+
+.article-body blockquote {
+  font-family: var(--font-editorial);
+  @apply border-l-4 border-[#16A34A] bg-[#F0FDF4] p-5 italic my-8 text-slate-900 rounded-r-xl text-xl leading-relaxed shadow-sm;
+}
+
+/* Horizontal Scroll Table Wrapper for Mobile */
+.table-responsive,
+.article-body .table-container {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin-top: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.article-body table {
+  min-width: 520px;
+  font-variant-numeric: tabular-nums;
+  @apply w-full border-collapse text-left text-sm text-slate-800 rounded-xl shadow-sm border border-slate-200;
+}
+
+.article-body th {
+  @apply bg-[#0B1F33] text-white font-bold p-3.5 border-b border-slate-700 uppercase tracking-wider text-xs;
+}
+
+.article-body td {
+  @apply p-3.5 border-b border-slate-200 bg-white font-medium;
+}
+
+.article-body img {
+  @apply rounded-xl my-6 shadow-md border border-slate-200 w-full object-cover;
+}
