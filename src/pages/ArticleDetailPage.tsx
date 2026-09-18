@@ -39,6 +39,7 @@ import {
   Flame
 } from 'lucide-react';
 import { Article } from '../types';
+import { apiFetch } from '../services/apiConfig';
 
 interface ArticleDetailPageProps {
   slug: string;
@@ -79,9 +80,24 @@ export const ArticleDetailPage: React.FC<ArticleDetailPageProps> = ({ slug, onNa
     loadSocialMedia();
   }, []);
 
-  const article = useMemo(() => {
+  const fallbackArticle = useMemo(() => {
     return StorageService.getArticleBySlug(slug) || StorageService.getArticles()[0];
   }, [slug]);
+
+  const [article, setArticle] = useState<Article>(fallbackArticle);
+
+  useEffect(() => {
+    let isMounted = true;
+    setArticle(fallbackArticle);
+    ApiService.fetchArticleBySlug(slug).then((freshArticle) => {
+      if (isMounted && freshArticle) {
+        setArticle(freshArticle);
+      }
+    });
+    return () => {
+      isMounted = false;
+    };
+  }, [fallbackArticle, slug]);
 
   const [currentViews, setCurrentViews] = useState<number>(article?.views || 0);
 
@@ -116,7 +132,7 @@ export const ArticleDetailPage: React.FC<ArticleDetailPageProps> = ({ slug, onNa
     } else {
       const loadArticleFaqs = async () => {
         try {
-          const response = await fetch(`http://localhost:5000/api/articles/${article.id}/faqs`);
+          const response = await apiFetch(`/articles/${article.id}/faqs`);
           if (response.ok) {
             const data = await response.json();
             if (Array.isArray(data) && data.length > 0) {

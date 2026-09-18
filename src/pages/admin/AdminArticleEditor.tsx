@@ -21,6 +21,8 @@ import {
   Globe,
   Upload
 } from 'lucide-react';
+import { adminApiFetch, apiFetch } from '../../services/apiConfig';
+import { optimizeHtmlImageSources, optimizeImageDataUrl, optimizeImageFile } from '../../utils/imageUpload';
 
 interface AdminArticleEditorProps {
   initialArticle?: Article | null;
@@ -31,6 +33,8 @@ interface AdminArticleEditorProps {
 export const AdminArticleEditor: React.FC<AdminArticleEditorProps> = ({ initialArticle, onBack, onSaved }) => {
   const categories = StorageService.getCategories();
   const authors = StorageService.getAuthors();
+  const currentUser = StorageService.getCurrentUser();
+  const isAuthorRole = currentUser.role === 'author';
 
   const [formData, setFormData] = useState<Partial<Article>>({
     id: initialArticle?.id,
@@ -38,13 +42,13 @@ export const AdminArticleEditor: React.FC<AdminArticleEditorProps> = ({ initialA
     slug: initialArticle?.slug || '',
     categoryId: initialArticle?.categoryId || 'stock-market',
     subCategory: initialArticle?.subCategory || 'Stock Analysis',
-    authorId: initialArticle?.authorId || authors[0]?.id || 'author-1',
+    authorId: initialArticle?.authorId || (isAuthorRole ? currentUser.id : authors[0]?.id) || 'author-1',
     featuredImage: initialArticle?.featuredImage || 'https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?auto=format&fit=crop&w=1200&q=80',
     excerpt: initialArticle?.excerpt || '',
     content: initialArticle?.content || '<h2>Introduction</h2>\n<p>Write detailed financial research and analysis here...</p>\n<h2>Key Highlights</h2>\n<ul>\n<li>Point 1</li>\n<li>Point 2</li>\n</ul>',
     highlights: initialArticle?.highlights || ['Key financial insight 1', 'Key financial insight 2'],
     readTimeMinutes: initialArticle?.readTimeMinutes || 5,
-    status: initialArticle?.status || 'published',
+    status: initialArticle?.status || 'draft',
     publishedAt: initialArticle?.publishedAt || new Date().toISOString(),
     showPublishedDate: initialArticle?.showPublishedDate ?? true,
     scheduledDate: initialArticle?.scheduledDate || '',
@@ -72,40 +76,65 @@ export const AdminArticleEditor: React.FC<AdminArticleEditorProps> = ({ initialA
   const [galleryImages, setGalleryImages] = useState<ArticleImage[]>(initialArticle?.galleryImages || []);
   const [isDragOver, setIsDragOver] = useState(false);
 
-  const handleMultipleFilesUpload = (files: FileList | File[]) => {
-    const fileArray = Array.from(files);
-    let processedCount = 0;
-    const newImages: ArticleImage[] = [];
+  const handleMultipleFilesUpload = async (files: FileList | File[]) => {
+    const fileArray = Array.from(files).filter((file) => file.type.startsWith('image/'));
+    if (fileArray.length === 0) {
+      showToast('Please select image files only.');
+      return;
+    }
 
-    fileArray.forEach((file, index) => {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const dataUrl = e.target?.result as string;
-        if (dataUrl) {
-          const imgObj: ArticleImage = {
-            id: `img-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
-            url: dataUrl,
-            title: file.name.replace(/\.[^/.]+$/, ""),
-            caption: file.name.replace(/\.[^/.]+$/, ""),
-            altText: file.name,
-            sourceCredit: 'The Stoce Times Studio',
-            order: galleryImages.length + index + 1
-          };
-          newImages.push(imgObj);
+    try {
+      const newImages: ArticleImage[] = [];
+
+      for (let index = 0; index < fileArray.length; index += 1) {
+        const file = fileArray[index];
+        const optimized = await optimizeImageFile(file, {
+          maxWidth: 1280,
+          maxHeight: 1280,
+          quality: 0.76
+        });
+
+        const imgObj: ArticleImage = {
+          id: `img-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+          url: optimized.dataUrl,
+          title: file.name.replace(/\.[^/.]+$/, ""),
+          caption: file.name.replace(/\.[^/.]+$/, ""),
+          altText: file.name,
+          sourceCredit: 'The Stoce Times Studio',
+          order: galleryImages.length + index + 1
+        };
+        newImages.push(imgObj);
+
+        try {
           StorageService.addMediaItem({
             name: file.name,
-            url: dataUrl,
-            altText: file.name
+            url: optimized.dataUrl,
+            altText: file.name,
+            dimensions: optimized.width && optimized.height ? `${optimized.width}x${optimized.height}` : undefined,
+            size: optimized.sizeLabel
           });
+        } catch (error) {
+          console.warn('Media library save failed:', error);
         }
-        processedCount++;
-        if (processedCount === fileArray.length) {
-          setGalleryImages(prev => [...prev, ...newImages]);
-          showToast(`Uploaded & optimized ${newImages.length} article images!`);
-        }
-      };
-      reader.readAsDataURL(file);
-    });
+      }
+
+      const orderedImages = [...newImages].sort((a, b) => a.order - b.order);
+      const insertedHtml = orderedImages.map(img => `\n<figure style="margin: 20px 0; text-align: center;">
+  <img src="${img.url}" alt="${img.altText || img.title || 'Article image'}" style="width: 100%; max-height: 520px; object-fit: cover; border-radius: 16px; border: 1px solid #e2e8f0;" />
+  <figcaption style="font-size: 12px; color: #64748b; margin-top: 8px; font-style: italic;">${img.caption || img.title || ''}</figcaption>
+</figure>`).join('\n');
+
+      setGalleryImages(prev => [...prev, ...orderedImages]);
+      setFormData(prev => ({
+        ...prev,
+        content: `${prev.content || ''}\n${insertedHtml}`,
+        featuredImage: prev.featuredImage || (orderedImages[0] ? orderedImages[0].url : '')
+      }));
+      showToast(`Uploaded & inserted ${orderedImages.length} article images!`);
+    } catch (error) {
+      console.error('Article image upload failed:', error);
+      showToast('Image upload failed. Please try a smaller image.');
+    }
   };
 
   const handleInsertSingleImageIntoContent = (img: ArticleImage) => {
@@ -138,7 +167,7 @@ export const AdminArticleEditor: React.FC<AdminArticleEditorProps> = ({ initialA
     if (!formData.id) return;
 
     try {
-      const response = await fetch(`http://localhost:5000/api/articles/${formData.id}/faqs`);
+      const response = await apiFetch(`/articles/${formData.id}/faqs`);
       if (response.ok) {
         const data = await response.json();
         if (Array.isArray(data) && data.length > 0) {
@@ -184,7 +213,7 @@ export const AdminArticleEditor: React.FC<AdminArticleEditorProps> = ({ initialA
 
     // Sync to backend if article ID exists
     if (formData.id) {
-      fetch('http://localhost:5000/api/admin/faqs', {
+      adminApiFetch('/admin/faqs', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -212,8 +241,117 @@ export const AdminArticleEditor: React.FC<AdminArticleEditorProps> = ({ initialA
       setFaqAnswer('');
     }
 
-    fetch(`http://localhost:5000/api/admin/faqs/${id}`, { method: 'DELETE' }).catch(() => {});
+    adminApiFetch(`/admin/faqs/${id}`, { method: 'DELETE' }).catch(() => {});
     showToast('FAQ removed.');
+  };
+
+  const getPlainArticleText = (html: string) => {
+    const doc = new DOMParser().parseFromString(html || '', 'text/html');
+    return (doc.body.textContent || '').replace(/\s+/g, ' ').trim();
+  };
+
+  const getArticleHeadings = (html: string) => {
+    const doc = new DOMParser().parseFromString(html || '', 'text/html');
+    return Array.from(doc.querySelectorAll('h1, h2, h3'))
+      .map((heading) => (heading.textContent || '').replace(/\s+/g, ' ').trim())
+      .filter(Boolean)
+      .slice(0, 4);
+  };
+
+  const getArticleSections = (html: string) => {
+    const doc = new DOMParser().parseFromString(html || '', 'text/html');
+    return Array.from(doc.querySelectorAll('h1, h2, h3'))
+      .map((heading) => {
+        const title = (heading.textContent || '').replace(/\s+/g, ' ').trim();
+        const parts: string[] = [];
+        let node = heading.nextElementSibling;
+
+        while (node && !/^H[1-3]$/.test(node.tagName)) {
+          const text = (node.textContent || '').replace(/\s+/g, ' ').trim();
+          if (text) parts.push(text);
+          node = node.nextElementSibling;
+        }
+
+        return {
+          title,
+          body: parts.join(' ').slice(0, 520)
+        };
+      })
+      .filter((section) => section.title && section.body.length > 35)
+      .slice(0, 5);
+  };
+
+  const getReadableSentences = (text: string) =>
+    text
+      .split(/(?<=[.!?])\s+/)
+      .map((sentence) => sentence.trim())
+      .filter((sentence) => sentence.length > 45)
+      .slice(0, 12);
+
+  const findSentenceForTopic = (sentences: string[], topic: string) => {
+    const topicWords = topic.toLowerCase().split(/\s+/).filter((word) => word.length > 3);
+    return sentences.find((sentence) => topicWords.some((word) => sentence.toLowerCase().includes(word))) || sentences[0] || '';
+  };
+
+  const handleGenerateFaqs = () => {
+    const title = String(formData.title || '').trim();
+    const excerpt = String(formData.excerpt || '').trim();
+    const content = String(formData.content || '').trim();
+    const plainText = getPlainArticleText(content);
+    const sentences = getReadableSentences(`${excerpt}. ${plainText}`);
+    const headings = getArticleHeadings(content);
+    const sections = getArticleSections(content);
+    const categoryName = categories.find((category) => category.id === formData.categoryId)?.name || 'this topic';
+    const firstKeyword = formData.focusKeywords?.[0] || title || categoryName;
+
+    if (!title && plainText.length < 80) {
+      showToast('Please add article title/content before generating FAQs.');
+      return;
+    }
+
+    const summaryAnswer = excerpt || sections[0]?.body || sentences.slice(0, 2).join(' ');
+    const lastSection = sections.length > 0 ? sections[sections.length - 1] : null;
+    const takeawayAnswer = lastSection?.body || sentences.slice(-2).join(' ') || summaryAnswer;
+
+    const generatedFaqs = [
+      {
+        question: `What is ${title || firstKeyword} about?`,
+        answer: summaryAnswer
+      },
+      ...sections.map((section) => ({
+        question: `What does this article explain about ${section.title}?`,
+        answer: section.body
+      })),
+      {
+        question: `Why is ${firstKeyword} important in this article?`,
+        answer: findSentenceForTopic(sentences, firstKeyword) || (headings.length > 0
+          ? `The article connects ${firstKeyword} with topics such as ${headings.slice(0, 3).join(', ')}.`
+          : summaryAnswer)
+      },
+      {
+        question: 'What is the main takeaway from this article?',
+        answer: takeawayAnswer
+      }
+    ];
+
+    const existingQuestions = new Set(faqs.map((faq) => faq.question.toLowerCase()));
+    const uniqueGeneratedFaqs = generatedFaqs
+      .filter((faq) => faq.question.trim() && faq.answer.trim())
+      .filter((faq) => !existingQuestions.has(faq.question.toLowerCase()))
+      .slice(0, 5)
+      .map((faq, index) => ({
+        id: `faq-auto-${Date.now()}-${index}`,
+        question: faq.question,
+        answer: faq.answer
+      }));
+
+    if (uniqueGeneratedFaqs.length === 0) {
+      showToast('FAQs are already generated for this article.');
+      return;
+    }
+
+    setFaqs(prev => [...prev, ...uniqueGeneratedFaqs]);
+    showToast(`${uniqueGeneratedFaqs.length} FAQs generated from article content.`);
   };
 
 
@@ -239,41 +377,86 @@ export const AdminArticleEditor: React.FC<AdminArticleEditorProps> = ({ initialA
     }));
   };
 
-  const currentUser = StorageService.getCurrentUser();
-  const isAuthorRole = currentUser.role === 'author';
+  const buildSlug = (title: string) => title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
 
-  const handleSave = (status: 'published' | 'draft' | 'scheduled') => {
-    if (!formData.title || !formData.content) {
+  const handleSave = async (status: Article['status']) => {
+    const cleanTitle = String(formData.title || '').trim();
+    const cleanContent = String(formData.content || '').trim();
+    const cleanExcerpt = String(formData.excerpt || '').trim();
+    const cleanSlug = String(formData.slug || buildSlug(cleanTitle)).trim();
+
+    if (!cleanTitle || !cleanContent) {
       alert('Please fill in Article Title and Content.');
       return;
     }
 
-    if (isAuthorRole && status === 'published') {
-      alert('Author role permission restriction: Only Admins can publish articles. Saving as Draft.');
-      status = 'draft';
+    if (!cleanExcerpt) {
+      alert('Please add a short description / excerpt.');
+      return;
+    }
+
+    if (!cleanSlug) {
+      alert('Please add a URL slug.');
+      return;
+    }
+
+    const finalStatus = status;
+
+    if (finalStatus === 'scheduled' && !formData.scheduledDate) {
+      alert('Please select a scheduled publish date and time.');
+      return;
     }
 
     const currentTimestamp = new Date().toISOString();
-    const finalPublishDate = status === 'published'
+    const finalPublishDate = finalStatus === 'scheduled'
+      ? (formData.scheduledDate || currentTimestamp)
+      : finalStatus === 'published'
       ? (formData.status !== 'published' ? currentTimestamp : (formData.publishedAt || currentTimestamp))
       : (formData.publishedAt || currentTimestamp);
 
     const authorToUse = isAuthorRole ? currentUser.id : (formData.authorId || currentUser.id);
+    let optimizedContent = cleanContent;
+    let optimizedFeaturedImage = formData.featuredImage || '';
+
+    try {
+      optimizedContent = await optimizeHtmlImageSources(cleanContent, {
+        maxWidth: 1100,
+        maxHeight: 900,
+        quality: 0.68
+      });
+
+      if (optimizedFeaturedImage.startsWith('data:image/')) {
+        const optimizedFeatured = await optimizeImageDataUrl(optimizedFeaturedImage, {
+          maxWidth: 1280,
+          maxHeight: 720,
+          quality: 0.72
+        });
+        optimizedFeaturedImage = optimizedFeatured.dataUrl;
+      }
+    } catch (error) {
+      console.warn('Article image optimization before publish failed:', error);
+    }
 
     const saved = StorageService.saveArticle({
       ...formData,
+      title: cleanTitle,
+      slug: cleanSlug,
+      excerpt: cleanExcerpt,
+      content: optimizedContent,
+      featuredImage: optimizedFeaturedImage,
       galleryImages,
       faqs,
       authorId: authorToUse,
-      status,
+      status: finalStatus,
       publishedAt: finalPublishDate,
+      scheduledDate: finalStatus === 'scheduled' ? formData.scheduledDate : '',
       showPublishedDate: formData.showPublishedDate ?? true
     } as any);
 
     // Sync all FAQs to backend API
     if (faqs.length > 0) {
       faqs.forEach(f => {
-        fetch('http://localhost:5000/api/admin/faqs', {
+        adminApiFetch('/admin/faqs', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -287,12 +470,12 @@ export const AdminArticleEditor: React.FC<AdminArticleEditorProps> = ({ initialA
     }
 
     // If published by Admin, send email broadcast notification to all subscribers
-    if (status === 'published' && !isAuthorRole) {
+    if (finalStatus === 'published' && !isAuthorRole) {
       const activeSubscribers = StorageService.getSubscribers()
         .filter(s => s.status === 'Active' && s.verificationStatus === 'Verified')
         .map(s => s.email);
 
-      fetch('http://localhost:5000/api/subscribers/notify-article', {
+      adminApiFetch('/subscribers/notify-article', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -305,11 +488,24 @@ export const AdminArticleEditor: React.FC<AdminArticleEditorProps> = ({ initialA
       }).catch(err => console.log('Subscriber notify error:', err));
     }
 
-    setToastMsg(`Article ${status === 'published' ? 'published & broadcasted' : 'saved as ' + status} successfully!`);
+    setToastMsg(`Article ${finalStatus === 'published' ? 'published & broadcasted' : 'saved as ' + finalStatus} successfully!`);
     setTimeout(() => {
       onSaved();
     }, 1200);
   };
+
+  const handlePrimaryPublish = () => {
+    const selectedStatus = (formData.status || 'draft') as Article['status'];
+    const targetStatus = selectedStatus === 'scheduled'
+      ? 'scheduled'
+      : 'published';
+
+    handleSave(targetStatus);
+  };
+
+  const primaryPublishLabel = formData.status === 'scheduled'
+    ? 'Save Schedule'
+    : 'Publish Article';
 
   const handleAddTag = () => {
     if (newTagInput.trim()) {
@@ -358,18 +554,12 @@ export const AdminArticleEditor: React.FC<AdminArticleEditorProps> = ({ initialA
             <Save className="w-3.5 h-3.5" /> Save Draft
           </button>
 
-          {!isAuthorRole ? (
-            <button
-              onClick={() => handleSave('published')}
-              className="px-5 py-2 rounded-xl bg-[#16A34A] hover:bg-emerald-600 text-white font-extrabold text-xs shadow flex items-center gap-1.5 cursor-pointer"
-            >
-              <Send className="w-3.5 h-3.5" /> Publish & Notify Subscribers
-            </button>
-          ) : (
-            <span className="text-[11px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-xl">
-              Publishing Reserved for Admin
-            </span>
-          )}
+          <button
+            onClick={handlePrimaryPublish}
+            className="px-5 py-2 rounded-xl bg-[#16A34A] hover:bg-emerald-600 text-white font-extrabold text-xs shadow flex items-center gap-1.5 cursor-pointer"
+          >
+            <Send className="w-3.5 h-3.5" /> Publish & Notify Subscribers
+          </button>
         </div>
       </div>
 
@@ -416,7 +606,7 @@ export const AdminArticleEditor: React.FC<AdminArticleEditorProps> = ({ initialA
             <label className="text-xs font-extrabold uppercase text-slate-400 tracking-wider block">Article Content Canvas *</label>
             <RichTextEditor
               value={formData.content || ''}
-              onChange={(content) => setFormData({ ...formData, content })}
+              onChange={(content) => setFormData(prev => ({ ...prev, content }))}
               onOpenMediaPicker={() => {
                 setMediaTarget('editor');
                 setIsMediaModalOpen(true);
@@ -463,6 +653,7 @@ export const AdminArticleEditor: React.FC<AdminArticleEditorProps> = ({ initialA
                 <select
                   value={formData.authorId}
                   onChange={(e) => setFormData({ ...formData, authorId: e.target.value })}
+                  disabled={isAuthorRole}
                   className="w-full p-2.5 rounded-xl border border-slate-300 font-semibold bg-slate-50"
                 >
                   {authors.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
@@ -584,10 +775,10 @@ export const AdminArticleEditor: React.FC<AdminArticleEditorProps> = ({ initialA
                 Save Draft
               </button>
               <button
-                onClick={() => handleSave('published')}
+                onClick={handlePrimaryPublish}
                 className="flex-1 py-2.5 rounded-xl bg-emerald-600 text-white font-extrabold text-xs shadow"
               >
-                Publish Article
+                {primaryPublishLabel}
               </button>
             </div>
           </div>
@@ -648,7 +839,7 @@ export const AdminArticleEditor: React.FC<AdminArticleEditorProps> = ({ initialA
                 e.preventDefault();
                 setIsDragOver(false);
                 if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-                  handleMultipleFilesUpload(e.dataTransfer.files);
+                  void handleMultipleFilesUpload(e.dataTransfer.files);
                 }
               }}
               className={`p-6 border-2 border-dashed rounded-2xl text-center space-y-2 transition-all ${
@@ -656,11 +847,11 @@ export const AdminArticleEditor: React.FC<AdminArticleEditorProps> = ({ initialA
               }`}
             >
               <Upload className="w-6 h-6 text-emerald-600 mx-auto" />
-              <p className="font-bold text-slate-700">Drag & Drop Multiple Images Here</p>
-              <p className="text-[11px] text-slate-400">Supports PNG, JPG, WebP. Multiple selection supported.</p>
+              <p className="font-bold text-slate-700">Drag & Drop Images from Computer</p>
+              <p className="text-[11px] text-slate-400">Upload PNG, JPG or WebP directly from your local computer.</p>
               
               <label className="inline-block mt-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold rounded-xl shadow cursor-pointer transition-all">
-                <span>Browse Multiple Images</span>
+                <span>Upload Images from Computer</span>
                 <input
                   type="file"
                   multiple
@@ -668,7 +859,7 @@ export const AdminArticleEditor: React.FC<AdminArticleEditorProps> = ({ initialA
                   className="hidden"
                   onChange={(e) => {
                     if (e.target.files && e.target.files.length > 0) {
-                      handleMultipleFilesUpload(e.target.files);
+                      void handleMultipleFilesUpload(e.target.files);
                     }
                   }}
                 />
@@ -762,11 +953,11 @@ export const AdminArticleEditor: React.FC<AdminArticleEditorProps> = ({ initialA
                 </div>
               )}
 
-              {/* Direct Gallery / File Picker Upload Button */}
+              {/* Direct Local Computer File Picker Upload Button */}
               <div className="flex items-center gap-2">
                 <label className="flex-1 py-2.5 px-3 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 text-emerald-800 rounded-xl text-xs font-bold flex items-center justify-center gap-2 cursor-pointer transition-colors shadow-xs">
                   <Upload className="w-4 h-4 text-emerald-600" />
-                  <span>Upload from Gallery / Device</span>
+                  <span>Upload Featured Image from Computer</span>
                   <input
                     type="file"
                     accept="image/*"
@@ -774,21 +965,34 @@ export const AdminArticleEditor: React.FC<AdminArticleEditorProps> = ({ initialA
                     onChange={(e) => {
                       const file = e.target.files?.[0];
                       if (file) {
-                        const reader = new FileReader();
-                        reader.onload = (event) => {
-                          const dataUrl = event.target?.result as string;
-                          if (dataUrl) {
-                            setFormData({ ...formData, featuredImage: dataUrl });
-                            StorageService.addMediaItem({
-                              name: file.name,
-                              url: dataUrl,
-                              altText: file.name
+                        void (async () => {
+                          try {
+                            const optimized = await optimizeImageFile(file, {
+                              maxWidth: 1280,
+                              maxHeight: 720,
+                              quality: 0.78
                             });
-                            showToast('Image uploaded from device gallery!');
+
+                            setFormData(prev => ({ ...prev, featuredImage: optimized.dataUrl }));
+                            try {
+                              StorageService.addMediaItem({
+                                name: file.name,
+                                url: optimized.dataUrl,
+                                altText: file.name,
+                                dimensions: optimized.width && optimized.height ? `${optimized.width}x${optimized.height}` : undefined,
+                                size: optimized.sizeLabel
+                              });
+                            } catch (error) {
+                              console.warn('Media library save failed:', error);
+                            }
+                            showToast('Featured image uploaded from computer!');
+                          } catch (error) {
+                            console.error('Featured image upload failed:', error);
+                            showToast('Featured image upload failed. Try a smaller image.');
                           }
-                        };
-                        reader.readAsDataURL(file);
+                        })();
                       }
+                      e.target.value = '';
                     }}
                   />
                 </label>
@@ -850,6 +1054,14 @@ export const AdminArticleEditor: React.FC<AdminArticleEditorProps> = ({ initialA
                   Add questions and answers specific to this article.
                 </p>
               </div>
+              <button
+                type="button"
+                onClick={handleGenerateFaqs}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-50 px-3 py-2 text-[11px] font-extrabold text-emerald-700 border border-emerald-200 hover:bg-emerald-100 cursor-pointer"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                Auto Generate FAQ
+              </button>
             </div>
 
             {/* Add / Edit FAQ */}
@@ -1003,13 +1215,14 @@ export const AdminArticleEditor: React.FC<AdminArticleEditorProps> = ({ initialA
       <MediaLibraryModal
         isOpen={isMediaModalOpen}
         onClose={() => setIsMediaModalOpen(false)}
-        onSelectImage={(url) => {
+        onSelectImage={(url, alt) => {
           if (mediaTarget === 'featured') {
             setFormData(prev => ({ ...prev, featuredImage: url }));
           } else {
-            const imgHtml = `\n<figure>\n  <img src="${url}" alt="Article graphic" />\n</figure>\n`;
+            const imgHtml = `\n<figure style="margin: 20px 0; text-align: center;">\n  <img src="${url}" alt="${alt || 'Article image'}" style="width: 100%; max-height: 520px; object-fit: cover; border-radius: 16px; border: 1px solid #e2e8f0;" />\n  ${alt ? `<figcaption style="font-size: 12px; color: #64748b; margin-top: 8px; font-style: italic;">${alt}</figcaption>` : ''}\n</figure>\n`;
             setFormData(prev => ({ ...prev, content: (prev.content || '') + imgHtml }));
           }
+          setIsMediaModalOpen(false);
         }}
       />
 

@@ -70,7 +70,16 @@ export const AdminAds: React.FC = () => {
 
   const handleSaveAdSense = (e: React.FormEvent) => {
     e.preventDefault();
-    AdService.saveAdSenseConfig(adsense);
+    const publisherId = adsense.publisherId.trim();
+    if (!publisherId.startsWith('ca-pub-')) {
+      showToast('Publisher ID must start with ca-pub-.');
+      return;
+    }
+    AdService.saveAdSenseConfig({
+      ...adsense,
+      publisherId,
+      verificationCode: adsense.verificationCode || `<meta name="google-adsense-account" content="${publisherId}">`
+    });
     showToast('Google AdSense configuration saved.');
   };
 
@@ -120,9 +129,8 @@ export const AdminAds: React.FC = () => {
 
   const handleDeleteHouseAd = (id: string) => {
     if (window.confirm('Delete this Campaign Ad?')) {
-      const updated = houseAds.filter(a => a.id !== id);
-      localStorage.setItem('finance_pulse_house_ads_v1', JSON.stringify(updated));
-      setHouseAds(updated);
+      AdService.deleteHouseAd(id);
+      setHouseAds(AdService.getHouseAds());
       showToast('Campaign Ad deleted.');
     }
   };
@@ -690,7 +698,7 @@ export const AdminAds: React.FC = () => {
                   <div>
                     <label className="font-bold text-slate-800 block mb-1">Status Lifecycle *</label>
                     <select value={editingHouseAd.status || 'active'} onChange={(e) => setEditingHouseAd({ ...editingHouseAd, status: e.target.value as any })} className="w-full p-2.5 rounded-xl border border-slate-300 font-sans font-bold">
-                      <option value="active font-bold">Active</option>
+                      <option value="active">Active</option>
                       <option value="draft">Draft</option>
                       <option value="scheduled">Scheduled</option>
                       <option value="paused">Paused</option>

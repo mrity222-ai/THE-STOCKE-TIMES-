@@ -17,6 +17,7 @@ const AD_UNITS_KEY = 'finance_pulse_ad_units_v1';
 const ADSENSE_KEY = 'finance_pulse_adsense_v1';
 const HOUSE_ADS_KEY = 'finance_pulse_house_ads_v1';
 const ANALYTICS_KEY = 'finance_pulse_ad_analytics_v1';
+const DEFAULT_ADSENSE_PUBLISHER_ID = import.meta.env.VITE_ADSENSE_PUB_ID || 'ca-pub-5020716602157264';
 
 export interface PlacementSetting {
   placementKey: AdPlacementKey;
@@ -36,6 +37,8 @@ const defaultPlacements: PlacementSetting[] = [
   { placementKey: 'category_mid', label: 'Category Page In-Feed Mid Ad (category_mid)', pageGroup: 'Categories', enabled: true, network: 'google-adsense', device: 'all' },
   
   { placementKey: 'article_top', label: 'Article Reader Top Ad (article_top)', pageGroup: 'Articles', enabled: true, network: 'google-adsense', device: 'all' },
+  { placementKey: 'article-after-intro', label: 'Article Below Featured Image Ad (article-after-intro)', pageGroup: 'Articles', enabled: true, network: 'google-adsense', device: 'all' },
+  { placementKey: 'article-after-content', label: 'Article After Summary Ad (article-after-content)', pageGroup: 'Articles', enabled: true, network: 'google-adsense', device: 'all' },
   { placementKey: 'article_mid', label: 'Article In-Article Mid Content Ad (article_mid)', pageGroup: 'Articles', enabled: true, network: 'google-adsense', device: 'all' },
   { placementKey: 'article_bottom', label: 'Article Reader Bottom Ad (article_bottom)', pageGroup: 'Articles', enabled: true, network: 'google-adsense', device: 'all' },
   { placementKey: 'article_sidebar', label: 'Article Desktop Sidebar Sticky Ad (article_sidebar)', pageGroup: 'Articles', enabled: true, network: 'house', device: 'desktop' },
@@ -68,55 +71,14 @@ const defaultFrequencyRules: AdFrequencyRules = {
 };
 
 const defaultAdSense: AdSenseConfig = {
-  publisherId: 'ca-pub-5020716602157264',
+  publisherId: DEFAULT_ADSENSE_PUBLISHER_ID,
   autoAdsEnabled: true,
   manualAdsEnabled: true,
-  verificationCode: '<meta name="google-adsense-account" content="ca-pub-5020716602157264">',
+  verificationCode: `<meta name="google-adsense-account" content="${DEFAULT_ADSENSE_PUBLISHER_ID}">`,
   scriptLoaded: true
 };
 
-const defaultAdUnits: AdUnit[] = [
-  {
-    id: 'unit-1',
-    name: 'Global Top Header Leaderboard',
-    type: 'display',
-    network: 'google-adsense',
-    slotId: '9876543210',
-    placement: 'global_top',
-    targetDevice: 'all',
-    status: 'active'
-  },
-  {
-    id: 'unit-2',
-    name: 'Article Top Banner',
-    type: 'in-article',
-    network: 'google-adsense',
-    slotId: '1234567890',
-    placement: 'article_top',
-    targetDevice: 'all',
-    status: 'active'
-  },
-  {
-    id: 'unit-3',
-    name: 'Calculator Top Banner',
-    type: 'responsive',
-    network: 'google-adsense',
-    slotId: '5544332211',
-    placement: 'calculator_top',
-    targetDevice: 'all',
-    status: 'active'
-  },
-  {
-    id: 'unit-4',
-    name: 'Article Sidebar Sticky Ad',
-    type: 'display',
-    network: 'google-adsense',
-    slotId: '6677889900',
-    placement: 'article_sidebar',
-    targetDevice: 'desktop',
-    status: 'active'
-  }
-];
+const defaultAdUnits: AdUnit[] = [];
 
 const defaultHouseAds: HouseAd[] = [
   {
@@ -203,7 +165,7 @@ export class AdService {
     if (!rules.globalAdsMasterSwitch) return false;
     const placements = this.getPlacementsConfig();
     const setting = placements.find(p => p.placementKey === placementKey);
-    return setting ? setting.enabled : true;
+    return setting ? setting.enabled : false;
   }
 
   public static getPlacementSetting(placementKey: AdPlacementKey): PlacementSetting | undefined {
@@ -213,7 +175,15 @@ export class AdService {
   public static getAdUnits(): AdUnit[] {
     try {
       const data = localStorage.getItem(AD_UNITS_KEY);
-      if (data) return JSON.parse(data);
+      if (data) {
+        const units = JSON.parse(data) as AdUnit[];
+        const demoSlotIds = new Set(['9876543210', '1234567890', '5544332211', '6677889900']);
+        const cleanedUnits = units.filter(unit => unit.slotId && !demoSlotIds.has(unit.slotId));
+        if (cleanedUnits.length !== units.length) {
+          localStorage.setItem(AD_UNITS_KEY, JSON.stringify(cleanedUnits));
+        }
+        return cleanedUnits;
+      }
     } catch (err) {
       console.error('Failed to load ad units', err);
     }
@@ -222,9 +192,17 @@ export class AdService {
 
   public static saveAdUnit(unit: AdUnit): void {
     const units = this.getAdUnits();
-    const idx = units.findIndex(u => u.id === unit.id);
-    if (idx >= 0) units[idx] = unit;
-    else units.push({ ...unit, id: unit.id || 'unit-' + Date.now() });
+    const normalizedUnit: AdUnit = {
+      ...unit,
+      id: unit.id || 'unit-' + Date.now(),
+      type: unit.type || 'responsive',
+      network: unit.network || 'google-adsense',
+      targetDevice: unit.targetDevice || 'all',
+      status: unit.status || 'active'
+    };
+    const idx = units.findIndex(u => u.id === normalizedUnit.id);
+    if (idx >= 0) units[idx] = normalizedUnit;
+    else units.push(normalizedUnit);
     localStorage.setItem(AD_UNITS_KEY, JSON.stringify(units));
   }
 
@@ -244,7 +222,42 @@ export class AdService {
   }
 
   public static saveAdSenseConfig(config: AdSenseConfig): void {
-    localStorage.setItem(ADSENSE_KEY, JSON.stringify(config));
+    const normalizedConfig = {
+      ...config,
+      publisherId: config.publisherId.trim(),
+      verificationCode: config.verificationCode || `<meta name="google-adsense-account" content="${config.publisherId.trim()}">`
+    };
+    localStorage.setItem(ADSENSE_KEY, JSON.stringify(normalizedConfig));
+    this.ensureAdSenseScript();
+  }
+
+  public static ensureAdSenseScript(): void {
+    if (typeof document === 'undefined') return;
+
+    const config = this.getAdSenseConfig();
+    const publisherId = config.publisherId.trim();
+    if (!config.autoAdsEnabled && !config.manualAdsEnabled) return;
+    if (!publisherId || !publisherId.startsWith('ca-pub-')) return;
+
+    let metaAdSense = document.querySelector('meta[name="google-adsense-account"]');
+    if (!metaAdSense) {
+      metaAdSense = document.createElement('meta');
+      metaAdSense.setAttribute('name', 'google-adsense-account');
+      document.head.appendChild(metaAdSense);
+    }
+    metaAdSense.setAttribute('content', publisherId);
+
+    const existing = document.querySelector<HTMLScriptElement>('script[data-managed-adsense="true"]');
+    const src = `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${encodeURIComponent(publisherId)}`;
+    if (existing?.src === src) return;
+    existing?.remove();
+
+    const script = document.createElement('script');
+    script.async = true;
+    script.crossOrigin = 'anonymous';
+    script.src = src;
+    script.dataset.managedAdsense = 'true';
+    document.head.appendChild(script);
   }
 
   public static getHouseAds(): HouseAd[] {
@@ -262,6 +275,11 @@ export class AdService {
     const idx = ads.findIndex(a => a.id === ad.id);
     if (idx >= 0) ads[idx] = ad;
     else ads.push({ ...ad, id: ad.id || 'house-' + Date.now() });
+    localStorage.setItem(HOUSE_ADS_KEY, JSON.stringify(ads));
+  }
+
+  public static deleteHouseAd(id: string): void {
+    const ads = this.getHouseAds().filter(a => a.id !== id);
     localStorage.setItem(HOUSE_ADS_KEY, JSON.stringify(ads));
   }
 
@@ -298,8 +316,8 @@ export class AdService {
       const placements = this.getPlacementsConfig();
 
       return placements.map((p) => {
-        const imp = raw[p.placementKey]?.impressions || Math.floor(Math.random() * 1200) + 400;
-        const clk = raw[p.placementKey]?.clicks || Math.floor(imp * 0.025);
+        const imp = raw[p.placementKey]?.impressions || 0;
+        const clk = raw[p.placementKey]?.clicks || 0;
         const ctr = imp > 0 ? Number(((clk / imp) * 100).toFixed(2)) : 0;
         const rpm = (imp / 1000) * 45;
 

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { StorageService } from '../../services/storageService';
 import { CommentItem } from '../../types';
 import { MessageSquare, Check, X, Trash2, ShieldAlert, CheckCircle2 } from 'lucide-react';
-const COMMENTS_API = 'http://localhost:5000/api/admin/comments';
+import { adminApiFetch } from '../../services/apiConfig';
 
 export const AdminComments: React.FC = () => {
   const [comments, setComments] = useState<CommentItem[]>([]);
@@ -11,7 +11,7 @@ export const AdminComments: React.FC = () => {
 
   const refreshComments = async () => {
     try {
-      const response = await fetch(COMMENTS_API);
+      const response = await adminApiFetch('/admin/comments');
 
       if (!response.ok) {
         throw new Error('Failed to fetch comments');
@@ -52,8 +52,8 @@ export const AdminComments: React.FC = () => {
     status: 'approved' | 'pending' | 'spam'
   ) => {
     try {
-      const response = await fetch(
-        `http://localhost:5000/api/admin/comments/${id}/status`,
+      const response = await adminApiFetch(
+        `/admin/comments/${id}/status`,
         {
           method: 'PUT',
           headers: {
@@ -78,8 +78,8 @@ export const AdminComments: React.FC = () => {
   const handleDelete = async (id: string) => {
     if (window.confirm('Delete this comment permanently?')) {
       try {
-        const response = await fetch(
-          `http://localhost:5000/api/admin/comments/${id}`,
+        const response = await adminApiFetch(
+          `/admin/comments/${id}`,
           {
             method: 'DELETE',
           }

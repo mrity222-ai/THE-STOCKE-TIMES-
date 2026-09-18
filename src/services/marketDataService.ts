@@ -1,5 +1,6 @@
 import { MarketIndex } from '../types';
 import { StorageService } from './storageService';
+import { apiFetch } from './apiConfig';
 
 export interface FinnhubNewsArticle {
   id: number;
@@ -46,7 +47,7 @@ export class MarketDataService {
 
     try {
       // 1. Try local Express Proxy (which connects to Yahoo Finance API server-side)
-      const res = await fetch('http://localhost:5000/api/market-data');
+      const res = await apiFetch('/market-data');
       if (res.ok) {
         const data = await res.json();
         if (data.indices && data.indices.length > 0) {
@@ -139,7 +140,7 @@ export class MarketDataService {
    */
   static async fetchFinnhubNews(): Promise<FinnhubNewsArticle[]> {
     try {
-      const res = await fetch('http://localhost:5000/api/finnhub/news');
+      const res = await apiFetch('/finnhub/news');
       if (res.ok) {
         const data = await res.json();
         return data.articles || [];
@@ -155,7 +156,7 @@ export class MarketDataService {
    */
   static async fetchFinnhubQuote(symbol: string): Promise<FinnhubQuote | null> {
     try {
-      const res = await fetch(`http://localhost:5000/api/finnhub/us-quote/${symbol}`);
+      const res = await apiFetch(`/finnhub/us-quote/${symbol}`);
       if (res.ok) {
         return await res.json();
       }

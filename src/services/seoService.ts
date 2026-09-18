@@ -1,4 +1,5 @@
 import { Article, Author } from '../types';
+import { AdService } from './adService';
 
 export class SeoService {
   /**
@@ -43,14 +44,15 @@ export class SeoService {
       metaRobots.setAttribute('content', 'index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1');
     }
     // Google AdSense Account Verification Meta Tag
+    const adsensePublisherId = AdService.getAdSenseConfig().publisherId;
     let metaAdSense = document.querySelector('meta[name="google-adsense-account"]');
     if (!metaAdSense) {
       metaAdSense = document.createElement('meta');
       metaAdSense.setAttribute('name', 'google-adsense-account');
-      metaAdSense.setAttribute('content', 'ca-pub-5020716602157264');
+      metaAdSense.setAttribute('content', adsensePublisherId);
       document.head.appendChild(metaAdSense);
     } else {
-      metaAdSense.setAttribute('content', 'ca-pub-5020716602157264');
+      metaAdSense.setAttribute('content', adsensePublisherId);
     }
 
     // Canonical Link

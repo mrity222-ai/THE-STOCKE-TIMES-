@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { StorageService } from '../../services/storageService';
+import { ApiService } from '../../services/apiService';
 import { Article, Author } from '../../types';
 import { Newspaper, Calendar, Clock, ArrowRight, ChevronDown, Flame, Sparkles } from 'lucide-react';
 
@@ -21,11 +22,21 @@ export const LatestNewsFeed: React.FC<LatestNewsFeedProps> = ({
   const [articlesList, setArticlesList] = useState<Article[]>(() => StorageService.getArticles());
 
   React.useEffect(() => {
+    let isMounted = true;
+    ApiService.fetchArticles().then((freshArticles) => {
+      if (isMounted) {
+        setArticlesList(freshArticles);
+      }
+    });
+
     const handleStorageChange = () => {
       setArticlesList(StorageService.getArticles());
     };
     window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
+    return () => {
+      isMounted = false;
+      window.removeEventListener('storage', handleStorageChange);
+    };
   }, []);
 
   // Fetch all published articles sorted strictly newest first

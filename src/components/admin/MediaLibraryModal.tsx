@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { StorageService } from '../../services/storageService';
 import { MediaItem } from '../../types';
 import { X, Upload, Search, Copy, Check, Trash2, Image as ImageIcon, CheckCircle2 } from 'lucide-react';
+import { optimizeImageFile } from '../../utils/imageUpload';
 
 interface MediaLibraryModalProps {
   isOpen: boolean;
@@ -53,6 +54,50 @@ export const MediaLibraryModal: React.FC<MediaLibraryModalProps> = ({ isOpen, on
     }
   };
 
+  const handleDeviceImageUpload = async (files: FileList | File[]) => {
+    const imageFiles = Array.from(files).filter((file) => file.type.startsWith('image/'));
+    if (!imageFiles.length) return;
+
+    let firstUploadedImage: { url: string; name: string } | null = null;
+
+    try {
+      for (const file of imageFiles) {
+        const optimized = await optimizeImageFile(file, {
+          maxWidth: 1280,
+          maxHeight: 1280,
+          quality: 0.76
+        });
+
+        try {
+          StorageService.addMediaItem({
+            name: file.name,
+            url: optimized.dataUrl,
+            altText: file.name,
+            dimensions: optimized.width && optimized.height ? `${optimized.width}x${optimized.height}` : undefined,
+            size: optimized.sizeLabel
+          });
+        } catch (error) {
+          console.warn('Media library save failed:', error);
+        }
+
+        if (!firstUploadedImage) {
+          firstUploadedImage = { url: optimized.dataUrl, name: file.name };
+        }
+      }
+
+      refreshMedia();
+      setShowUploadForm(false);
+
+      if (onSelectImage && firstUploadedImage) {
+        onSelectImage(firstUploadedImage.url, firstUploadedImage.name);
+        onClose();
+      }
+    } catch (error) {
+      console.error('Image upload failed:', error);
+      alert('Image upload failed. Please try a smaller image.');
+    }
+  };
+
   const filteredItems = mediaItems.filter(item => {
     const q = searchQuery.toLowerCase();
     return !q || item.name.toLowerCase().includes(q) || (item.altText && item.altText.toLowerCase().includes(q));
@@ -92,7 +137,7 @@ export const MediaLibraryModal: React.FC<MediaLibraryModalProps> = ({ isOpen, on
             className="bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold px-4 py-2 rounded-xl shadow transition-colors flex items-center gap-1.5 w-full sm:w-auto justify-center cursor-pointer"
           >
             <Upload className="w-4 h-4" />
-            <span>{showUploadForm ? 'Cancel Upload' : 'Upload New Image'}</span>
+            <span>{showUploadForm ? 'Cancel Upload' : 'Upload from Computer'}</span>
           </button>
 
         </div>
@@ -103,7 +148,7 @@ export const MediaLibraryModal: React.FC<MediaLibraryModalProps> = ({ isOpen, on
             <div className="flex items-center gap-3">
               <label className="py-2.5 px-4 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold rounded-xl cursor-pointer flex items-center gap-2 shadow-xs transition-colors">
                 <Upload className="w-4 h-4" />
-                <span>📷 Upload Multiple Images from Device</span>
+                <span>Upload Multiple Images from Computer</span>
                 <input
                   type="file"
                   accept="image/*"
@@ -112,31 +157,12 @@ export const MediaLibraryModal: React.FC<MediaLibraryModalProps> = ({ isOpen, on
                   onChange={(e) => {
                     const files = e.target.files;
                     if (files && files.length > 0) {
-                      let processed = 0;
-                      Array.from(files).forEach((file) => {
-                        const reader = new FileReader();
-                        reader.onload = (event) => {
-                          const dataUrl = event.target?.result as string;
-                          if (dataUrl) {
-                            StorageService.addMediaItem({
-                              name: file.name,
-                              url: dataUrl,
-                              altText: file.name
-                            });
-                            processed++;
-                            if (processed === files.length) {
-                              refreshMedia();
-                              setShowUploadForm(false);
-                            }
-                          }
-                        };
-                        reader.readAsDataURL(file);
-                      });
+                      void handleDeviceImageUpload(files);
                     }
                   }}
                 />
               </label>
-              <span className="text-slate-500 font-bold text-xs">Select 1 or multiple images at once</span>
+              <span className="text-slate-500 font-bold text-xs">Select 1 or multiple images directly from your local computer</span>
             </div>
 
             <form onSubmit={handleUploadSubmit} className="grid grid-cols-1 sm:grid-cols-3 gap-3">

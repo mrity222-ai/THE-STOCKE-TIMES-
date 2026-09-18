@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Mail, Send, CheckCircle2, AlertTriangle, Loader2, AlertCircle } from 'lucide-react';
 import { LatestArticlesSection } from '../components/articles/LatestArticlesSection';
+import { apiFetch } from '../services/apiConfig';
 
 interface ContactPageProps {
   onNavigate?: (route: string, param?: string) => void;
@@ -44,7 +45,7 @@ export const ContactPage: React.FC<ContactPageProps> = ({ onNavigate }) => {
     setIsSubmitting(true);
 
     try {
-      const response = await fetch('http://localhost:5000/api/contact', {
+      const response = await apiFetch('/contact', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)

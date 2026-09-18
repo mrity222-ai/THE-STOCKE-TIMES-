@@ -14,12 +14,20 @@ export const AdSlot: React.FC<AdSlotProps> = ({ placement, className = '' }) => 
   const houseAds = AdService.getHouseAds();
   const placementSetting = AdService.getPlacementSetting(placement);
 
-  const isEnabled = AdService.isPlacementEnabled(placement);
+  const getCurrentDevice = (): 'desktop' | 'mobile' => {
+    if (typeof window === 'undefined') return 'desktop';
+    return window.innerWidth < 768 ? 'mobile' : 'desktop';
+  };
+
+  const currentDevice = getCurrentDevice();
+  const matchesDevice = !placementSetting || placementSetting.device === 'all' || placementSetting.device === currentDevice;
+  const isEnabled = AdService.isPlacementEnabled(placement) && matchesDevice;
 
   useEffect(() => {
     if (isEnabled) {
       AdService.trackImpression(placement);
       try {
+        AdService.ensureAdSenseScript();
         // Push to window.adsbygoogle when AdSense script is loaded
         if (window && (window as any).adsbygoogle) {
           ((window as any).adsbygoogle = (window as any).adsbygoogle || []).push({});
@@ -39,10 +47,26 @@ export const AdSlot: React.FC<AdSlotProps> = ({ placement, className = '' }) => 
   const reservedMinHeight = isSidebar ? 'min-h-[280px]' : 'min-h-[100px] sm:min-h-[120px]';
 
   // House Ad rendering (Strict AdSense Policy Compliance: clearly marked as Promoted Tool)
-  const houseAd = houseAds.find(h => h.placement === placement && h.status === 'active');
+  const now = new Date();
+  const activeHouseAds = houseAds.filter((h) => {
+    const startsOk = !h.startDate || new Date(h.startDate) <= now;
+    const endsOk = !h.endDate || new Date(h.endDate) >= now;
+    const impressionOk = !h.maxImpressions || (h.impressions || 0) < h.maxImpressions;
+    const clickOk = !h.maxClicks || (h.clicks || 0) < h.maxClicks;
+    const deviceOk = !h.deviceTargeting || h.deviceTargeting === 'all' || h.deviceTargeting === currentDevice;
+    return h.placement === placement && h.status === 'active' && startsOk && endsOk && impressionOk && clickOk && deviceOk;
+  });
+  const houseAd = activeHouseAds.sort((a, b) => {
+    const priorityRank = { high: 3, medium: 2, low: 1 };
+    const aPriority = priorityRank[a.priority || 'medium'];
+    const bPriority = priorityRank[b.priority || 'medium'];
+    if (bPriority !== aPriority) return bPriority - aPriority;
+    return (b.rotationWeight || 0) - (a.rotationWeight || 0);
+  })[0];
 
-  if ((houseAd && rules.houseAdsEnabled) || placementSetting?.network === 'house') {
-    const activeHouse = houseAd || houseAds[0];
+  if (rules.houseAdsEnabled && placementSetting?.network === 'house' && houseAd) {
+    const activeHouse = houseAd;
+    const targetUrl = activeHouse.targetUrl || activeHouse.destinationUrl || '/';
     return (
       <div className={`my-4 bg-slate-900 text-white rounded-2xl p-5 border border-slate-800 shadow-md ${reservedMinHeight} flex flex-col justify-between ${className}`}>
         {/* Strict Non-Deceptive Disclosure Label */}
@@ -63,7 +87,9 @@ export const AdSlot: React.FC<AdSlotProps> = ({ placement, className = '' }) => 
           </div>
 
           <a
-            href={activeHouse.targetUrl}
+            href={targetUrl}
+            target={activeHouse.targetWindow || '_self'}
+            rel={activeHouse.targetWindow === '_blank' ? 'noopener noreferrer sponsored' : 'sponsored'}
             onClick={() => AdService.trackClick(placement)}
             className="bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs px-4 py-2.5 rounded-xl shadow shrink-0 flex items-center gap-1.5 cursor-pointer transition-colors"
           >
@@ -72,6 +98,19 @@ export const AdSlot: React.FC<AdSlotProps> = ({ placement, className = '' }) => 
         </div>
       </div>
     );
+  }
+
+  if (placementSetting?.network !== 'google-adsense' || !rules.googleAdsenseEnabled || !adsense.manualAdsEnabled || !adsense.publisherId) {
+    return null;
+  }
+
+  const activeUnit = AdService.getAdUnits().find((unit) => {
+    const deviceOk = unit.targetDevice === 'all' || unit.targetDevice === currentDevice;
+    return unit.placement === placement && unit.status === 'active' && unit.network === 'google-adsense' && deviceOk;
+  });
+
+  if (!activeUnit?.slotId) {
+    return null;
   }
 
   // Google AdSense Responsive Unit Container (Fixed reserved bounding box to eliminate CLS)
@@ -97,26 +136,13 @@ export const AdSlot: React.FC<AdSlotProps> = ({ placement, className = '' }) => 
           className="adsbygoogle"
           style={{ display: 'block', width: '100%', minHeight: isSidebar ? '250px' : '90px' }}
           data-ad-client={adsense.publisherId}
-          data-ad-slot={placementSetting?.placementKey || '1234567890'}
+          data-ad-slot={activeUnit.slotId}
           data-ad-format="auto"
           data-full-width-responsive="true"
         />
-
-        {/* Fallback Display Frame when AdSense is in test/demo mode */}
-        <div className="absolute inset-0 bg-white/95 flex items-center justify-center p-4 text-center pointer-events-none group-hover:bg-white transition-colors">
-          <div className="space-y-1">
-            <span className="text-xs font-extrabold text-slate-700 block">
-              Google AdSense Responsive Unit
-            </span>
-            <span className="text-[10px] font-mono text-slate-400 block">
-              Placement: <code className="bg-slate-100 px-1 py-0.5 rounded text-slate-600 font-bold">{placement}</code> • Container Reserved Height: {reservedMinHeight}
-            </span>
-          </div>
-        </div>
 
       </div>
 
     </div>
   );
 };
-

@@ -25,62 +25,6 @@ export const FeaturedArticleHero: React.FC<FeaturedArticleHeroProps> = ({ articl
   return (
     <section className="mb-12 space-y-8">
 
-      {/* Editorial Brand Hero Banner (Height reduced ~25%, Stock-chart background pattern, 2 CTA buttons) */}
-      <div className="bg-gradient-to-r from-[#0B1F33] via-[#0B1F33] to-[#155EEF]/35 text-white rounded-3xl p-6 sm:p-8 border border-slate-800 shadow-2xl relative overflow-hidden space-y-4">
-        
-        {/* Subtle Stock Chart Background Pattern */}
-        <div className="absolute inset-0 pointer-events-none overflow-hidden opacity-25">
-          <svg className="absolute right-0 bottom-0 w-[500px] h-full text-emerald-400/20 stroke-current" fill="none" viewBox="0 0 500 200">
-            <path d="M0 160 Q 70 130, 140 145 T 280 85 T 420 35 L 500 15" strokeWidth="2.5" />
-            <path d="M0 180 Q 70 150, 140 160 T 280 100 T 420 50 L 500 30" strokeWidth="1.5" strokeDasharray="6 3" />
-            <path d="M0 190 L 80 170 L 160 175 L 240 120 L 320 110 L 400 45 L 480 25 L 500 15 L 500 200 L 0 200 Z" fill="url(#chart-hero-grad)" opacity="0.3" />
-            <defs>
-              <linearGradient id="chart-hero-grad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#10B981" stopOpacity="0.4" />
-                <stop offset="100%" stopColor="#10B981" stopOpacity="0" />
-              </linearGradient>
-            </defs>
-          </svg>
-        </div>
-
-        <div className="relative z-10 space-y-3 max-w-4xl">
-          <div className="flex items-center gap-2 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-3 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-widest w-fit">
-            <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-            <span>GLOBAL FINANCIAL NEWS & INVESTING PUBLICATION</span>
-          </div>
-
-          <h1 className="text-2xl sm:text-4xl font-extrabold tracking-tight text-white flex flex-wrap items-center gap-2.5 font-serif leading-tight">
-            <span>TheStoceTimes.com</span>
-            <span className="text-emerald-400 font-bold text-base sm:text-xl border-l-2 border-emerald-500 pl-3 font-sans">
-              Smarter Market Insights & Financial Tools
-            </span>
-          </h1>
-
-          <p className="text-slate-300 text-xs sm:text-sm font-normal leading-relaxed max-w-2xl font-sans">
-            Finance news, investment insights, 20 financial calculators and comparison tools to help you make better-informed financial decisions.
-          </p>
-
-          {/* 2 CTA Buttons */}
-          <div className="flex flex-wrap items-center gap-3 pt-2">
-            <button
-              onClick={() => onNavigate('finance-news')}
-              className="bg-[#16A34A] hover:bg-emerald-500 text-white font-extrabold text-xs px-4 py-2.5 rounded-xl shadow-md flex items-center gap-2 cursor-pointer transition-all hover:scale-[1.02]"
-            >
-              <Newspaper className="w-4 h-4" />
-              <span>Explore Latest News</span>
-            </button>
-
-            <button
-              onClick={() => onNavigate('financial-tools')}
-              className="bg-slate-800/90 hover:bg-slate-700 text-white font-extrabold text-xs px-4 py-2.5 rounded-xl border border-slate-700 shadow-md flex items-center gap-2 cursor-pointer transition-all hover:scale-[1.02]"
-            >
-              <Calculator className="w-4 h-4 text-emerald-400" />
-              <span>Use Financial Calculators</span>
-            </button>
-          </div>
-        </div>
-      </div>
-
       {/* Hero Grid Header */}
       <div className="flex items-center justify-between border-b border-slate-200 pb-3">
         <div className="flex items-center gap-2.5">

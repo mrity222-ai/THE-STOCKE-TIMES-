@@ -75,6 +75,10 @@ export const AdminArticles: React.FC<AdminArticlesProps> = ({ onNavigateSub, onE
 
   const handleBulkDelete = () => {
     if (selectedIds.length === 0) return;
+    if (isAuthorRole) {
+      showToast('Authors cannot bulk delete articles.');
+      return;
+    }
     if (window.confirm(`Delete ${selectedIds.length} selected articles?`)) {
       StorageService.bulkDeleteArticles(selectedIds);
       setSelectedIds([]);
@@ -85,6 +89,10 @@ export const AdminArticles: React.FC<AdminArticlesProps> = ({ onNavigateSub, onE
 
   const handleBulkPublish = () => {
     if (selectedIds.length === 0) return;
+    if (isAuthorRole) {
+      showToast('Only admins can publish articles.');
+      return;
+    }
     StorageService.bulkUpdateStatus(selectedIds, 'published');
     setSelectedIds([]);
     refreshArticles();
@@ -100,6 +108,10 @@ export const AdminArticles: React.FC<AdminArticlesProps> = ({ onNavigateSub, onE
   };
 
   const handleDeleteSingle = (id: string) => {
+    if (isAuthorRole) {
+      showToast('Authors cannot delete articles.');
+      return;
+    }
     if (window.confirm('Delete this article?')) {
       StorageService.deleteArticle(id);
       refreshArticles();
@@ -108,6 +120,10 @@ export const AdminArticles: React.FC<AdminArticlesProps> = ({ onNavigateSub, onE
   };
 
   const handleTogglePublishSingle = (id: string) => {
+    if (isAuthorRole) {
+      showToast('Only admins can change publish status.');
+      return;
+    }
     StorageService.togglePublishStatus(id);
     refreshArticles();
     showToast('Publish status updated.');
@@ -139,7 +155,11 @@ export const AdminArticles: React.FC<AdminArticlesProps> = ({ onNavigateSub, onE
     showToast(`Scheduled date for "${updated.title}" updated successfully!`);
   };
 
-  const filteredArticles = articles.filter(art => {
+  const visibleArticles = isAuthorRole
+    ? articles.filter(art => art.authorId === currentUser.id)
+    : articles;
+
+  const filteredArticles = visibleArticles.filter(art => {
     const q = searchQuery.toLowerCase();
     const matchesSearch = !q || art.title.toLowerCase().includes(q) || art.excerpt.toLowerCase().includes(q);
     const matchesCategory = selectedCategory === 'all' || art.categoryId === selectedCategory;
@@ -244,15 +264,19 @@ export const AdminArticles: React.FC<AdminArticlesProps> = ({ onNavigateSub, onE
         <div className="bg-slate-900 text-white px-6 py-3 rounded-2xl flex items-center justify-between text-xs animate-in fade-in">
           <span className="font-bold">{selectedIds.length} items selected</span>
           <div className="flex items-center gap-2">
-            <button onClick={handleBulkPublish} className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3 py-1.5 rounded-lg">
-              Publish Selected
-            </button>
+            {!isAuthorRole && (
+              <button onClick={handleBulkPublish} className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3 py-1.5 rounded-lg">
+                Publish Selected
+              </button>
+            )}
             <button onClick={handleBulkDraft} className="bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold px-3 py-1.5 rounded-lg">
               Move to Draft
             </button>
-            <button onClick={handleBulkDelete} className="bg-rose-600 hover:bg-rose-500 text-white font-bold px-3 py-1.5 rounded-lg">
-              Delete Selected
-            </button>
+            {!isAuthorRole && (
+              <button onClick={handleBulkDelete} className="bg-rose-600 hover:bg-rose-500 text-white font-bold px-3 py-1.5 rounded-lg">
+                Delete Selected
+              </button>
+            )}
           </div>
         </div>
       )}
@@ -348,7 +372,8 @@ export const AdminArticles: React.FC<AdminArticlesProps> = ({ onNavigateSub, onE
                     <td className="p-4 font-sans">
                       <button
                         onClick={() => handleTogglePublishSingle(art.id)}
-                        className={`px-2.5 py-1 rounded-full font-extrabold text-[10px] uppercase border cursor-pointer ${getStatusBadgeClass(art.status)}`}
+                        disabled={isAuthorRole}
+                        className={`px-2.5 py-1 rounded-full font-extrabold text-[10px] uppercase border ${isAuthorRole ? 'cursor-default' : 'cursor-pointer'} ${getStatusBadgeClass(art.status)}`}
                       >
                         {art.status}
                       </button>

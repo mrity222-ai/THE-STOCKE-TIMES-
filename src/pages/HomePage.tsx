@@ -1,5 +1,6 @@
 import React from 'react';
 import { StorageService } from '../services/storageService';
+import { ApiService } from '../services/apiService';
 import { Article } from '../types';
 import { FeaturedArticleHero } from '../components/articles/FeaturedArticleHero';
 import { LatestNewsFeed } from '../components/articles/LatestNewsFeed';
@@ -18,11 +19,21 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
   const [articles, setArticles] = React.useState<Article[]>(() => StorageService.getArticles());
 
   React.useEffect(() => {
+    let isMounted = true;
+    ApiService.fetchArticles().then((freshArticles) => {
+      if (isMounted) {
+        setArticles(freshArticles);
+      }
+    });
+
     const handleStorageChange = () => {
       setArticles(StorageService.getArticles());
     };
     window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
+    return () => {
+      isMounted = false;
+      window.removeEventListener('storage', handleStorageChange);
+    };
   }, []);
 
   // Strictly sort all published articles by publishedAt date descending (NEWEST ARTICLES FIRST!)

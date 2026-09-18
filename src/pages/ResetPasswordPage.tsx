@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Lock, Eye, EyeOff, ShieldCheck, CheckCircle2, AlertTriangle, ArrowLeft, TrendingUp } from 'lucide-react';
+import { apiFetch } from '../services/apiConfig';
 
 interface ResetPasswordPageProps {
   onNavigate: (route: string) => void;
@@ -45,7 +46,7 @@ export const ResetPasswordPage: React.FC<ResetPasswordPageProps> = ({ onNavigate
     setIsSubmitting(true);
 
     try {
-      const res = await fetch('http://localhost:5000/api/admin/reset-password', {
+      const res = await apiFetch('/admin/reset-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token, newPassword })

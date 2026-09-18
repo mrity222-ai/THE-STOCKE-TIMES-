@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { StorageService } from '../../services/storageService';
 import { Lock, User, Eye, EyeOff, ShieldCheck, KeyRound, TrendingUp, ArrowLeft, CheckCircle, Mail, AlertTriangle, ShieldAlert, Smartphone } from 'lucide-react';
+import { apiFetch } from '../../services/apiConfig';
 
 interface AdminLoginModalProps {
   onSuccess: () => void;
@@ -15,7 +16,7 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({ onSuccess, onC
   const [viewMode, setViewMode] = useState<'login' | 'otp' | 'forgot' | 'forgot_success'>('login');
   
   // Login Form States
-  const [username, setUsername] = useState('dhoniy423@gmail.com');
+  const [username, setUsername] = useState(import.meta.env.VITE_ADMIN_EMAIL || '');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [rememberDevice, setRememberDevice] = useState(true);
@@ -50,15 +51,15 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({ onSuccess, onC
     setIsSubmitting(true);
 
     const endpoint = loginType === 'otp_only'
-      ? 'http://localhost:5000/api/admin/send-login-otp'
-      : 'http://localhost:5000/api/admin/login-step1';
+      ? '/admin/send-login-otp'
+      : '/admin/login-step1';
 
     const payload = loginType === 'otp_only'
       ? { email: username }
       : { email: username, password };
 
     try {
-      const res = await fetch(endpoint, {
+      const res = await apiFetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -73,7 +74,7 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({ onSuccess, onC
         setCooldown(60);
         setSuccessMessage(`Login OTP code sent to ${username}`);
       } else {
-        const localRes = StorageService.loginAdmin(username, password || 'admin123');
+        const localRes = StorageService.loginAdmin(username, password);
         if (localRes.success) {
           onSuccess();
         } else {
@@ -81,7 +82,7 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({ onSuccess, onC
         }
       }
     } catch (err) {
-      const localRes = StorageService.loginAdmin(username, password || 'admin123');
+      const localRes = StorageService.loginAdmin(username, password);
       setIsSubmitting(false);
       if (localRes.success) {
         onSuccess();
@@ -98,7 +99,7 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({ onSuccess, onC
     setIsSubmitting(true);
 
     try {
-      const res = await fetch('http://localhost:5000/api/admin/verify-otp', {
+      const res = await apiFetch('/admin/verify-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ tempToken, otp: otpCode, rememberDevice })
@@ -107,7 +108,7 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({ onSuccess, onC
       setIsSubmitting(false);
 
       if (data.success) {
-        StorageService.loginAdmin(username, password || 'admin123');
+        StorageService.saveAdminSession(data.user || { email: username }, data.token || '');
         onSuccess();
       } else {
         setErrorMessage(data.message || 'Invalid OTP code.');
@@ -126,11 +127,11 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({ onSuccess, onC
     setCooldown(60);
 
     const endpoint = loginType === 'otp_only'
-      ? 'http://localhost:5000/api/admin/send-login-otp'
-      : 'http://localhost:5000/api/admin/login-step1';
+      ? '/admin/send-login-otp'
+      : '/admin/login-step1';
 
     try {
-      const res = await fetch(endpoint, {
+      const res = await apiFetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: username, password })
@@ -153,7 +154,7 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({ onSuccess, onC
     setIsSubmitting(true);
 
     try {
-      const res = await fetch('http://localhost:5000/api/admin/forgot-password', {
+      const res = await apiFetch('/admin/forgot-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: forgotEmail })
@@ -273,7 +274,7 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({ onSuccess, onC
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   className="w-full pl-10 pr-4 py-3 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white placeholder-slate-500 font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
-                  placeholder="dhoniy423@gmail.com"
+                  placeholder="admin@example.com"
                 />
                 <User className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
               </div>
@@ -436,7 +437,7 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({ onSuccess, onC
                   value={forgotEmail}
                   onChange={(e) => setForgotEmail(e.target.value)}
                   className="w-full pl-10 pr-4 py-3 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white placeholder-slate-500 font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
-                  placeholder="dhoniy423@gmail.com"
+                  placeholder="admin@example.com"
                 />
                 <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
               </div>

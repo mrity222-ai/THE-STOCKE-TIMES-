@@ -1,5 +1,6 @@
 import { Article, Author, Category, MediaItem, TagItem, MarketIndex, CommentItem, SiteSettings, AnalyticsSummary, UserAccount, Subscriber, LegalPageItem } from '../types';
 import { INITIAL_ARTICLES, INITIAL_AUTHORS, INITIAL_CATEGORIES, INITIAL_MARKET_INDICES } from '../data/initialData';
+import { adminApiFetch, apiFetch } from './apiConfig';
 
 const ARTICLES_STORAGE_KEY = 'finance_pulse_articles_v3';
 const AUTHORS_STORAGE_KEY = 'finance_pulse_authors_v3';
@@ -59,11 +60,11 @@ const INITIAL_SETTINGS: SiteSettings = {
   facebookUrl: 'https://facebook.com/thestocetimes',
   youtubeUrl: 'https://youtube.com/c/thestocetimes',
   enableYahooFinanceApi: true,
-  smtpHost: 'smtp.hostinger.com',
+  smtpHost: '',
   smtpPort: 465,
-  smtpUsername: 'info@avedatechnologies.com',
-  smtpPassword: 'Jaymatadi@122',
-  smtpFromEmail: 'info@avedatechnologies.com',
+  smtpUsername: '',
+  smtpPassword: '',
+  smtpFromEmail: '',
   smtpFromName: 'The Stoce Times Editors',
   smtpSecure: true
 };
@@ -92,7 +93,7 @@ export class StorageService {
         if (parsed.isLoggedIn) {
           return {
             name: parsed.username || 'Chief Editor',
-            email: parsed.email || 'dhoniy423@gmail.com',
+            email: parsed.email || 'admin@thestocetimes.com',
             role: 'Super Admin',
             avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80'
           };
@@ -107,12 +108,16 @@ export class StorageService {
   static loginAdmin(usernameInput: string, passwordInput: string): { success: boolean; message: string } {
     const user = usernameInput.trim().toLowerCase();
     const pass = passwordInput.trim();
+    const fallbackEnabled = import.meta.env.VITE_ENABLE_LOCAL_ADMIN_FALLBACK === 'true';
+    const fallbackEmail = String(import.meta.env.VITE_ADMIN_EMAIL || '').trim().toLowerCase();
+    const fallbackPassword = String(import.meta.env.VITE_ADMIN_PASSWORD || '');
 
-    if ((user === 'dhoniy423@gmail.com' || user === 'admin@thestocetimes.com' || user === 'admin') && (pass === 'Jaymatadi@122' || pass === 'admin123')) {
+    if (fallbackEnabled && fallbackEmail && fallbackPassword && user === fallbackEmail && pass === fallbackPassword) {
       const session = {
         isLoggedIn: true,
         username: 'Chief Editor',
-        email: 'dhoniy423@gmail.com',
+        email: fallbackEmail,
+        token: '',
         loginTime: new Date().toISOString()
       };
       localStorage.setItem(ADMIN_AUTH_KEY, JSON.stringify(session));
@@ -120,6 +125,27 @@ export class StorageService {
     }
 
     return { success: false, message: 'Invalid admin username or password.' };
+  }
+
+  static saveAdminSession(user: { name?: string; email?: string; role?: string }, token: string): void {
+    const session = {
+      isLoggedIn: true,
+      username: user.name || 'Chief Editor',
+      email: user.email || 'admin@thestocetimes.com',
+      role: user.role || 'admin',
+      token,
+      loginTime: new Date().toISOString()
+    };
+    localStorage.setItem(ADMIN_AUTH_KEY, JSON.stringify(session));
+  }
+
+  static getAdminAuthToken(): string {
+    try {
+      const auth = localStorage.getItem(ADMIN_AUTH_KEY);
+      return auth ? JSON.parse(auth).token || '' : '';
+    } catch {
+      return '';
+    }
   }
 
   static logoutAdmin(): void {
@@ -134,12 +160,40 @@ export class StorageService {
         localStorage.setItem(ARTICLES_STORAGE_KEY, JSON.stringify(INITIAL_ARTICLES));
         return INITIAL_ARTICLES;
       }
-      return JSON.parse(data).map((article: Article) => ({
-        ...article,
-        showPublishedDate: article.showPublishedDate ?? true
-      }));
+      let changed = false;
+      const now = Date.now();
+      const articles = JSON.parse(data).map((article: Article) => {
+        const scheduledTime = article.scheduledDate ? new Date(article.scheduledDate).getTime() : NaN;
+        if (article.status === 'scheduled' && Number.isFinite(scheduledTime) && scheduledTime <= now) {
+          changed = true;
+          return {
+            ...article,
+            status: 'published',
+            publishedAt: article.scheduledDate || article.publishedAt || new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            showPublishedDate: article.showPublishedDate ?? true
+          };
+        }
+        return {
+          ...article,
+          showPublishedDate: article.showPublishedDate ?? true
+        };
+      });
+      if (changed) {
+        localStorage.setItem(ARTICLES_STORAGE_KEY, JSON.stringify(articles));
+      }
+      return articles;
     } catch (e) {
       return INITIAL_ARTICLES;
+    }
+  }
+
+  static setArticles(articles: Article[]): void {
+    try {
+      localStorage.setItem(ARTICLES_STORAGE_KEY, JSON.stringify(articles));
+      window.dispatchEvent(new Event('storage'));
+    } catch (error) {
+      console.warn('Unable to cache articles locally:', error);
     }
   }
 
@@ -165,14 +219,28 @@ export class StorageService {
     // Always unshift newly published or updated article to TOP of array
     articles.unshift(updatedArticle);
 
-    localStorage.setItem(ARTICLES_STORAGE_KEY, JSON.stringify(articles));
+    try {
+      localStorage.setItem(ARTICLES_STORAGE_KEY, JSON.stringify(articles));
+    } catch (error) {
+      console.warn('LocalStorage quota exceeded; pruning gallery cache for local storage while preserving core article.', error);
+      try {
+        const lightweightArticles = articles.map(a => ({
+          ...a,
+          galleryImages: (a.galleryImages || []).slice(0, 2).map(g => ({ ...g, url: g.url.length > 50000 ? g.url.substring(0, 200) + '...' : g.url }))
+        }));
+        localStorage.setItem(ARTICLES_STORAGE_KEY, JSON.stringify(lightweightArticles));
+      } catch (innerErr) {
+        console.error('Critical localStorage write failure:', innerErr);
+      }
+    }
 
     try {
       window.dispatchEvent(new Event('storage'));
+      window.dispatchEvent(new CustomEvent('articles-updated', { detail: updatedArticle }));
     } catch (e) {}
 
     try {
-      fetch('http://localhost:5000/api/articles', {
+      adminApiFetch('/articles', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updatedArticle)
@@ -186,7 +254,7 @@ export class StorageService {
     try {
       const articles = this.getArticles().filter(a => a.id !== id);
       localStorage.setItem(ARTICLES_STORAGE_KEY, JSON.stringify(articles));
-      fetch(`http://localhost:5000/api/articles/${id}`, { method: 'DELETE' }).catch(() => { });
+      adminApiFetch(`/articles/${id}`, { method: 'DELETE' }).catch(() => { });
       return true;
     } catch (e) {
       return false;
@@ -229,7 +297,7 @@ export class StorageService {
         }
 
         try {
-          fetch(`http://localhost:5000/api/articles/${target.id}/view`, { method: 'POST' }).catch(() => {});
+          apiFetch(`/articles/${target.id}/view`, { method: 'POST' }).catch(() => {});
         } catch (e) {}
 
         return target.views;
@@ -464,8 +532,8 @@ export class StorageService {
           {
             id: 'usr-admin-1',
             name: 'Primary Admin',
-            email: 'dhoniy423@gmail.com',
-            password: 'Jaymatadi@122',
+            email: import.meta.env.VITE_ADMIN_EMAIL || 'admin@thestocetimes.com',
+            password: '',
             avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
             role: 'admin',
             status: 'active',
@@ -553,7 +621,7 @@ export class StorageService {
     }
 
     try {
-      fetch('http://localhost:5000/api/users', {
+      adminApiFetch('/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updatedUser)
@@ -567,7 +635,7 @@ export class StorageService {
     try {
       const users = this.getUsers().filter(u => u.id !== id);
       localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
-      fetch(`http://localhost:5000/api/users/${id}`, { method: 'DELETE' }).catch(() => {});
+      adminApiFetch(`/users/${id}`, { method: 'DELETE' }).catch(() => {});
       return true;
     } catch (e) {
       return false;
@@ -583,7 +651,7 @@ export class StorageService {
     return {
       id: 'usr-admin-1',
       name: 'Primary Admin',
-      email: 'dhoniy423@gmail.com',
+      email: import.meta.env.VITE_ADMIN_EMAIL || 'admin@thestocetimes.com',
       role: 'admin',
       status: 'active',
       createdAt: new Date().toISOString()
@@ -605,7 +673,7 @@ export class StorageService {
         const initialSubs: Subscriber[] = [
           {
             id: 'sub-1001',
-            email: 'dhoniy423@gmail.com',
+            email: import.meta.env.VITE_ADMIN_EMAIL || 'admin@thestocetimes.com',
             subscriptionDate: '2026-08-10T10:00:00Z',
             verificationStatus: 'Verified',
             status: 'Active',
@@ -661,7 +729,7 @@ export class StorageService {
     localStorage.setItem(SUBSCRIBERS_STORAGE_KEY, JSON.stringify(subscribers));
 
     try {
-      fetch('http://localhost:5000/api/subscribers', {
+      apiFetch('/subscribers', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newSub)

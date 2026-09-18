@@ -1,35 +1,130 @@
 import nodemailer from 'nodemailer';
-import express, { Request, Response } from 'express';
+import express, { NextFunction, Request, Response } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import crypto from 'crypto';
 import { pool, testConnection } from './config/db';
 
 dotenv.config();
 
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || 'smtp.hostinger.com',
-  port: Number(process.env.SMTP_PORT) || 465,
-  secure: (process.env.SMTP_SECURE === 'true' || Number(process.env.SMTP_PORT) === 465),
-  auth: {
-    user: process.env.SMTP_USERNAME || process.env.SMTP_USER || 'info@avedatechnologies.com',
-    pass: process.env.SMTP_PASSWORD || 'Jaymatadi@122',
-  },
-});
+const smtpUser = process.env.SMTP_USERNAME || process.env.SMTP_USER || '';
+const smtpPassword = process.env.SMTP_PASSWORD || '';
+const hasSmtpConfig = Boolean(process.env.SMTP_HOST && smtpUser && smtpPassword);
 
-transporter.verify((error) => {
-  if (error) {
-    console.error('❌ Hostinger SMTP authentication status:', error.message);
-  } else {
-    console.log('✅ Hostinger SMTP Server Authentication Successful! Ready to deliver 2FA OTPs & Password Reset Emails.');
-  }
-});
+const transporter = hasSmtpConfig
+  ? nodemailer.createTransport({
+      host: process.env.SMTP_HOST,
+      port: Number(process.env.SMTP_PORT) || 465,
+      secure: (process.env.SMTP_SECURE === 'true' || Number(process.env.SMTP_PORT) === 465),
+      auth: {
+        user: smtpUser,
+        pass: smtpPassword,
+      },
+    })
+  : nodemailer.createTransport({
+      streamTransport: true,
+      newline: 'unix',
+      buffer: true,
+    });
+
+if (hasSmtpConfig) {
+  transporter.verify((error) => {
+    if (error) {
+      console.error('SMTP authentication status:', error.message);
+    } else {
+      console.log('SMTP server authentication successful.');
+    }
+  });
+} else {
+  console.warn('SMTP credentials are not configured. Email delivery is disabled until SMTP env vars are set.');
+}
 
 const app = express();
 const PORT = process.env.PORT || 5000;
-const FINNHUB_API_KEY = process.env.FINNHUB_API_KEY || 'c185ffv48vl0bh001a0g'; // Demo/Free Finnhub API Token
+const FINNHUB_API_KEY = process.env.FINNHUB_API_KEY || '';
+const SITE_URL = (process.env.SITE_URL || process.env.ADMIN_URL || 'http://localhost:5173').replace(/\/$/, '');
 
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
+
+function hashSecret(secret: string): string {
+  return crypto.createHash('sha256').update(secret).digest('hex');
+}
+
+const configuredAdminEmails = (process.env.ADMIN_EMAILS || process.env.ADMIN_EMAIL || smtpUser)
+  .split(',')
+  .map(email => email.trim().toLowerCase())
+  .filter(Boolean);
+
+const tempOtpStore = new Map<string, { email: string; otpHash: string; expiresAt: number; attempts: number; resendCount: number; lastSentAt: number }>();
+const tempResetStore = new Map<string, { email: string; tokenHash: string; expiresAt: number }>();
+const adminSessions = new Map<string, { email: string; expiresAt: number }>();
+const loginLogs: any[] = [
+  { id: 'log-1', email: configuredAdminEmails[0] || 'admin@thestocetimes.com', status: 'SYSTEM', action: 'Admin auth initialized', ip: '127.0.0.1', createdAt: new Date().toISOString() }
+];
+
+const adminSessionMinutes = Number(process.env.ADMIN_SESSION_EXPIRY_MINUTES || 720);
+let runtimeAdminPasswordHash = '';
+
+function isAdminEmail(email: string): boolean {
+  return configuredAdminEmails.includes(email);
+}
+
+function isAdminPasswordValid(password: string): boolean {
+  if (runtimeAdminPasswordHash) {
+    return hashSecret(password) === runtimeAdminPasswordHash;
+  }
+  if (process.env.ADMIN_PASSWORD_HASH) {
+    return hashSecret(password) === process.env.ADMIN_PASSWORD_HASH;
+  }
+  if (process.env.ADMIN_PASSWORD) {
+    return password === process.env.ADMIN_PASSWORD;
+  }
+  return false;
+}
+
+function issueAdminSession(email: string): string {
+  const token = 'adm-' + crypto.randomBytes(32).toString('hex');
+  adminSessions.set(token, {
+    email,
+    expiresAt: Date.now() + adminSessionMinutes * 60 * 1000
+  });
+  return token;
+}
+
+function requireAdminAuth(req: Request, res: Response, next: NextFunction) {
+  const authHeader = String(req.headers.authorization || '');
+  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
+  const session = token ? adminSessions.get(token) : null;
+
+  if (!session || Date.now() > session.expiresAt) {
+    if (token) adminSessions.delete(token);
+    return res.status(401).json({ success: false, message: 'Admin authentication required.' });
+  }
+
+  session.expiresAt = Date.now() + adminSessionMinutes * 60 * 1000;
+  next();
+}
+
+app.use('/api/admin/contact-messages', requireAdminAuth);
+app.use('/api/admin/comments', requireAdminAuth);
+app.use('/api/admin/faqs', requireAdminAuth);
+app.use('/api/admin/logs', requireAdminAuth);
+app.use('/api/smtp-config', requireAdminAuth);
+app.use('/api/users', requireAdminAuth);
+app.use('/api/subscribers/notify-article', requireAdminAuth);
+app.use('/api/articles', (req, res, next) => {
+  if (req.method === 'GET' || req.method === 'POST') return next();
+  return requireAdminAuth(req, res, next);
+});
+app.use('/api/financial-rules', (req, res, next) => {
+  if (req.method === 'GET') return next();
+  return requireAdminAuth(req, res, next);
+});
+app.use('/api/social-media', (req, res, next) => {
+  if (req.method === 'GET') return next();
+  return requireAdminAuth(req, res, next);
+});
 
 // Health check endpoint
 app.get('/api/health', async (_req: Request, res: Response) => {
@@ -52,11 +147,6 @@ app.get('/api/status', async (_req: Request, res: Response) => {
     dbName: process.env.DB_NAME || 'finance_pulse_db',
     tables: ['users', 'articles', 'categories', 'subscribers', 'article_faqs', 'site_settings', 'comments', 'login_logs']
   });
-});
-
-// Serve ads.txt for Google AdSense Verification
-app.get('/ads.txt', (_req: Request, res: Response) => {
-  res.type('text/plain').send('google.com, pub-5020716602157264, DIRECT, f08c47fec0942fa0\n');
 });
 
 // Blog subscription
@@ -93,7 +183,7 @@ app.post('/api/subscribers', async (req: Request, res: Response) => {
     );
 
     await transporter.sendMail({
-      from: process.env.SMTP_FROM,
+      from: process.env.SMTP_FROM || smtpUser,
       to: email,
       subject: 'Welcome to TheStoceTimes',
       html: `
@@ -186,8 +276,8 @@ app.post('/api/contact', async (req: Request, res: Response) => {
     // 5. Send Email Notification to Admin via Nodemailer
     try {
       await transporter.sendMail({
-        from: process.env.SMTP_FROM || 'contact@thestocetimes.com',
-        to: process.env.ADMIN_EMAIL || 'business@thestocetimes.com',
+        from: process.env.SMTP_FROM || smtpUser,
+        to: process.env.CONTACT_TO_EMAIL || configuredAdminEmails[0] || smtpUser,
         subject: `[Contact Form] ${cleanSubject} - ${cleanName}`,
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; padding: 20px; border: 1px solid #e2e8f0; border-radius: 10px;">
@@ -262,9 +352,28 @@ async function initializeTables() {
         bio TEXT NOT NULL,
         credentials VARCHAR(255) NOT NULL,
         article_count INT DEFAULT 0,
-        total_views INT DEFAULT 0,
-        twitter VARCHAR(255),
-        linkedin VARCHAR(255)
+        total_views INT DEFAULT 0
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    `);
+
+    await pool.query(`
+      INSERT IGNORE INTO authors (id, name, role, avatar, bio, credentials) VALUES 
+      ('author-1', 'Dr. Aris Thorne, CFA', 'Chief Market Strategist', 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80', 'Senior Market Analyst', 'CFA, CFP'),
+      ('author-2', 'Elena Rostova', 'Senior Banking Analyst', 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=300&q=80', 'Banking Columnist', 'CFA'),
+      ('admin-1', 'Chief Editor', 'Primary Admin', 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80', 'Editor in Chief', 'CFA, CFP');
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id VARCHAR(64) PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        email VARCHAR(255) NOT NULL UNIQUE,
+        avatar TEXT,
+        role VARCHAR(64) DEFAULT 'author',
+        status VARCHAR(32) DEFAULT 'active',
+        bio TEXT,
+        credentials VARCHAR(255),
+        created_at VARCHAR(64) NOT NULL
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     `);
 
@@ -358,6 +467,19 @@ async function initializeTables() {
     `);
 
     await pool.query(`
+      CREATE TABLE IF NOT EXISTS social_media_settings (
+        id INT PRIMARY KEY,
+        twitter_url TEXT,
+        linkedin_url TEXT,
+        facebook_url TEXT,
+        instagram_url TEXT,
+        youtube_url TEXT,
+        reddit_url TEXT,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    `);
+
+    await pool.query(`
       CREATE TABLE IF NOT EXISTS ad_placements (
         placement_key VARCHAR(128) PRIMARY KEY,
         label VARCHAR(255) NOT NULL,
@@ -417,6 +539,28 @@ async function initializeTables() {
       `);
     }
 
+    const [existingRules]: any = await pool.query('SELECT COUNT(*) as count FROM financial_rules');
+    if (existingRules && existingRules[0] && existingRules[0].count === 0) {
+      const now = new Date().toISOString();
+      await pool.query(
+        `INSERT INTO financial_rules
+         (rule_key, label, category, value, unit, description, last_updated, updated_by, source_reference)
+         VALUES
+         ('ppf_interest_rate', 'PPF Interest Rate', 'ppf', 7.1, 'percent', 'Current Public Provident Fund annual interest rate.', ?, 'System', 'Admin seed'),
+         ('epf_interest_rate', 'EPF Interest Rate', 'epf', 8.25, 'percent', 'Current Employee Provident Fund annual interest rate.', ?, 'System', 'Admin seed'),
+         ('nps_expected_return', 'NPS Expected Return', 'nps', 10.0, 'percent', 'Default expected NPS return assumption.', ?, 'System', 'Admin seed'),
+         ('gst_default_rate', 'GST Default Rate', 'gst', 18.0, 'percent', 'Default GST calculator rate.', ?, 'System', 'Admin seed'),
+         ('inflation_default_rate', 'Default Inflation Rate', 'inflation', 6.0, 'percent', 'Default inflation assumption for planning calculators.', ?, 'System', 'Admin seed')`,
+        [now, now, now, now, now]
+      );
+    }
+
+    await pool.query(`
+      INSERT INTO social_media_settings (id, twitter_url, linkedin_url, facebook_url, instagram_url, youtube_url, reddit_url)
+      VALUES (1, '', '', '', '', '', '')
+      ON DUPLICATE KEY UPDATE id = id
+    `);
+
     console.log('✅ MySQL Database tables initialized successfully.');
   } catch (err: any) {
     console.warn('⚠️ Tables init status:', err.message);
@@ -444,7 +588,7 @@ app.get('/api/articles/:articleId/faqs', async (req: Request, res: Response) => 
 // Add FAQ
 app.post('/api/admin/faqs', async (req: Request, res: Response) => {
   try {
-    const { article_id, question, answer, sort_order } = req.body;
+    const { article_id, question, answer, sort_order, id: requestedId } = req.body;
 
     if (!article_id || !question || !answer) {
       return res.status(400).json({
@@ -452,12 +596,17 @@ app.post('/api/admin/faqs', async (req: Request, res: Response) => {
       });
     }
 
-    const id = `faq_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    const id = requestedId || `faq_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
     await pool.query(
       `INSERT INTO article_faqs
        (id, article_id, question, answer, sort_order)
-       VALUES (?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE
+         article_id = VALUES(article_id),
+         question = VALUES(question),
+         answer = VALUES(answer),
+         sort_order = VALUES(sort_order)`,
       [id, article_id, question.trim(), answer.trim(), sort_order || 0]
     );
 
@@ -643,6 +792,12 @@ app.delete('/api/admin/comments/:id', async (req: Request, res: Response) => {
 // ARTICLES ROUTES
 app.get('/api/articles', async (_req: Request, res: Response) => {
   try {
+    await pool.query(
+      `UPDATE articles
+       SET status = 'published', published_at = COALESCE(scheduled_date, published_at), updated_at = ?
+       WHERE status = 'scheduled' AND scheduled_date IS NOT NULL AND scheduled_date <= ?`,
+      [new Date().toISOString(), new Date().toISOString()]
+    );
     const [rows] = await pool.query('SELECT * FROM articles ORDER BY published_at DESC');
     res.json(rows);
   } catch (err: any) {
@@ -660,6 +815,16 @@ app.get('/api/articles/:slug', async (req: Request, res: Response) => {
   }
 });
 
+app.post('/api/articles/:id/view', async (req: Request, res: Response) => {
+  try {
+    await pool.query('UPDATE articles SET views = COALESCE(views, 0) + 1 WHERE id = ? OR slug = ?', [req.params.id, req.params.id]);
+    const [rows]: any = await pool.query('SELECT views FROM articles WHERE id = ? OR slug = ? LIMIT 1', [req.params.id, req.params.id]);
+    res.json({ success: true, views: rows?.[0]?.views || 0 });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.post('/api/articles', async (req: Request, res: Response) => {
   try {
     const art = req.body;
@@ -669,14 +834,18 @@ app.post('/api/articles', async (req: Request, res: Response) => {
         excerpt, content, highlights, author_id, published_at, show_published_date, updated_at, scheduled_date,
         read_time_minutes, is_featured, is_trending, is_popular, status, tags, views,
         seo_title, seo_description, focus_keywords, canonical_url, og_title, og_description, social_share_image
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON DUPLICATE KEY UPDATE
         title = VALUES(title), category_id = VALUES(category_id), sub_category = VALUES(sub_category),
         featured_image = VALUES(featured_image), image_caption = VALUES(image_caption),
         excerpt = VALUES(excerpt), content = VALUES(content), highlights = VALUES(highlights),
         author_id = VALUES(author_id), show_published_date = VALUES(show_published_date), updated_at = VALUES(updated_at), read_time_minutes = VALUES(read_time_minutes),
         is_featured = VALUES(is_featured), is_trending = VALUES(is_trending), is_popular = VALUES(is_popular),
-        status = VALUES(status), tags = VALUES(tags), seo_title = VALUES(seo_title), seo_description = VALUES(seo_description)
+        status = VALUES(status), tags = VALUES(tags), views = VALUES(views),
+        seo_title = VALUES(seo_title), seo_description = VALUES(seo_description),
+        focus_keywords = VALUES(focus_keywords), canonical_url = VALUES(canonical_url),
+        og_title = VALUES(og_title), og_description = VALUES(og_description),
+        social_share_image = VALUES(social_share_image)
     `;
 
     await pool.query(query, [
@@ -723,6 +892,47 @@ app.delete('/api/articles/:id', async (req: Request, res: Response) => {
     res.json({ message: 'Article deleted from MySQL' });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/users', async (req: Request, res: Response) => {
+  try {
+    const user = req.body;
+    const id = user.id || `usr-${Date.now()}`;
+    await pool.query(
+      `INSERT INTO users (id, name, email, avatar, role, status, bio, credentials, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE
+         name = VALUES(name),
+         avatar = VALUES(avatar),
+         role = VALUES(role),
+         status = VALUES(status),
+         bio = VALUES(bio),
+         credentials = VALUES(credentials)`,
+      [
+        id,
+        user.name || '',
+        String(user.email || '').trim().toLowerCase(),
+        user.avatar || '',
+        user.role || 'author',
+        user.status || 'active',
+        user.bio || '',
+        user.credentials || '',
+        user.createdAt || new Date().toISOString()
+      ]
+    );
+    res.json({ success: true, id });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.delete('/api/users/:id', async (req: Request, res: Response) => {
+  try {
+    await pool.query('DELETE FROM users WHERE id = ?', [req.params.id]);
+    res.json({ success: true, message: 'User deleted' });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
   }
 });
 
@@ -917,6 +1127,9 @@ app.get('/api/market-data', async (_req: Request, res: Response) => {
 // LIVE FINNHUB.IO API ROUTES (US Stocks Quotes & Market Breaking News)
 app.get('/api/finnhub/news', async (_req: Request, res: Response) => {
   try {
+    if (!FINNHUB_API_KEY) {
+      return res.json({ source: 'Finnhub.io Disabled', articles: [] });
+    }
     const finnhubUrl = `https://finnhub.io/api/v1/news?category=general&token=${FINNHUB_API_KEY}`;
     const response = await fetch(finnhubUrl);
     if (!response.ok) throw new Error(`Finnhub returned status ${response.status}`);
@@ -936,6 +1149,9 @@ app.get('/api/finnhub/news', async (_req: Request, res: Response) => {
 
 app.get('/api/finnhub/us-quote/:symbol', async (req: Request, res: Response) => {
   try {
+    if (!FINNHUB_API_KEY) {
+      return res.status(503).json({ error: 'Finnhub API key is not configured.' });
+    }
     const symbol = String(req.params.symbol || 'AAPL').toUpperCase();
     const finnhubUrl = `https://finnhub.io/api/v1/quote?symbol=${symbol}&token=${FINNHUB_API_KEY}`;
     const response = await fetch(finnhubUrl);
@@ -963,7 +1179,7 @@ app.get('/api/finnhub/us-quote/:symbol', async (req: Request, res: Response) => 
 // DYNAMIC LIVE XML SITEMAP (http://localhost:5000/sitemap.xml)
 app.get('/sitemap.xml', async (_req: Request, res: Response) => {
   try {
-    const domain = process.env.SITE_URL || 'http://localhost:5173';
+    const domain = SITE_URL;
     const date = new Date().toISOString().split('T')[0];
 
     let dbArticles: any[] = [];
@@ -1048,9 +1264,9 @@ app.get('/sitemap.xml', async (_req: Request, res: Response) => {
   }
 });
 
-// DYNAMIC LIVE ROBOTS.TXT (http://localhost:5000/robots.txt)
+// DYNAMIC LIVE ROBOTS.TXT
 app.get('/robots.txt', (_req: Request, res: Response) => {
-  const domain = process.env.SITE_URL || 'http://localhost:5173';
+  const domain = SITE_URL;
   const robots = `User-agent: *
 Allow: /
 Disallow: /admin
@@ -1062,24 +1278,13 @@ Sitemap: ${domain}/sitemap.xml
   res.send(robots);
 });
 
-// DYNAMIC LIVE ADS.TXT (http://localhost:5000/ads.txt)
+// DYNAMIC LIVE ADS.TXT
 app.get('/ads.txt', (_req: Request, res: Response) => {
-  const publisherId = process.env.ADSENSE_PUB_ID || 'pub-9876543210987654';
+  const publisherId = process.env.ADSENSE_PUB_ID || 'pub-5020716602157264';
   const adsTxt = `google.com, ${publisherId}, DIRECT, f08c47fec0942fa0\n`;
   res.header('Content-Type', 'text/plain');
   res.send(adsTxt);
 });
-
-import crypto from 'crypto';
-
-function hashSecret(secret: string): string {
-  return crypto.createHash('sha256').update(secret + 'THE_STOCE_TIMES_SECRET_SALT_2026').digest('hex');
-}
-const tempOtpStore = new Map<string, { email: string; otpHash: string; expiresAt: number; attempts: number; resendCount: number; lastSentAt: number }>();
-const tempResetStore = new Map<string, { email: string; tokenHash: string; expiresAt: number }>();
-const loginLogs: any[] = [
-  { id: 'log-1', email: 'admin@thestocetimes.com', status: 'SUCCESS', action: '2FA OTP Verification Passed', ip: '127.0.0.1', createdAt: new Date().toISOString() }
-];
 
 // Helper function to build beautiful HTML Email Template matching the reference UI design
 const buildOtpEmailHtml = (otp: string, targetEmail: string, title = 'Here is your One Time Password') => {
@@ -1157,15 +1362,16 @@ app.post('/api/admin/login-step1', async (req: Request, res: Response) => {
       return res.status(400).json({ success: false, message: 'Email and password are required.' });
     }
 
-    const isValidAdmin = (
-      cleanEmail === 'dhoniy423@gmail.com' ||
-      cleanEmail === 'admin@thestocetimes.com' ||
-      cleanEmail === 'admin'
-    ) && (password === 'Jaymatadi@122' || password === 'admin123');
+    const isValidAdmin = isAdminEmail(cleanEmail) && isAdminPasswordValid(String(password || ''));
 
     if (!isValidAdmin) {
       loginLogs.unshift({ id: 'log-' + Date.now(), email: cleanEmail, status: 'FAILED', action: 'Login Attempt Failed - Invalid Credentials', ip: req.ip, createdAt: new Date().toISOString() });
-      return res.status(401).json({ success: false, message: 'Invalid admin credentials.' });
+      return res.status(401).json({
+        success: false,
+        message: configuredAdminEmails.length === 0
+          ? 'Admin email is not configured on the server.'
+          : 'Invalid admin credentials.'
+      });
     }
 
     // Generate 6-digit OTP
@@ -1174,7 +1380,7 @@ app.post('/api/admin/login-step1', async (req: Request, res: Response) => {
     const tempToken = 'temp-' + crypto.randomBytes(16).toString('hex');
     const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes
 
-    const targetEmail = cleanEmail.includes('@') ? cleanEmail : 'dhoniy423@gmail.com';
+    const targetEmail = cleanEmail;
 
     tempOtpStore.set(tempToken, {
       email: targetEmail,
@@ -1188,7 +1394,7 @@ app.post('/api/admin/login-step1', async (req: Request, res: Response) => {
     // Send Email via Hostinger Nodemailer
     try {
       await transporter.sendMail({
-        from: process.env.SMTP_FROM_EMAIL || '"The Stoce Times Security" <info@avedatechnologies.com>',
+        from: process.env.SMTP_FROM_EMAIL || process.env.SMTP_FROM || smtpUser,
         to: targetEmail,
         subject: '🔑 Here is your One Time Password - The Stoce Times',
         html: buildOtpEmailHtml(otp, targetEmail, 'Here is your One Time Password')
@@ -1221,18 +1427,14 @@ app.post('/api/admin/send-login-otp', async (req: Request, res: Response) => {
       return res.status(400).json({ success: false, message: 'Email address is required.' });
     }
 
-    const isValidAdmin = (
-      cleanEmail === 'dhoniy423@gmail.com' ||
-      cleanEmail === 'admin@thestocetimes.com' ||
-      cleanEmail === 'admin'
-    );
+    const isValidAdmin = isAdminEmail(cleanEmail);
 
     if (!isValidAdmin) {
       loginLogs.unshift({ id: 'log-' + Date.now(), email: cleanEmail, status: 'FAILED', action: 'Direct OTP Request Failed - Unauthorized Email', ip: req.ip, createdAt: new Date().toISOString() });
       return res.status(401).json({ success: false, message: 'This email is not authorized for Admin access.' });
     }
 
-    const targetEmail = cleanEmail.includes('@') ? cleanEmail : 'dhoniy423@gmail.com';
+    const targetEmail = cleanEmail;
 
     // Generate 6-digit OTP
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
@@ -1252,7 +1454,7 @@ app.post('/api/admin/send-login-otp', async (req: Request, res: Response) => {
     // Send Email via Hostinger Nodemailer
     try {
       await transporter.sendMail({
-        from: process.env.SMTP_FROM_EMAIL || '"The Stoce Times Security" <info@avedatechnologies.com>',
+        from: process.env.SMTP_FROM_EMAIL || process.env.SMTP_FROM || smtpUser,
         to: targetEmail,
         subject: '🔑 Here is your One Time Password - The Stoce Times',
         html: buildOtpEmailHtml(otp, targetEmail, 'Here is your One Time Password')
@@ -1307,7 +1509,7 @@ app.post('/api/admin/verify-otp', async (req: Request, res: Response) => {
 
     loginLogs.unshift({ id: 'log-' + Date.now(), email: sessionData.email, status: 'SUCCESS', action: 'Successful 2FA Admin Login', ip: req.ip, createdAt: new Date().toISOString() });
 
-    const authToken = 'jwt-' + crypto.randomBytes(32).toString('hex');
+    const authToken = issueAdminSession(sessionData.email);
 
     res.json({
       success: true,
@@ -1335,7 +1537,7 @@ app.post('/api/admin/forgot-password', async (req: Request, res: Response) => {
       message: 'If an admin account exists for this email, a password reset link has been sent.'
     };
 
-    if (!cleanEmail) return res.json(genericResponse);
+    if (!cleanEmail || !isAdminEmail(cleanEmail)) return res.json(genericResponse);
 
     const token = crypto.randomBytes(32).toString('hex');
     const tokenHash = hashSecret(token);
@@ -1347,11 +1549,11 @@ app.post('/api/admin/forgot-password', async (req: Request, res: Response) => {
       expiresAt
     });
 
-    const resetUrl = `${process.env.ADMIN_URL || 'http://localhost:5173'}/admin/reset-password?token=${token}`;
+    const resetUrl = `${SITE_URL}/admin/reset-password?token=${token}`;
 
     try {
       await transporter.sendMail({
-        from: process.env.SMTP_FROM || '"The Stoce Times Security" <no-reply@thestocetimes.com>',
+        from: process.env.SMTP_FROM || smtpUser,
         to: cleanEmail,
         subject: '🔑 Password Reset Request - The Stoce Times Admin',
         html: `
@@ -1395,6 +1597,8 @@ app.post('/api/admin/reset-password', async (req: Request, res: Response) => {
     }
 
     tempResetStore.delete(token);
+    runtimeAdminPasswordHash = hashSecret(newPassword);
+    adminSessions.clear();
 
     loginLogs.unshift({ id: 'log-' + Date.now(), email: resetData.email, status: 'PASSWORD_CHANGED', action: 'Password Changed Successfully', ip: req.ip, createdAt: new Date().toISOString() });
 
@@ -1405,60 +1609,6 @@ app.post('/api/admin/reset-password', async (req: Request, res: Response) => {
   } catch (err: any) {
     res.status(500).json({ success: false, message: 'Error resetting password.' });
   }
-});
-
-// In-memory FAQ Store
-const articleFaqsStore: Record<string, { id: string; article_id: string; question: string; answer: string; sort_order: number }[]> = {};
-
-// GET FAQs for an article
-app.get('/api/articles/:id/faqs', (req: Request, res: Response) => {
-  const articleId = req.params.id;
-  const faqs = articleFaqsStore[articleId] || [];
-  res.json(faqs);
-});
-
-// POST Add or update FAQ
-app.post('/api/admin/faqs', (req: Request, res: Response) => {
-  try {
-    const { article_id, question, answer, sort_order, id } = req.body;
-    if (!article_id || !question || !answer) {
-      return res.status(400).json({ success: false, message: 'Article ID, Question and Answer are required.' });
-    }
-
-    if (!articleFaqsStore[article_id]) {
-      articleFaqsStore[article_id] = [];
-    }
-
-    const list = articleFaqsStore[article_id];
-    const existingIdx = id ? list.findIndex(item => item.id === id) : -1;
-
-    const faqObj = {
-      id: id || `faq-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
-      article_id,
-      question,
-      answer,
-      sort_order: sort_order ?? list.length
-    };
-
-    if (existingIdx >= 0) {
-      list[existingIdx] = faqObj;
-    } else {
-      list.push(faqObj);
-    }
-
-    res.json({ success: true, faq: faqObj });
-  } catch (err: any) {
-    res.status(500).json({ success: false, message: err.message });
-  }
-});
-
-// DELETE FAQ
-app.delete('/api/admin/faqs/:faqId', (req: Request, res: Response) => {
-  const { faqId } = req.params;
-  Object.keys(articleFaqsStore).forEach(artId => {
-    articleFaqsStore[artId] = articleFaqsStore[artId].filter(f => f.id !== faqId);
-  });
-  res.json({ success: true, message: 'FAQ deleted' });
 });
 
 // 5. GET ADMIN LOGIN AUDIT LOGS
@@ -1475,18 +1625,16 @@ app.post('/api/subscribers/notify-article', async (req: Request, res: Response) 
       return res.status(400).json({ success: false, message: 'Article title and slug are required.' });
     }
 
-    const targetSubscribers: string[] = Array.isArray(subscribers) && subscribers.length > 0
-      ? subscribers
-      : ['dhoniy423@gmail.com'];
+    const targetSubscribers: string[] = Array.isArray(subscribers) ? subscribers : [];
 
     let sentCount = 0;
     for (const email of targetSubscribers) {
       try {
-        const unsubscribeUrl = `http://localhost:5173/unsubscribe?email=${encodeURIComponent(email)}`;
-        const articleUrl = `http://localhost:5173/article/${slug}`;
+        const unsubscribeUrl = `${SITE_URL}/unsubscribe?email=${encodeURIComponent(email)}`;
+        const articleUrl = `${SITE_URL}/article/${slug}`;
 
         await transporter.sendMail({
-          from: process.env.SMTP_FROM_EMAIL || '"The Stoce Times Editors" <info@avedatechnologies.com>',
+          from: process.env.SMTP_FROM_EMAIL || process.env.SMTP_FROM || smtpUser,
           to: email,
           subject: `📰 New Published Article: ${articleTitle}`,
           html: `
@@ -1549,32 +1697,195 @@ app.post('/api/subscribers/notify-article', async (req: Request, res: Response) 
   }
 });
 
+// IN-MEMORY ARTICLES STORE WITH MYSQL DATABASE SYNC
+let inMemoryArticlesStore: any[] = [];
+
+// GET ALL ARTICLES
+app.get('/api/articles', async (_req: Request, res: Response) => {
+  try {
+    const [rows]: any = await pool.query('SELECT * FROM articles ORDER BY published_at DESC');
+    if (Array.isArray(rows) && rows.length > 0) {
+      const parsedRows = rows.map((r: any) => ({
+        id: r.id,
+        title: r.title,
+        slug: r.slug,
+        categoryId: r.category_id,
+        subCategory: r.sub_category,
+        featuredImage: r.featured_image,
+        imageCaption: r.image_caption,
+        imageSource: r.image_source,
+        excerpt: r.excerpt,
+        content: r.content,
+        authorId: r.author_id,
+        publishedAt: r.published_at,
+        showPublishedDate: r.show_published_date !== 0,
+        readTimeMinutes: r.read_time_minutes || 5,
+        status: r.status || 'published',
+        views: r.views || 0,
+        isFeatured: Boolean(r.is_featured),
+        isTrending: Boolean(r.is_trending),
+        tags: typeof r.tags === 'string' ? JSON.parse(r.tags || '[]') : (r.tags || []),
+        galleryImages: typeof r.gallery_images === 'string' ? JSON.parse(r.gallery_images || '[]') : (r.gallery_images || []),
+        faqs: typeof r.faqs === 'string' ? JSON.parse(r.faqs || '[]') : (r.faqs || [])
+      }));
+      inMemoryArticlesStore = parsedRows;
+      return res.json(parsedRows);
+    }
+  } catch (err) {
+    console.warn('MySQL articles fetch fallback to memory:', err);
+  }
+  res.json(inMemoryArticlesStore);
+});
+
+// CREATE OR UPDATE ARTICLE (POST /api/articles & POST /api/admin/articles)
+const handleSaveArticle = async (req: Request, res: Response) => {
+  try {
+    const article = req.body;
+    if (!article || !article.title || !article.slug) {
+      return res.status(400).json({ success: false, message: 'Article title and slug are required.' });
+    }
+
+    if (!article.id) {
+      article.id = `art-${Date.now()}`;
+    }
+
+    if (!article.publishedAt) {
+      article.publishedAt = new Date().toISOString();
+    }
+
+    const existingIndex = inMemoryArticlesStore.findIndex(a => a.id === article.id || a.slug === article.slug);
+    if (existingIndex >= 0) {
+      inMemoryArticlesStore[existingIndex] = { ...inMemoryArticlesStore[existingIndex], ...article };
+    } else {
+      inMemoryArticlesStore.unshift(article);
+    }
+
+    try {
+      const authorIdToUse = article.authorId || 'author-1';
+      const conn = await pool.getConnection();
+
+      try {
+        await conn.query('SET FOREIGN_KEY_CHECKS=0');
+
+        await conn.query(
+          `INSERT INTO articles 
+          (id, title, slug, category_id, sub_category, featured_image, image_caption, image_source, excerpt, content, author_id, published_at, show_published_date, read_time_minutes, status, views, is_featured, is_trending, tags, gallery_images, faqs)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          ON DUPLICATE KEY UPDATE 
+            title=VALUES(title), slug=VALUES(slug), category_id=VALUES(category_id), sub_category=VALUES(sub_category),
+            featured_image=VALUES(featured_image), image_caption=VALUES(image_caption), image_source=VALUES(image_source),
+            excerpt=VALUES(excerpt), content=VALUES(content), author_id=VALUES(author_id), published_at=VALUES(published_at),
+            show_published_date=VALUES(show_published_date), read_time_minutes=VALUES(read_time_minutes), status=VALUES(status),
+            is_featured=VALUES(is_featured), is_trending=VALUES(is_trending), tags=VALUES(tags), gallery_images=VALUES(gallery_images), faqs=VALUES(faqs)`,
+          [
+            article.id,
+            article.title,
+            article.slug,
+            article.categoryId || 'finance-news',
+            article.subCategory || '',
+            article.featuredImage || '',
+            article.imageCaption || '',
+            article.imageSource || '',
+            article.excerpt || '',
+            article.content || '',
+            authorIdToUse,
+            article.publishedAt,
+            article.showPublishedDate !== false ? 1 : 0,
+            article.readTimeMinutes || 5,
+            article.status || 'published',
+            article.views || 0,
+            article.isFeatured ? 1 : 0,
+            article.isTrending ? 1 : 0,
+            JSON.stringify(article.tags || []),
+            JSON.stringify(article.galleryImages || []),
+            JSON.stringify(article.faqs || [])
+          ]
+        );
+
+        await conn.query('SET FOREIGN_KEY_CHECKS=1');
+      } finally {
+        conn.release();
+      }
+    } catch (dbErr: any) {
+      console.warn('MySQL article save fallback:', dbErr.message);
+    }
+
+    res.json({ success: true, article });
+  } catch (err: any) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+app.post('/api/articles', handleSaveArticle);
+app.post('/api/admin/articles', handleSaveArticle);
+
+// DELETE ARTICLE
+const handleDeleteArticle = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    inMemoryArticlesStore = inMemoryArticlesStore.filter(a => a.id !== id);
+    try {
+      await pool.query('DELETE FROM articles WHERE id = ?', [id]);
+    } catch (e) {}
+    res.json({ success: true, message: 'Article deleted successfully.' });
+  } catch (err: any) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+app.delete('/api/articles/:id', handleDeleteArticle);
+app.delete('/api/admin/articles/:id', handleDeleteArticle);
+
+// INCREMENT ARTICLE VIEWS
+app.post('/api/articles/:id/view', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const article = inMemoryArticlesStore.find(a => a.id === id || a.slug === id);
+    if (article) {
+      article.views = (article.views || 0) + 1;
+    }
+    try {
+      await pool.query('UPDATE articles SET views = views + 1 WHERE id = ? OR slug = ?', [id, id]);
+    } catch (e) {}
+    res.json({ success: true, views: article?.views || 1 });
+  } catch (err: any) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 // 7. SMTP TEST CONNECTION ENDPOINT
 app.post('/api/smtp-config/test', async (req: Request, res: Response) => {
   try {
     const { smtpHost, smtpPort, smtpUsername, smtpPassword, smtpSecure, targetEmail, smtpFromName } = req.body;
 
+    if (!smtpHost || !smtpUsername || !smtpPassword || !targetEmail) {
+      return res.status(400).json({
+        success: false,
+        message: 'SMTP host, username, password, and target email are required for a test.'
+      });
+    }
+
     const testTransporter = nodemailer.createTransport({
-      host: smtpHost || 'smtp.hostinger.com',
+      host: smtpHost,
       port: Number(smtpPort) || 465,
       secure: smtpSecure !== false,
       auth: {
-        user: smtpUsername || 'info@avedatechnologies.com',
-        pass: smtpPassword || 'Jaymatadi@122'
+        user: smtpUsername,
+        pass: smtpPassword
       }
     });
 
     await testTransporter.verify();
 
     await testTransporter.sendMail({
-      from: `"${smtpFromName || 'The Stoce Times'}" <${smtpUsername || 'info@avedatechnologies.com'}>`,
-      to: targetEmail || 'dhoniy423@gmail.com',
+      from: `"${smtpFromName || 'The Stoce Times'}" <${smtpUsername}>`,
+      to: targetEmail,
       subject: '✅ SMTP Configuration Test Successful - The Stoce Times',
       html: `
         <div style="background-color: #f8fafc; padding: 24px; font-family: sans-serif;">
           <div style="max-width: 500px; margin: 0 auto; background: #ffffff; padding: 24px; border-radius: 16px; border: 1px solid #e2e8f0;">
             <h2 style="color: #0b1f33; margin-0 0 12px 0;">SMTP Test Successful</h2>
-            <p style="color: #475569; font-size: 14px;">Your custom SMTP server credentials (<strong>${smtpHost || 'smtp.hostinger.com'}</strong>) have been verified and delivered this test message successfully.</p>
+            <p style="color: #475569; font-size: 14px;">Your custom SMTP server credentials (<strong>${smtpHost}</strong>) have been verified and delivered this test message successfully.</p>
           </div>
         </div>
       `
@@ -1582,7 +1893,7 @@ app.post('/api/smtp-config/test', async (req: Request, res: Response) => {
 
     res.json({
       success: true,
-      message: `SMTP test connection verified & test email delivered to ${targetEmail || 'dhoniy423@gmail.com'}.`
+      message: `SMTP test connection verified & test email delivered to ${targetEmail}.`
     });
   } catch (err: any) {
     res.status(500).json({

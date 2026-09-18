@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { MessageCircle, Send } from 'lucide-react';
-import { ApiService } from '../../services/apiService';
+import { apiFetch } from '../../services/apiConfig';
 
 interface Comment {
   id: string;
@@ -30,7 +30,7 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({
 
   const loadComments = async () => {
     try {
-     const response = await fetch(`http://localhost:5000/api/comments/${articleId}`);
+     const response = await apiFetch(`/comments/${articleId}`);
 
       if (!response.ok) {
         throw new Error('Failed to load comments');
@@ -59,7 +59,7 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({
     setMessage('');
 
     try {
-   const response = await fetch('http://localhost:5000/api/comments', {
+   const response = await apiFetch('/comments', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

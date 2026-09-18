@@ -3,6 +3,7 @@ import { StorageService } from '../../services/storageService';
 import { SiteSettings } from '../../types';
 import { ApiService } from '../../services/apiService';
 import { Settings, Globe, ShieldCheck, Mail, Bell, KeyRound, Save, CheckCircle2, Share2, Lock, Activity, Power } from 'lucide-react';
+import { adminApiFetch } from '../../services/apiConfig';
 
 export const AdminSettings: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'general' | 'website' | 'seo' | 'social' | 'users' | 'security' | 'email' | 'notifications'>('general');
@@ -52,13 +53,9 @@ export const AdminSettings: React.FC = () => {
 
   const handleChangePassword = (e: React.FormEvent) => {
     e.preventDefault();
-    if (currentPass === 'admin123' && newPass.length >= 6) {
-      setPassMsg('Password updated successfully! Please re-login with new password.');
-      setCurrentPass('');
-      setNewPass('');
-    } else {
-      setPassMsg('Error: Current password must be "admin123" and new password must be at least 6 characters.');
-    }
+    setPassMsg('Use the Forgot Password flow on the admin login screen, or update ADMIN_PASSWORD / ADMIN_PASSWORD_HASH on the server. In-panel password changes are disabled for safety.');
+    setCurrentPass('');
+    setNewPass('');
     setTimeout(() => setPassMsg(''), 4000);
   };
 
@@ -78,18 +75,18 @@ export const AdminSettings: React.FC = () => {
     setSmtpTesting(true);
     setSmtpTestResult(null);
     try {
-      const res = await fetch('http://localhost:5000/api/smtp-config/test', {
+      const res = await adminApiFetch('/smtp-config/test', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          smtpHost: formData.smtpHost || 'smtp.hostinger.com',
+          smtpHost: formData.smtpHost || '',
           smtpPort: formData.smtpPort || 465,
-          smtpUsername: formData.smtpUsername || 'info@avedatechnologies.com',
-          smtpPassword: formData.smtpPassword || 'Jaymatadi@122',
-          smtpFromEmail: formData.smtpFromEmail || 'info@avedatechnologies.com',
+          smtpUsername: formData.smtpUsername || '',
+          smtpPassword: formData.smtpPassword || '',
+          smtpFromEmail: formData.smtpFromEmail || '',
           smtpFromName: formData.smtpFromName || 'The Stoce Times Editors',
           smtpSecure: formData.smtpSecure ?? true,
-          targetEmail: formData.contactEmail || 'dhoniy423@gmail.com'
+          targetEmail: formData.contactEmail || ''
         })
       });
       const data = await res.json();
@@ -313,7 +310,7 @@ export const AdminSettings: React.FC = () => {
                   type="text"
                   value={formData.smtpHost || ''}
                   onChange={(e) => setFormData({ ...formData, smtpHost: e.target.value })}
-                  placeholder="smtp.hostinger.com"
+                  placeholder="smtp.example.com"
                   className="w-full p-2.5 rounded-xl border border-slate-300 font-mono"
                 />
               </div>
@@ -396,7 +393,7 @@ export const AdminSettings: React.FC = () => {
                 <ShieldCheck className="w-4 h-4 text-amber-600" /> Hostinger SMTP Preset Configuration Note
               </p>
               <p className="text-amber-800 font-normal leading-relaxed">
-                Default Hostinger settings: Host = <strong>smtp.hostinger.com</strong>, Port = <strong>465</strong> (SSL), Account = <strong>info@avedatechnologies.com</strong>.
+                Enter the SMTP host, port, username, and password from your email provider before testing delivery.
               </p>
             </div>
           </div>
