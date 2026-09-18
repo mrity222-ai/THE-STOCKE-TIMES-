@@ -127,7 +127,7 @@ export const ArticleDetailPage: React.FC<ArticleDetailPageProps> = ({ slug, onNa
   }, [article.authorId]);
 
   useEffect(() => {
-    if (article?.faqs && article.faqs.length > 0) {
+    if (Array.isArray(article?.faqs) && article.faqs.length > 0) {
       setFaqs(article.faqs);
     } else {
       const loadArticleFaqs = async () => {

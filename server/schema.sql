@@ -40,6 +40,7 @@ CREATE TABLE IF NOT EXISTS articles (
   sub_category VARCHAR(255),
   featured_image TEXT NOT NULL,
   image_caption TEXT,
+  image_source TEXT,
   excerpt TEXT NOT NULL,
   content LONGTEXT NOT NULL,
   highlights TEXT,
@@ -62,6 +63,8 @@ CREATE TABLE IF NOT EXISTS articles (
   og_title VARCHAR(500),
   og_description TEXT,
   social_share_image TEXT,
+  gallery_images TEXT,
+  faqs TEXT,
   FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE CASCADE,
   FOREIGN KEY (author_id) REFERENCES authors(id) ON DELETE CASCADE
 );

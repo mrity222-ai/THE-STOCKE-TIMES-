@@ -13,19 +13,19 @@ const hasSmtpConfig = Boolean(process.env.SMTP_HOST && smtpUser && smtpPassword)
 
 const transporter = hasSmtpConfig
   ? nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
-      port: Number(process.env.SMTP_PORT) || 465,
-      secure: (process.env.SMTP_SECURE === 'true' || Number(process.env.SMTP_PORT) === 465),
-      auth: {
-        user: smtpUser,
-        pass: smtpPassword,
-      },
-    })
+    host: process.env.SMTP_HOST,
+    port: Number(process.env.SMTP_PORT) || 465,
+    secure: (process.env.SMTP_SECURE === 'true' || Number(process.env.SMTP_PORT) === 465),
+    auth: {
+      user: smtpUser,
+      pass: smtpPassword,
+    },
+  })
   : nodemailer.createTransport({
-      streamTransport: true,
-      newline: 'unix',
-      buffer: true,
-    });
+    streamTransport: true,
+    newline: 'unix',
+    buffer: true,
+  });
 
 if (hasSmtpConfig) {
   transporter.verify((error) => {
@@ -45,7 +45,8 @@ const FINNHUB_API_KEY = process.env.FINNHUB_API_KEY || '';
 const SITE_URL = (process.env.SITE_URL || process.env.ADMIN_URL || 'http://localhost:5173').replace(/\/$/, '');
 
 app.use(cors());
-app.use(express.json({ limit: '10mb' }));
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 function hashSecret(secret: string): string {
   return crypto.createHash('sha256').update(secret).digest('hex');
@@ -427,6 +428,9 @@ async function initializeTables() {
         sub_category VARCHAR(255),
         featured_image TEXT NOT NULL,
         image_caption TEXT,
+        image_source TEXT,
+        gallery_images TEXT,
+        faqs TEXT,
         excerpt TEXT NOT NULL,
         content LONGTEXT NOT NULL,
         highlights TEXT,
@@ -825,66 +829,7 @@ app.post('/api/articles/:id/view', async (req: Request, res: Response) => {
   }
 });
 
-app.post('/api/articles', async (req: Request, res: Response) => {
-  try {
-    const art = req.body;
-    const query = `
-      INSERT INTO articles (
-        id, title, slug, category_id, sub_category, featured_image, image_caption,
-        excerpt, content, highlights, author_id, published_at, show_published_date, updated_at, scheduled_date,
-        read_time_minutes, is_featured, is_trending, is_popular, status, tags, views,
-        seo_title, seo_description, focus_keywords, canonical_url, og_title, og_description, social_share_image
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      ON DUPLICATE KEY UPDATE
-        title = VALUES(title), category_id = VALUES(category_id), sub_category = VALUES(sub_category),
-        featured_image = VALUES(featured_image), image_caption = VALUES(image_caption),
-        excerpt = VALUES(excerpt), content = VALUES(content), highlights = VALUES(highlights),
-        author_id = VALUES(author_id), show_published_date = VALUES(show_published_date), updated_at = VALUES(updated_at), read_time_minutes = VALUES(read_time_minutes),
-        is_featured = VALUES(is_featured), is_trending = VALUES(is_trending), is_popular = VALUES(is_popular),
-        status = VALUES(status), tags = VALUES(tags), views = VALUES(views),
-        seo_title = VALUES(seo_title), seo_description = VALUES(seo_description),
-        focus_keywords = VALUES(focus_keywords), canonical_url = VALUES(canonical_url),
-        og_title = VALUES(og_title), og_description = VALUES(og_description),
-        social_share_image = VALUES(social_share_image)
-    `;
 
-    await pool.query(query, [
-      art.id || 'art-' + Date.now(),
-      art.title,
-      art.slug,
-      art.categoryId,
-      art.subCategory || '',
-      art.featuredImage || '',
-      art.imageCaption || '',
-      art.excerpt,
-      art.content,
-      JSON.stringify(art.highlights || []),
-      art.authorId,
-      art.publishedAt || new Date().toISOString(),
-      art.showPublishedDate !== false ? 1 : 0,
-      art.updatedAt || new Date().toISOString(),
-      art.scheduledDate || null,
-      art.readTimeMinutes || 5,
-      art.isFeatured ? 1 : 0,
-      art.isTrending ? 1 : 0,
-      art.isPopular ? 1 : 0,
-      art.status || 'published',
-      JSON.stringify(art.tags || []),
-      art.views || 0,
-      art.seoTitle || art.title,
-      art.seoDescription || art.excerpt,
-      JSON.stringify(art.focusKeywords || []),
-      art.canonicalUrl || '',
-      art.ogTitle || art.title,
-      art.ogDescription || art.excerpt,
-      art.socialShareImage || art.featuredImage || ''
-    ]);
-
-    res.json({ message: 'Article saved successfully in MySQL' });
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
-  }
-});
 
 app.delete('/api/articles/:id', async (req: Request, res: Response) => {
   try {
@@ -1807,7 +1752,11 @@ const handleSaveArticle = async (req: Request, res: Response) => {
         conn.release();
       }
     } catch (dbErr: any) {
-      console.warn('MySQL article save fallback:', dbErr.message);
+      console.error('MySQL article save failed:', dbErr.message);
+      return res.status(500).json({
+        success: false,
+        message: `MySQL article save failed: ${dbErr.message}`
+      });
     }
 
     res.json({ success: true, article });
@@ -1826,7 +1775,7 @@ const handleDeleteArticle = async (req: Request, res: Response) => {
     inMemoryArticlesStore = inMemoryArticlesStore.filter(a => a.id !== id);
     try {
       await pool.query('DELETE FROM articles WHERE id = ?', [id]);
-    } catch (e) {}
+    } catch (e) { }
     res.json({ success: true, message: 'Article deleted successfully.' });
   } catch (err: any) {
     res.status(500).json({ success: false, message: err.message });
@@ -1846,7 +1795,7 @@ app.post('/api/articles/:id/view', async (req: Request, res: Response) => {
     }
     try {
       await pool.query('UPDATE articles SET views = views + 1 WHERE id = ? OR slug = ?', [id, id]);
-    } catch (e) {}
+    } catch (e) { }
     res.json({ success: true, views: article?.views || 1 });
   } catch (err: any) {
     res.status(500).json({ success: false, message: err.message });

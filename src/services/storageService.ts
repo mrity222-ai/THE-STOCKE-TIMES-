@@ -237,14 +237,16 @@ export class StorageService {
     try {
       window.dispatchEvent(new Event('storage'));
       window.dispatchEvent(new CustomEvent('articles-updated', { detail: updatedArticle }));
-    } catch (e) {}
+    } catch (e) { }
 
     try {
       adminApiFetch('/articles', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updatedArticle)
-      }).catch(() => { });
+      }).catch((err) => {
+        console.error('Article MySQL save failed:', err);
+      });
     } catch (err) { }
 
     return updatedArticle;
@@ -297,12 +299,12 @@ export class StorageService {
         }
 
         try {
-          apiFetch(`/articles/${target.id}/view`, { method: 'POST' }).catch(() => {});
-        } catch (e) {}
+          apiFetch(`/articles/${target.id}/view`, { method: 'POST' }).catch(() => { });
+        } catch (e) { }
 
         return target.views;
       }
-    } catch (e) {}
+    } catch (e) { }
     return 0;
   }
 
@@ -489,8 +491,8 @@ export class StorageService {
   static getAnalyticsSummary(): AnalyticsSummary {
     const articles = this.getArticles();
     const totalViewsNum = articles.reduce((sum, a) => sum + (a.views || 0), 0);
-    const avgMinutes = articles.length > 0 
-      ? Math.round(articles.reduce((sum, a) => sum + (a.readTimeMinutes || 5), 0) / articles.length) 
+    const avgMinutes = articles.length > 0
+      ? Math.round(articles.reduce((sum, a) => sum + (a.readTimeMinutes || 5), 0) / articles.length)
       : 0;
 
     const approxVisitors = Math.round(totalViewsNum * 0.72);
@@ -625,8 +627,8 @@ export class StorageService {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updatedUser)
-      }).catch(() => {});
-    } catch (e) {}
+      }).catch(() => { });
+    } catch (e) { }
 
     return updatedUser;
   }
@@ -635,7 +637,7 @@ export class StorageService {
     try {
       const users = this.getUsers().filter(u => u.id !== id);
       localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
-      adminApiFetch(`/users/${id}`, { method: 'DELETE' }).catch(() => {});
+      adminApiFetch(`/users/${id}`, { method: 'DELETE' }).catch(() => { });
       return true;
     } catch (e) {
       return false;
@@ -646,7 +648,7 @@ export class StorageService {
     try {
       const data = localStorage.getItem(CURRENT_USER_KEY);
       if (data) return JSON.parse(data);
-    } catch (e) {}
+    } catch (e) { }
     // Default fallback to Admin
     return {
       id: 'usr-admin-1',
@@ -733,8 +735,8 @@ export class StorageService {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newSub)
-      }).catch(() => {});
-    } catch (e) {}
+      }).catch(() => { });
+    } catch (e) { }
 
     return newSub;
   }
@@ -764,7 +766,7 @@ export class StorageService {
     try {
       const data = localStorage.getItem('finance_pulse_legal_pages_v1');
       if (data) return JSON.parse(data);
-    } catch (e) {}
+    } catch (e) { }
 
     const defaults: LegalPageItem[] = [
       {
@@ -881,7 +883,7 @@ export class StorageService {
 
     try {
       localStorage.setItem('finance_pulse_legal_pages_v1', JSON.stringify(defaults));
-    } catch (e) {}
+    } catch (e) { }
 
     return defaults;
   }
@@ -893,7 +895,7 @@ export class StorageService {
   static saveLegalPage(page: LegalPageItem, editorName: string = 'Admin'): LegalPageItem {
     const pages = this.getLegalPages();
     const idx = pages.findIndex(p => p.id === page.id);
-    
+
     // Build revision history
     const existing = idx >= 0 ? pages[idx] : null;
     const revisions = existing?.revisions || [];
@@ -921,7 +923,7 @@ export class StorageService {
 
     try {
       localStorage.setItem('finance_pulse_legal_pages_v1', JSON.stringify(pages));
-    } catch (e) {}
+    } catch (e) { }
 
     return updatedPage;
   }
@@ -940,7 +942,7 @@ export class StorageService {
 
     try {
       localStorage.setItem('finance_pulse_legal_pages_v1', JSON.stringify(pages));
-    } catch (e) {}
+    } catch (e) { }
 
     return target;
   }
