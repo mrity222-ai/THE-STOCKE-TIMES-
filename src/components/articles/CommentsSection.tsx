@@ -26,6 +26,7 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({
   const [email, setEmail] = useState('');
   const [content, setContent] = useState('');
   const [message, setMessage] = useState('');
+  const [pendingComments, setPendingComments] = useState<Comment[]>([]);
   const [loading, setLoading] = useState(false);
 
   const loadComments = async () => {
@@ -44,6 +45,7 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({
   };
 
   useEffect(() => {
+    setPendingComments([]);
     loadComments();
   }, [articleId]);
 
@@ -78,10 +80,13 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({
         throw new Error(data.message || 'Failed to post comment');
       }
 
+      if (data.comment) {
+        setPendingComments((current) => [data.comment, ...current]);
+      }
       setName('');
       setEmail('');
       setContent('');
-      setMessage('Comment submitted. It will appear after admin approval.');
+      setMessage('Comment submitted for admin approval. You can see your pending preview below.');
     } catch (error) {
       console.error('Failed to post comment:', error);
       setMessage('Unable to submit comment. Please try again.');
@@ -154,7 +159,28 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({
       </form>
 
       <div className="space-y-4">
-        {comments.length === 0 ? (
+        {pendingComments.map((comment) => (
+          <div
+            key={comment.id}
+            className="p-4 rounded-xl border border-amber-200 bg-amber-50"
+          >
+            <div className="flex items-center justify-between gap-3 mb-2">
+              <span className="font-bold text-slate-900">
+                {comment.author_name}
+              </span>
+
+              <span className="text-[10px] uppercase tracking-wide font-extrabold text-amber-700 bg-amber-100 border border-amber-200 px-2 py-0.5 rounded-full">
+                Pending approval
+              </span>
+            </div>
+
+            <p className="text-sm leading-relaxed text-slate-700">
+              {comment.content}
+            </p>
+          </div>
+        ))}
+
+        {comments.length === 0 && pendingComments.length === 0 ? (
           <p className="text-sm text-slate-500">
             No approved comments yet. Be the first to comment.
           </p>

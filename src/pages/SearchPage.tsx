@@ -103,6 +103,9 @@ export const SearchPage: React.FC<SearchPageProps> = ({ initialQuery = '', onNav
         </div>
       </div>
 
+      {/* Search Page Top Ad */}
+      <AdSlot placement="search_top" />
+
       {/* Filter Toolbar */}
       <div className="bg-white rounded-2xl p-4 border border-[#E2E8F0] shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
         {/* Category Pills */}
@@ -148,8 +151,8 @@ export const SearchPage: React.FC<SearchPageProps> = ({ initialQuery = '', onNav
         </div>
       </div>
 
-      {/* Ad Placement */}
-      <AdSlot placement="global_top" />
+      {/* Search Page Primary Ad */}
+      <AdSlot placement="search-page" />
 
       {/* Search Results Summary */}
       <div className="flex items-center justify-between border-b border-slate-200 pb-2">
@@ -160,6 +163,9 @@ export const SearchPage: React.FC<SearchPageProps> = ({ initialQuery = '', onNav
           Found {searchResults.length} articles
         </span>
       </div>
+
+      {/* Search Page Mid Results Ad */}
+      <AdSlot placement="search_mid" />
 
       {/* Results Grid or Empty State */}
       {searchResults.length > 0 ? (
@@ -187,6 +193,9 @@ export const SearchPage: React.FC<SearchPageProps> = ({ initialQuery = '', onNav
           </button>
         </div>
       )}
+
+      {/* Search Page Bottom Ad */}
+      <AdSlot placement="search_bottom" />
 
     </div>
   );

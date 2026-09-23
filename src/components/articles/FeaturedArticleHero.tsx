@@ -1,7 +1,6 @@
 import React from 'react';
-import { Article, Author } from '../../types';
-import { StorageService } from '../../services/storageService';
-import { Clock, Calendar, TrendingUp, Sparkles, Flame, ArrowRight, ShieldCheck, Newspaper, Calculator } from 'lucide-react';
+import { Article } from '../../types';
+import { Clock, Calendar, Sparkles, ArrowRight, Newspaper, Eye } from 'lucide-react';
 
 interface FeaturedArticleHeroProps {
   articles: Article[];
@@ -13,8 +12,6 @@ export const FeaturedArticleHero: React.FC<FeaturedArticleHeroProps> = ({ articl
 
   const mainArticle = articles[0];
   const sideArticles = articles.slice(1, 4);
-
-  const mainAuthor: Author | undefined = StorageService.getAuthorById(mainArticle.authorId);
 
   const formattedDate = new Date(mainArticle.publishedAt).toLocaleDateString('en-US', {
     month: 'short',
@@ -71,14 +68,8 @@ export const FeaturedArticleHero: React.FC<FeaturedArticleHeroProps> = ({ articl
 
             <div className="flex flex-wrap items-center justify-between gap-4 pt-3 text-xs text-slate-300 font-medium border-t border-slate-800">
               <div className="flex items-center gap-2.5">
-                {mainAuthor && (
-                  <img
-                    src={mainAuthor.avatar}
-                    alt={mainAuthor.name}
-                    className="w-7 h-7 rounded-full object-cover border border-emerald-500"
-                  />
-                )}
-                <span className="text-white font-bold">{mainAuthor?.name || 'TheStoceTimes.com Desk'}</span>
+                <Newspaper className="w-4 h-4 text-emerald-400" />
+                <span className="text-white font-bold">The Stock Times</span>
               </div>
 
               <div className="flex items-center gap-4 text-slate-400 font-mono text-[11px]">
@@ -88,6 +79,7 @@ export const FeaturedArticleHero: React.FC<FeaturedArticleHeroProps> = ({ articl
                     {formattedDate}
                   </span>
                 )}
+                <span className="flex items-center gap-1"><Eye className="w-3.5 h-3.5 text-emerald-400" /> {(mainArticle.views || 0).toLocaleString()} views</span>
                 <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5 text-emerald-400" /> {mainArticle.readTimeMinutes} min read</span>
               </div>
             </div>
@@ -111,7 +103,9 @@ export const FeaturedArticleHero: React.FC<FeaturedArticleHeroProps> = ({ articl
               <div className="space-y-2 flex-1 min-w-0">
                 <div className="flex items-center justify-between text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
                   <span className="text-[#155EEF]">{art.subCategory || art.categoryId}</span>
-                  <span className="font-mono">{art.readTimeMinutes} min</span>
+                  <span className="font-mono inline-flex items-center gap-1">
+                    <Eye className="w-3 h-3" /> {(art.views || 0).toLocaleString()}
+                  </span>
                 </div>
 
                 <h4 className="text-xs sm:text-sm font-bold text-[#0B1F33] group-hover:text-[#155EEF] transition-colors line-clamp-2 leading-snug font-serif">

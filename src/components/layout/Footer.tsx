@@ -7,7 +7,6 @@ import {
   Facebook, 
   Youtube,
   Code2,
-  AlertTriangle,
   ChevronDown
 } from 'lucide-react';
 
@@ -44,7 +43,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, onOpenSeoModal }) =>
               </div>
               <div>
                 <span className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight font-serif block">
-                  THE STOCE TIMES
+                  THE STOCK TIMES
                 </span>
                 <span className="text-[11px] font-bold text-[#16A34A] uppercase tracking-wider block font-sans">
                   Independent Market Research, Financial News & Insights
@@ -62,7 +61,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, onOpenSeoModal }) =>
                 href="https://twitter.com" 
                 target="_blank" 
                 rel="noreferrer" 
-                title="Follow The Stoce Times on Twitter"
+                title="Follow The Stock Times on Twitter"
                 className="w-9 h-9 rounded-xl bg-slate-800 border border-slate-700/80 flex items-center justify-center text-slate-200 hover:text-white hover:bg-[#1DA1F2] hover:border-[#1DA1F2] transition-all cursor-pointer shadow-xs"
               >
                 <Twitter className="w-4 h-4" />
@@ -71,7 +70,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, onOpenSeoModal }) =>
                 href="https://linkedin.com" 
                 target="_blank" 
                 rel="noreferrer" 
-                title="Connect with The Stoce Times on LinkedIn"
+                title="Connect with The Stock Times on LinkedIn"
                 className="w-9 h-9 rounded-xl bg-slate-800 border border-slate-700/80 flex items-center justify-center text-slate-200 hover:text-white hover:bg-[#0A66C2] hover:border-[#0A66C2] transition-all cursor-pointer shadow-xs"
               >
                 <Linkedin className="w-4 h-4" />
@@ -80,7 +79,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, onOpenSeoModal }) =>
                 href="https://facebook.com" 
                 target="_blank" 
                 rel="noreferrer" 
-                title="Follow The Stoce Times on Facebook"
+                title="Follow The Stock Times on Facebook"
                 className="w-9 h-9 rounded-xl bg-slate-800 border border-slate-700/80 flex items-center justify-center text-slate-200 hover:text-white hover:bg-[#1877F2] hover:border-[#1877F2] transition-all cursor-pointer shadow-xs"
               >
                 <Facebook className="w-4 h-4" />
@@ -89,7 +88,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, onOpenSeoModal }) =>
                 href="https://youtube.com" 
                 target="_blank" 
                 rel="noreferrer" 
-                title="Subscribe to The Stoce Times on YouTube"
+                title="Subscribe to The Stock Times on YouTube"
                 className="w-9 h-9 rounded-xl bg-slate-800 border border-slate-700/80 flex items-center justify-center text-slate-200 hover:text-white hover:bg-[#FF0000] hover:border-[#FF0000] transition-all cursor-pointer shadow-xs"
               >
                 <Youtube className="w-4 h-4" />
@@ -113,6 +112,9 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, onOpenSeoModal }) =>
               <ul className={`space-y-2 text-xs font-medium text-slate-300 mt-3 ${openSection === 'explore' ? 'block' : 'hidden sm:block'}`}>
                 <li>
                   <button onClick={() => onNavigate('stock-market')} className="hover:text-[#16A34A] transition-colors cursor-pointer py-1 block">Stock Market</button>
+                </li>
+                <li>
+                  <button onClick={() => onNavigate('ipo')} className="hover:text-[#16A34A] transition-colors cursor-pointer py-1 block">IPO</button>
                 </li>
                 <li>
                   <button onClick={() => onNavigate('personal-finance')} className="hover:text-[#16A34A] transition-colors cursor-pointer py-1 block">Personal Finance</button>
@@ -199,22 +201,13 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, onOpenSeoModal }) =>
                   <button onClick={() => onNavigate('legal', 'terms')} className="hover:text-[#16A34A] transition-colors cursor-pointer py-1 block">Terms & Conditions</button>
                 </li>
                 <li>
-                  <button onClick={() => onNavigate('legal', 'disclaimer')} className="hover:text-[#16A34A] transition-colors cursor-pointer py-1 block">Disclaimer</button>
-                </li>
-                <li>
-                  <button onClick={() => onNavigate('legal', 'cookie')} className="hover:text-[#16A34A] transition-colors cursor-pointer py-1 block">Cookie Policy</button>
+                  <button onClick={() => onNavigate('legal', 'cookies')} className="hover:text-[#16A34A] transition-colors cursor-pointer py-1 block">Cookie Policy</button>
                 </li>
                 <li>
                   <button onClick={() => onNavigate('legal', 'editorial')} className="hover:text-[#16A34A] transition-colors cursor-pointer py-1 block">Editorial Policy</button>
                 </li>
                 <li>
                   <button onClick={() => onNavigate('legal', 'corrections')} className="hover:text-[#16A34A] transition-colors cursor-pointer py-1 block">Corrections Policy</button>
-                </li>
-                <li>
-                  <button onClick={() => onNavigate('legal', 'dmca')} className="hover:text-[#16A34A] transition-colors cursor-pointer py-1 block">DMCA Policy</button>
-                </li>
-                <li>
-                  <button onClick={() => onNavigate('legal', 'affiliate')} className="hover:text-[#16A34A] transition-colors cursor-pointer py-1 block">Affiliate Disclosure</button>
                 </li>
               </ul>
             </div>
@@ -223,26 +216,9 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, onOpenSeoModal }) =>
 
         </div>
 
-        {/* Financial Disclaimer Box & Read Full Disclaimer Link */}
-        <div className="bg-white/[0.03] border border-white/10 rounded-2xl p-4 sm:p-5 space-y-2 text-xs text-slate-400 font-light">
-          <div className="flex items-center gap-2 font-extrabold text-amber-400 uppercase tracking-wider text-[11px]">
-            <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
-            <span>FINANCIAL & REGULATORY DISCLAIMER</span>
-          </div>
-          <p className="leading-relaxed">
-            The information published on The Stoce Times is provided for general informational and educational purposes only. It should not be considered personalized investment, financial, tax, accounting or legal advice. Financial markets involve risk, and readers should conduct their own research and consider consulting a qualified professional before making financial decisions.
-            <button
-              onClick={() => onNavigate('legal', 'disclaimer')}
-              className="text-[#16A34A] font-bold hover:underline ml-1 inline-flex items-center gap-1 cursor-pointer"
-            >
-              Read full disclaimer →
-            </button>
-          </p>
-        </div>
-
         {/* Bottom Copyright & Clean Non-Duplicate Links Bar */}
         <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-400 font-medium">
-          <p>© {currentYear} The Stoce Times. All Rights Reserved.</p>
+          <p>© {currentYear} The Stock Times. All Rights Reserved.</p>
 
           <div className="flex flex-wrap items-center gap-3.5">
             <button 

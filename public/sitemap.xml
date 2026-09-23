@@ -2,67 +2,73 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <!-- Core Hub Pages -->
   <url>
-    <loc>http://localhost:5173/</loc>
+    <loc>https://thestocktimes.online/</loc>
     <lastmod>2026-08-09</lastmod>
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
   </url>
   <url>
-    <loc>http://localhost:5173/stock-market</loc>
+    <loc>https://thestocktimes.online/stock-market</loc>
     <lastmod>2026-08-09</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
-    <loc>http://localhost:5173/personal-finance</loc>
+    <loc>https://thestocktimes.online/ipo</loc>
+    <lastmod>2026-09-24</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://thestocktimes.online/personal-finance</loc>
     <lastmod>2026-08-09</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
-    <loc>http://localhost:5173/banking</loc>
+    <loc>https://thestocktimes.online/banking</loc>
     <lastmod>2026-08-09</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
-    <loc>http://localhost:5173/investment</loc>
+    <loc>https://thestocktimes.online/investment</loc>
     <lastmod>2026-08-09</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
-    <loc>http://localhost:5173/finance-news</loc>
+    <loc>https://thestocktimes.online/finance-news</loc>
     <lastmod>2026-08-09</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
-    <loc>http://localhost:5173/financial-tools</loc>
+    <loc>https://thestocktimes.online/financial-tools</loc>
     <lastmod>2026-08-09</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
-    <loc>http://localhost:5173/comparison-tools</loc>
+    <loc>https://thestocktimes.online/comparison-tools</loc>
     <lastmod>2026-08-09</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
-    <loc>http://localhost:5173/search</loc>
+    <loc>https://thestocktimes.online/search</loc>
     <lastmod>2026-08-09</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>http://localhost:5173/about</loc>
+    <loc>https://thestocktimes.online/about</loc>
     <lastmod>2026-08-09</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>http://localhost:5173/contact</loc>
+    <loc>https://thestocktimes.online/contact</loc>
     <lastmod>2026-08-09</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
@@ -70,211 +76,87 @@
 
   <!-- Legal & Compliance Pages -->
   <url>
-    <loc>http://localhost:5173/legal/privacy</loc>
+    <loc>https://thestocktimes.online/legal/privacy</loc>
     <lastmod>2026-08-09</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
   <url>
-    <loc>http://localhost:5173/legal/terms</loc>
+    <loc>https://thestocktimes.online/legal/terms</loc>
     <lastmod>2026-08-09</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
   <url>
-    <loc>http://localhost:5173/legal/disclaimer</loc>
+    <loc>https://thestocktimes.online/legal/disclaimer</loc>
     <lastmod>2026-08-09</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
   <url>
-    <loc>http://localhost:5173/legal/cookie</loc>
+    <loc>https://thestocktimes.online/disclaimer</loc>
     <lastmod>2026-08-09</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
   <url>
-    <loc>http://localhost:5173/legal/editorial</loc>
+    <loc>https://thestocktimes.online/legal/cookie</loc>
     <lastmod>2026-08-09</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
   <url>
-    <loc>http://localhost:5173/legal/corrections</loc>
+    <loc>https://thestocktimes.online/legal/editorial</loc>
     <lastmod>2026-08-09</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
   <url>
-    <loc>http://localhost:5173/legal/dmca</loc>
-    <lastmod>2026-08-09</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.5</priority>
-  </url>
-  <url>
-    <loc>http://localhost:5173/legal/affiliate</loc>
+    <loc>https://thestocktimes.online/legal/corrections</loc>
     <lastmod>2026-08-09</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
 
+  <!-- IPO Articles scheduled for September 24, 2026 -->
+  <url><loc>https://thestocktimes.online/article/upcoming-ipos-september-2026-top-10-india-and-global-ipos-to-watch-on-september-24</loc><lastmod>2026-09-24</lastmod><changefreq>weekly</changefreq><priority>0.85</priority></url>
+  <url><loc>https://thestocktimes.online/article/moneyview-ipo-pre-apply-guide-dates-business-model-risks-and-valuation-checklist</loc><lastmod>2026-09-24</lastmod><changefreq>weekly</changefreq><priority>0.85</priority></url>
+  <url><loc>https://thestocktimes.online/article/a-one-steels-india-ipo-price-band-steel-cycle-risks-issue-size-and-apply-checklist</loc><lastmod>2026-09-24</lastmod><changefreq>weekly</changefreq><priority>0.85</priority></url>
+  <url><loc>https://thestocktimes.online/article/orient-cables-india-ipo-electrical-demand-capex-cycle-price-band-and-listing-research</loc><lastmod>2026-09-24</lastmod><changefreq>weekly</changefreq><priority>0.85</priority></url>
+  <url><loc>https://thestocktimes.online/article/acevector-ipo-watch-e-commerce-platform-economics-marketplace-risk-and-ipo-valuation</loc><lastmod>2026-09-24</lastmod><changefreq>weekly</changefreq><priority>0.85</priority></url>
+  <url><loc>https://thestocktimes.online/article/german-green-steel-and-power-ipo-green-manufacturing-theme-energy-risk-and-apply-checklist</loc><lastmod>2026-09-24</lastmod><changefreq>weekly</changefreq><priority>0.85</priority></url>
+  <url><loc>https://thestocktimes.online/article/runwal-enterprises-ipo-real-estate-cycle-debt-cash-flow-and-listing-day-risks</loc><lastmod>2026-09-24</lastmod><changefreq>weekly</changefreq><priority>0.85</priority></url>
+  <url><loc>https://thestocktimes.online/article/nse-ipo-and-listing-schedule-what-investors-should-know-after-subscription-and-allotment</loc><lastmod>2026-09-24</lastmod><changefreq>weekly</changefreq><priority>0.85</priority></url>
+  <url><loc>https://thestocktimes.online/article/global-mega-ipo-watchlist-2026-anthropic-openai-databricks-grayscale-and-ai-listings</loc><lastmod>2026-09-24</lastmod><changefreq>weekly</changefreq><priority>0.85</priority></url>
+  <url><loc>https://thestocktimes.online/article/us-ipo-pipeline-watch-accelevation-nscale-iambic-therapeutics-and-nasdaq-calendar-risks</loc><lastmod>2026-09-24</lastmod><changefreq>weekly</changefreq><priority>0.85</priority></url>
   <!-- 20 Financial Calculators -->
-  <url>
-    <loc>http://localhost:5173/financial-tools/sip-calculator</loc>
-    <lastmod>2026-08-09</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>http://localhost:5173/financial-tools/emi-calculator</loc>
-    <lastmod>2026-08-09</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>http://localhost:5173/financial-tools/lumpsum-calculator</loc>
-    <lastmod>2026-08-09</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>http://localhost:5173/financial-tools/fd-calculator</loc>
-    <lastmod>2026-08-09</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>http://localhost:5173/financial-tools/rd-calculator</loc>
-    <lastmod>2026-08-09</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>http://localhost:5173/financial-tools/ppf-calculator</loc>
-    <lastmod>2026-08-09</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>http://localhost:5173/financial-tools/nps-calculator</loc>
-    <lastmod>2026-08-09</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>http://localhost:5173/financial-tools/income-tax-calculator</loc>
-    <lastmod>2026-08-09</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>http://localhost:5173/financial-tools/home-loan-calculator</loc>
-    <lastmod>2026-08-09</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>http://localhost:5173/financial-tools/car-loan-calculator</loc>
-    <lastmod>2026-08-09</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>http://localhost:5173/financial-tools/personal-loan-calculator</loc>
-    <lastmod>2026-08-09</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>http://localhost:5173/financial-tools/compound-interest-calculator</loc>
-    <lastmod>2026-08-09</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>http://localhost:5173/financial-tools/inflation-calculator</loc>
-    <lastmod>2026-08-09</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>http://localhost:5173/financial-tools/retirement-calculator</loc>
-    <lastmod>2026-08-09</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>http://localhost:5173/financial-tools/swp-calculator</loc>
-    <lastmod>2026-08-09</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>http://localhost:5173/financial-tools/hra-calculator</loc>
-    <lastmod>2026-08-09</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>http://localhost:5173/financial-tools/gratuity-calculator</loc>
-    <lastmod>2026-08-09</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>http://localhost:5173/financial-tools/epf-calculator</loc>
-    <lastmod>2026-08-09</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>http://localhost:5173/financial-tools/ssy-calculator</loc>
-    <lastmod>2026-08-09</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>http://localhost:5173/financial-tools/step-up-sip-calculator</loc>
-    <lastmod>2026-08-09</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
+  <url><loc>https://thestocktimes.online/financial-tools/emi-calculator</loc><lastmod>2026-08-09</lastmod><changefreq>weekly</changefreq><priority>0.85</priority></url>
+  <url><loc>https://thestocktimes.online/financial-tools/loan-eligibility-calculator</loc><lastmod>2026-08-09</lastmod><changefreq>weekly</changefreq><priority>0.85</priority></url>
+  <url><loc>https://thestocktimes.online/financial-tools/sip-calculator</loc><lastmod>2026-08-09</lastmod><changefreq>weekly</changefreq><priority>0.85</priority></url>
+  <url><loc>https://thestocktimes.online/financial-tools/lumpsum-calculator</loc><lastmod>2026-08-09</lastmod><changefreq>weekly</changefreq><priority>0.85</priority></url>
+  <url><loc>https://thestocktimes.online/financial-tools/cagr-calculator</loc><lastmod>2026-08-09</lastmod><changefreq>weekly</changefreq><priority>0.85</priority></url>
+  <url><loc>https://thestocktimes.online/financial-tools/swp-calculator</loc><lastmod>2026-08-09</lastmod><changefreq>weekly</changefreq><priority>0.85</priority></url>
+  <url><loc>https://thestocktimes.online/financial-tools/sip-vs-lumpsum</loc><lastmod>2026-08-09</lastmod><changefreq>weekly</changefreq><priority>0.85</priority></url>
+  <url><loc>https://thestocktimes.online/financial-tools/fd-calculator</loc><lastmod>2026-08-09</lastmod><changefreq>weekly</changefreq><priority>0.85</priority></url>
+  <url><loc>https://thestocktimes.online/financial-tools/rd-calculator</loc><lastmod>2026-08-09</lastmod><changefreq>weekly</changefreq><priority>0.85</priority></url>
+  <url><loc>https://thestocktimes.online/financial-tools/ppf-calculator</loc><lastmod>2026-08-09</lastmod><changefreq>weekly</changefreq><priority>0.85</priority></url>
+  <url><loc>https://thestocktimes.online/financial-tools/epf-calculator</loc><lastmod>2026-08-09</lastmod><changefreq>weekly</changefreq><priority>0.85</priority></url>
+  <url><loc>https://thestocktimes.online/financial-tools/nps-calculator</loc><lastmod>2026-08-09</lastmod><changefreq>weekly</changefreq><priority>0.85</priority></url>
+  <url><loc>https://thestocktimes.online/financial-tools/income-tax-calculator</loc><lastmod>2026-08-09</lastmod><changefreq>weekly</changefreq><priority>0.85</priority></url>
+  <url><loc>https://thestocktimes.online/financial-tools/salary-calculator</loc><lastmod>2026-08-09</lastmod><changefreq>weekly</changefreq><priority>0.85</priority></url>
+  <url><loc>https://thestocktimes.online/financial-tools/gst-calculator</loc><lastmod>2026-08-09</lastmod><changefreq>weekly</changefreq><priority>0.85</priority></url>
+  <url><loc>https://thestocktimes.online/financial-tools/retirement-calculator</loc><lastmod>2026-08-09</lastmod><changefreq>weekly</changefreq><priority>0.85</priority></url>
+  <url><loc>https://thestocktimes.online/financial-tools/inflation-calculator</loc><lastmod>2026-08-09</lastmod><changefreq>weekly</changefreq><priority>0.85</priority></url>
+  <url><loc>https://thestocktimes.online/financial-tools/compound-interest-calculator</loc><lastmod>2026-08-09</lastmod><changefreq>weekly</changefreq><priority>0.85</priority></url>
+  <url><loc>https://thestocktimes.online/financial-tools/simple-interest-calculator</loc><lastmod>2026-08-09</lastmod><changefreq>weekly</changefreq><priority>0.85</priority></url>
+  <url><loc>https://thestocktimes.online/financial-tools/net-worth-calculator</loc><lastmod>2026-08-09</lastmod><changefreq>weekly</changefreq><priority>0.85</priority></url>
 
   <!-- 6 Comparison Tools -->
-  <url>
-    <loc>http://localhost:5173/comparison-tools/old-vs-new-tax</loc>
-    <lastmod>2026-08-09</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>http://localhost:5173/comparison-tools/direct-vs-regular-mf</loc>
-    <lastmod>2026-08-09</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>http://localhost:5173/comparison-tools/sip-vs-lumpsum</loc>
-    <lastmod>2026-08-09</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>http://localhost:5173/comparison-tools/fd-vs-debt-funds</loc>
-    <lastmod>2026-08-09</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>http://localhost:5173/comparison-tools/buy-vs-rent-home</loc>
-    <lastmod>2026-08-09</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>http://localhost:5173/comparison-tools/credit-card-vs-personal-loan</loc>
-    <lastmod>2026-08-09</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
+  <url><loc>https://thestocktimes.online/comparison-tools/sip-vs-fd</loc><lastmod>2026-08-09</lastmod><changefreq>weekly</changefreq><priority>0.85</priority></url>
+  <url><loc>https://thestocktimes.online/comparison-tools/fd-vs-debt-fund</loc><lastmod>2026-08-09</lastmod><changefreq>weekly</changefreq><priority>0.85</priority></url>
+  <url><loc>https://thestocktimes.online/comparison-tools/rent-vs-buy</loc><lastmod>2026-08-09</lastmod><changefreq>weekly</changefreq><priority>0.85</priority></url>
+  <url><loc>https://thestocktimes.online/comparison-tools/loan-comparison</loc><lastmod>2026-08-09</lastmod><changefreq>weekly</changefreq><priority>0.85</priority></url>
+  <url><loc>https://thestocktimes.online/comparison-tools/credit-card-comparison</loc><lastmod>2026-08-09</lastmod><changefreq>weekly</changefreq><priority>0.85</priority></url>
+  <url><loc>https://thestocktimes.online/comparison-tools/mutual-fund-comparison</loc><lastmod>2026-08-09</lastmod><changefreq>weekly</changefreq><priority>0.85</priority></url>
 </urlset>
+

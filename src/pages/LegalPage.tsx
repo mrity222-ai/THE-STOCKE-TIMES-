@@ -4,6 +4,7 @@ import { SeoService } from '../services/seoService';
 import { ShieldCheck, FileText, AlertTriangle, Scale, Cookie, BookOpen, AlertCircle, RefreshCw, DollarSign, Users, Mail } from 'lucide-react';
 import { LatestArticlesSection } from '../components/articles/LatestArticlesSection';
 import { LegalPageItem } from '../types';
+import { AdSlot } from '../components/ads/AdSlot';
 
 interface LegalPageProps {
   initialTab?: 'privacy' | 'disclaimer' | 'terms' | 'cookies' | 'editorial' | 'corrections' | 'refund' | 'guidelines' | 'about' | 'contact';
@@ -23,8 +24,8 @@ export const LegalPage: React.FC<LegalPageProps> = ({ initialTab, defaultTab, on
 
     if (liveData) {
       SeoService.updateMetaTags(
-        liveData.seoTitle || `${liveData.title} | The Stoce Times`,
-        liveData.seoDescription || `Read ${liveData.title} on The Stoce Times.`
+        liveData.seoTitle || `${liveData.title} | The Stock Times`,
+        liveData.seoDescription || `Read ${liveData.title} on The Stock Times.`
       );
     }
     window.scrollTo(0, 0);
@@ -48,7 +49,7 @@ export const LegalPage: React.FC<LegalPageProps> = ({ initialTab, defaultTab, on
       <div className="bg-gradient-to-r from-[#0B1F33] via-[#0B1F33] to-[#155EEF]/35 text-white p-8 rounded-3xl border border-slate-800 shadow-2xl space-y-3">
         <div className="flex items-center gap-2 text-[#16A34A] font-bold text-xs uppercase tracking-wider">
           <Scale className="w-4 h-4" />
-          <span>The Stoce Times Legal & Compliance</span>
+          <span>The Stock Times Legal & Compliance</span>
         </div>
         <h1 className="text-3xl font-extrabold tracking-tight font-serif text-white">
           {pageData?.title || 'Legal Standards & Policies'}
@@ -59,6 +60,8 @@ export const LegalPage: React.FC<LegalPageProps> = ({ initialTab, defaultTab, on
           </p>
         )}
       </div>
+
+      <AdSlot placement="page_top" />
 
       {/* Tab Switcher */}
       <div className="flex flex-wrap bg-white p-1.5 rounded-2xl border border-[#E2E8F0] shadow-sm text-xs font-bold gap-2">
@@ -79,6 +82,8 @@ export const LegalPage: React.FC<LegalPageProps> = ({ initialTab, defaultTab, on
           );
         })}
       </div>
+
+      <AdSlot placement="page_mid" />
 
       {/* Main Document Dynamic Content */}
       <div className="bg-white rounded-3xl p-8 sm:p-10 border border-[#E2E8F0] shadow-sm text-slate-800 space-y-6 text-sm leading-relaxed font-light">
@@ -103,6 +108,8 @@ export const LegalPage: React.FC<LegalPageProps> = ({ initialTab, defaultTab, on
         )}
       </div>
 
+      <AdSlot placement="page_sidebar" />
+
       {/* Recommended Articles Section */}
       {onNavigate && (
         <LatestArticlesSection
@@ -112,6 +119,8 @@ export const LegalPage: React.FC<LegalPageProps> = ({ initialTab, defaultTab, on
           onNavigate={onNavigate}
         />
       )}
+
+      <AdSlot placement="page_bottom" />
 
     </div>
   );

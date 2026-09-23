@@ -1,7 +1,12 @@
 import React, { useState } from 'react';
 import { Calculator, DollarSign, TrendingUp, HelpCircle, ArrowRight } from 'lucide-react';
+import { formatCurrency, getCurrencyLabel } from '../../utils/currency';
+import { useCurrencyPreference } from '../../hooks/useCurrencyPreference';
 
 export const SipCalculatorWidget: React.FC = () => {
+  useCurrencyPreference();
+  const currencyLabel = getCurrencyLabel();
+  const money = (value: number) => formatCurrency(value);
   const [monthlyInvestment, setMonthlyInvestment] = useState<number>(5000);
   const [expectedReturnRate, setExpectedReturnRate] = useState<number>(12);
   const [tenureYears, setTenureYears] = useState<number>(10);
@@ -54,8 +59,8 @@ export const SipCalculatorWidget: React.FC = () => {
         {/* Slider 1: Monthly Investment */}
         <div className="space-y-1">
           <div className="flex justify-between items-center text-[11px]">
-            <span className="font-semibold text-slate-300">Monthly SIP (₹)</span>
-            <span className="font-bold text-[#16A34A] font-mono">₹{monthlyInvestment.toLocaleString('en-IN')}</span>
+            <span className="font-semibold text-slate-300">Monthly SIP ({currencyLabel})</span>
+            <span className="font-bold text-[#16A34A] font-mono">{money(monthlyInvestment)}</span>
           </div>
           <input
             type="range"
@@ -109,7 +114,7 @@ export const SipCalculatorWidget: React.FC = () => {
         <span className="text-[10px] uppercase font-extrabold text-slate-400 tracking-wider block">Projected Portfolio Value</span>
         
         <div className="text-2xl font-extrabold text-[#16A34A] font-mono">
-          ₹{totalValue.toLocaleString('en-IN')}
+          {money(totalValue)}
         </div>
 
         {/* Visual Ratio Bar */}
@@ -119,8 +124,8 @@ export const SipCalculatorWidget: React.FC = () => {
             <div style={{ width: `${returnsPercent}%` }} className="bg-[#16A34A] h-full transition-all duration-300"></div>
           </div>
           <div className="flex justify-between text-[10px] font-semibold text-slate-400">
-            <span>Invested: ₹{totalInvested.toLocaleString('en-IN')}</span>
-            <span className="text-[#16A34A]">Gain: ₹{estimatedReturns.toLocaleString('en-IN')}</span>
+            <span>Invested: {money(totalInvested)}</span>
+            <span className="text-[#16A34A]">Gain: {money(estimatedReturns)}</span>
           </div>
         </div>
       </div>

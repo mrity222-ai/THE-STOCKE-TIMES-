@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { StorageService } from '../../services/storageService';
 import { Article, Category } from '../../types';
 import { 
@@ -12,7 +12,6 @@ import {
   Edit3, 
   Trash2, 
   Plus, 
-  Upload, 
   FolderPlus, 
   UserPlus, 
   BarChart3, 
@@ -26,8 +25,18 @@ interface AdminDashboardProps {
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateSub }) => {
   const [timeRange, setTimeRange] = useState<'today' | '7days' | '30days' | '12months'>('30days');
-  
-  const articles = StorageService.getArticles();
+  const [articles, setArticles] = useState<Article[]>(() => StorageService.getArticles());
+
+  useEffect(() => {
+    const refreshArticles = () => setArticles(StorageService.getArticles());
+    window.addEventListener('storage', refreshArticles);
+    window.addEventListener('article-views-updated', refreshArticles as EventListener);
+    return () => {
+      window.removeEventListener('storage', refreshArticles);
+      window.removeEventListener('article-views-updated', refreshArticles as EventListener);
+    };
+  }, []);
+
   const categories = StorageService.getCategories();
   const authors = StorageService.getAuthors();
 
@@ -60,10 +69,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateSub })
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
         <div>
           <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
-            TheStoceTimes.com — Admin Dashboard
+            TheStockTimes.online — Admin Dashboard
           </h2>
           <p className="text-xs text-slate-500 mt-1">
-            Overview of TheStoceTimes.com readership, financial publishing performance, and CMS controls.
+            Overview of TheStockTimes.online readership, financial publishing performance, and CMS controls.
           </p>
         </div>
 
@@ -169,10 +178,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateSub })
           <span className="text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-2">
             <Sparkles className="w-4 h-4" /> Quick Publishing Actions
           </span>
-          <span className="text-xs text-slate-400 font-mono">TheStoceTimes.com Publishing Suite</span>
+          <span className="text-xs text-slate-400 font-mono">TheStockTimes.online Publishing Suite</span>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <button
             onClick={() => onNavigateSub('articles-new')}
             className="p-4 rounded-2xl bg-slate-800 hover:bg-emerald-600 text-white font-bold text-xs flex flex-col items-center gap-2 transition-all cursor-pointer group"
@@ -187,14 +196,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateSub })
           >
             <FolderPlus className="w-5 h-5 text-blue-400 group-hover:text-white" />
             <span>Manage Categories</span>
-          </button>
-
-          <button
-            onClick={() => onNavigateSub('media')}
-            className="p-4 rounded-2xl bg-slate-800 hover:bg-purple-600 text-white font-bold text-xs flex flex-col items-center gap-2 transition-all cursor-pointer group"
-          >
-            <Upload className="w-5 h-5 text-purple-400 group-hover:text-white" />
-            <span>Upload Media</span>
           </button>
 
           <button

@@ -8,11 +8,23 @@ export type AdPlacementKey =
   | 'article_bottom'
   | 'article_sidebar'
   | 'calculator_top'
+  | 'calculator_mid'
+  | 'calculator_sidebar'
   | 'calculator_after_result'
   | 'calculator_bottom'
   | 'comparison_top'
+  | 'comparison_mid'
+  | 'comparison_sidebar'
   | 'comparison_after_result'
   | 'comparison_bottom'
+  | 'page_top'
+  | 'page_mid'
+  | 'page_sidebar'
+  | 'page_bottom'
+  | 'category_bottom'
+  | 'search_top'
+  | 'search_mid'
+  | 'search_bottom'
   | 'footer_global'
   | 'header-top-banner'
   | 'below-navigation'
@@ -37,6 +49,11 @@ export interface AdUnit {
   type: AdType;
   network: AdNetwork;
   slotId: string;
+  customCode?: string;
+  ampCode?: string;
+  ampHeadScript?: string;
+  creativeUrl?: string;
+  destinationUrl?: string;
   placement: AdPlacementKey;
   targetDevice: TargetDevice;
   status: 'active' | 'inactive';

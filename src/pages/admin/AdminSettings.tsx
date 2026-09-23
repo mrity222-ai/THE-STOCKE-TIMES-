@@ -2,13 +2,32 @@ import React, { useEffect, useState } from 'react';
 import { StorageService } from '../../services/storageService';
 import { SiteSettings } from '../../types';
 import { ApiService } from '../../services/apiService';
-import { Settings, Globe, ShieldCheck, Mail, Bell, KeyRound, Save, CheckCircle2, Share2, Lock, Activity, Power } from 'lucide-react';
+import { Settings, Globe, ShieldCheck, Mail, Bell, KeyRound, Save, CheckCircle2, Share2, Lock, Activity, Power, Server, RefreshCw } from 'lucide-react';
 import { adminApiFetch } from '../../services/apiConfig';
 
+type SettingsTab = 'general' | 'website' | 'seo' | 'social' | 'users' | 'security' | 'email' | 'environment' | 'notifications';
+
+interface EnvField {
+  key: string;
+  value: string;
+  isSecret: boolean;
+}
+
+interface EnvFileConfig {
+  key: 'root' | 'server';
+  label: string;
+  path: string;
+  fields: EnvField[];
+}
+
 export const AdminSettings: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'general' | 'website' | 'seo' | 'social' | 'users' | 'security' | 'email' | 'notifications'>('general');
+  const [activeTab, setActiveTab] = useState<SettingsTab>('general');
   const [formData, setFormData] = useState<SiteSettings>(StorageService.getSettings());
   const [toastMsg, setToastMsg] = useState('');
+  const [envFiles, setEnvFiles] = useState<EnvFileConfig[]>([]);
+  const [envLoading, setEnvLoading] = useState(false);
+  const [envSaving, setEnvSaving] = useState(false);
+  const [envMessage, setEnvMessage] = useState('');
 
   const [socialMedia, setSocialMedia] = useState({
     twitter_url: '',
@@ -38,6 +57,29 @@ export const AdminSettings: React.FC = () => {
     loadSocialMedia();
   }, []);
 
+  const loadEnvironmentConfig = async () => {
+    setEnvLoading(true);
+    setEnvMessage('');
+    try {
+      const response = await adminApiFetch('/admin/env-config');
+      const data = await response.json();
+      if (!response.ok || !data.success) {
+        throw new Error(data.message || 'Unable to load environment fields.');
+      }
+      setEnvFiles(data.files || []);
+    } catch (error: any) {
+      setEnvMessage(error.message || 'Unable to load environment fields.');
+    } finally {
+      setEnvLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'environment' && envFiles.length === 0 && !envLoading) {
+      void loadEnvironmentConfig();
+    }
+  }, [activeTab]);
+
   // Password change fields
   const [currentPass, setCurrentPass] = useState('');
   const [newPass, setNewPass] = useState('');
@@ -49,6 +91,47 @@ export const AdminSettings: React.FC = () => {
     await ApiService.updateSocialMedia(socialMedia);
     setToastMsg('Site settings and social media links updated successfully!');
     setTimeout(() => setToastMsg(''), 3000);
+  };
+
+  const handleEnvFieldChange = (fileKey: EnvFileConfig['key'], fieldKey: string, value: string) => {
+    setEnvFiles(prev => prev.map(file => file.key === fileKey
+      ? {
+          ...file,
+          fields: file.fields.map(field => field.key === fieldKey ? { ...field, value } : field)
+        }
+      : file
+    ));
+  };
+
+  const handleSaveEnvironment = async () => {
+    setEnvSaving(true);
+    setEnvMessage('');
+    try {
+      const filesPayload = envFiles.reduce<Record<string, Record<string, string>>>((acc, file) => {
+        acc[file.key] = file.fields.reduce<Record<string, string>>((fieldAcc, field) => {
+          fieldAcc[field.key] = field.value;
+          return fieldAcc;
+        }, {});
+        return acc;
+      }, {});
+
+      const response = await adminApiFetch('/admin/env-config', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ files: filesPayload })
+      });
+      const data = await response.json();
+      if (!response.ok || !data.success) {
+        throw new Error(data.message || 'Unable to save environment fields.');
+      }
+      setEnvMessage(data.message || 'Environment fields updated.');
+      setToastMsg('Environment fields saved successfully!');
+      setTimeout(() => setToastMsg(''), 3000);
+    } catch (error: any) {
+      setEnvMessage(error.message || 'Unable to save environment fields.');
+    } finally {
+      setEnvSaving(false);
+    }
   };
 
   const handleChangePassword = (e: React.FormEvent) => {
@@ -84,7 +167,7 @@ export const AdminSettings: React.FC = () => {
           smtpUsername: formData.smtpUsername || '',
           smtpPassword: formData.smtpPassword || '',
           smtpFromEmail: formData.smtpFromEmail || '',
-          smtpFromName: formData.smtpFromName || 'The Stoce Times Editors',
+          smtpFromName: formData.smtpFromName || 'The Stock Times Editors',
           smtpSecure: formData.smtpSecure ?? true,
           targetEmail: formData.contactEmail || ''
         })
@@ -124,16 +207,16 @@ export const AdminSettings: React.FC = () => {
         </div>
       )}
 
-      {/* 8 Tab Navigation */}
+      {/* Tab Navigation */}
       <div className="flex flex-wrap items-center bg-white p-1.5 rounded-2xl border border-slate-200 shadow-sm gap-1 text-xs font-bold">
-        {(['general', 'website', 'seo', 'social', 'users', 'security', 'email', 'notifications'] as const).map((tab) => (
+        {(['general', 'website', 'seo', 'social', 'users', 'security', 'email', 'environment', 'notifications'] as const).map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
             className={`px-3.5 py-2 rounded-xl transition-all capitalize ${activeTab === tab ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
               }`}
           >
-            {tab === 'email' ? 'Email & SMTP Server' : tab}
+            {tab === 'email' ? 'Email & SMTP Server' : tab === 'environment' ? 'Environment' : tab}
           </button>
         ))}
       </div>
@@ -382,7 +465,7 @@ export const AdminSettings: React.FC = () => {
                   type="text"
                   value={formData.smtpFromName || ''}
                   onChange={(e) => setFormData({ ...formData, smtpFromName: e.target.value })}
-                  placeholder="The Stoce Times Editors"
+                  placeholder="The Stock Times Editors"
                   className="w-full p-2.5 rounded-xl border border-slate-300 font-semibold"
                 />
               </div>
@@ -394,6 +477,90 @@ export const AdminSettings: React.FC = () => {
               </p>
               <p className="text-amber-800 font-normal leading-relaxed">
                 Enter the SMTP host, port, username, and password from your email provider before testing delivery.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'environment' && (
+          <div className="space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b pb-3">
+              <div>
+                <h3 className="font-extrabold text-slate-900 text-sm flex items-center gap-2">
+                  <Server className="w-4 h-4 text-emerald-600" /> Environment File Settings
+                </h3>
+                <p className="text-slate-500 text-[11px] mt-1">
+                  Edit root .env and server .env values from the admin panel. Restart the server after changing DB, SMTP, PORT, or AI startup settings.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={loadEnvironmentConfig}
+                  disabled={envLoading}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 px-3 py-2 text-xs font-extrabold text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${envLoading ? 'animate-spin' : ''}`} />
+                  Reload
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveEnvironment}
+                  disabled={envSaving || envFiles.length === 0}
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-4 py-2 text-xs font-extrabold text-white hover:bg-slate-800 disabled:opacity-60"
+                >
+                  <Save className="w-3.5 h-3.5" />
+                  {envSaving ? 'Saving...' : 'Save Env'}
+                </button>
+              </div>
+            </div>
+
+            {envMessage && (
+              <div className={`rounded-2xl border p-4 text-xs font-bold ${
+                envMessage.toLowerCase().includes('unable') || envMessage.toLowerCase().includes('failed')
+                  ? 'border-rose-200 bg-rose-50 text-rose-800'
+                  : 'border-emerald-200 bg-emerald-50 text-emerald-800'
+              }`}>
+                {envMessage}
+              </div>
+            )}
+
+            {envLoading && envFiles.length === 0 ? (
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5 text-xs font-bold text-slate-500">
+                Loading environment fields...
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                {envFiles.map((file) => (
+                  <section key={file.key} className="rounded-2xl border border-slate-200 bg-slate-50 p-5 space-y-4">
+                    <div>
+                      <h4 className="font-extrabold text-slate-900">{file.label}</h4>
+                      <p className="text-[10px] font-mono text-slate-500 break-all mt-1">{file.path}</p>
+                    </div>
+
+                    <div className="space-y-3">
+                      {file.fields.map((field) => (
+                        <div key={`${file.key}-${field.key}`}>
+                          <label className="font-bold text-slate-700 block mb-1">{field.key}</label>
+                          <input
+                            type={field.isSecret ? 'password' : 'text'}
+                            value={field.value}
+                            onChange={(e) => handleEnvFieldChange(file.key, field.key, e.target.value)}
+                            className="w-full p-2.5 rounded-xl border border-slate-300 bg-white font-mono text-[11px]"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+                ))}
+              </div>
+            )}
+
+            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-900">
+              <p className="font-extrabold">Important</p>
+              <p className="mt-1 leading-relaxed">
+                Env files contain private passwords and API keys. Keep admin access limited. Saving updates the files immediately, but some running services keep old values until restart.
               </p>
             </div>
           </div>

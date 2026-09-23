@@ -83,7 +83,7 @@ export const ResetPasswordPage: React.FC<ResetPasswordPageProps> = ({ onNavigate
 
           <div>
             <span className="text-[10px] font-extrabold uppercase tracking-widest text-emerald-400 font-mono block">
-              THE STOCE TIMES — SECURITY SYSTEM
+              THE STOCK TIMES — SECURITY SYSTEM
             </span>
             <h1 className="text-2xl font-extrabold text-white tracking-tight font-serif mt-1">
               Reset Admin Password

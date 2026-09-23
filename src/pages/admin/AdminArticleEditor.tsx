@@ -1,15 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { StorageService } from '../../services/storageService';
-import { Article, Category, Author, ArticleImage } from '../../types';
+import { Article, Category, Author } from '../../types';
 import { RichTextEditor } from '../../components/admin/RichTextEditor';
-import { MediaLibraryModal } from '../../components/admin/MediaLibraryModal';
 import { SeoPreviewBox } from '../../components/admin/SeoPreviewBox';
 import {
   FileText,
   Save,
   Send,
   Clock,
-  Image as ImageIcon,
   Tag,
   FolderTree,
   User,
@@ -19,10 +17,9 @@ import {
   Sparkles,
   Flame,
   Globe,
-  Upload
 } from 'lucide-react';
 import { adminApiFetch, apiFetch } from '../../services/apiConfig';
-import { optimizeHtmlImageSources, optimizeImageDataUrl, optimizeImageFile } from '../../utils/imageUpload';
+import { optimizeHtmlImageSources, optimizeImageDataUrl } from '../../utils/imageUpload';
 
 interface AdminArticleEditorProps {
   initialArticle?: Article | null;
@@ -42,7 +39,7 @@ export const AdminArticleEditor: React.FC<AdminArticleEditorProps> = ({ initialA
     slug: initialArticle?.slug || '',
     categoryId: initialArticle?.categoryId || 'stock-market',
     subCategory: initialArticle?.subCategory || 'Stock Analysis',
-    authorId: initialArticle?.authorId || (isAuthorRole ? currentUser.id : authors[0]?.id) || 'author-1',
+    authorId: initialArticle?.authorId || (isAuthorRole ? currentUser.id : authors[0]?.id) || 'usr-admin-1',
     featuredImage: initialArticle?.featuredImage || 'https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?auto=format&fit=crop&w=1200&q=80',
     excerpt: initialArticle?.excerpt || '',
     content: initialArticle?.content || '<h2>Introduction</h2>\n<p>Write detailed financial research and analysis here...</p>\n<h2>Key Highlights</h2>\n<ul>\n<li>Point 1</li>\n<li>Point 2</li>\n</ul>',
@@ -63,96 +60,12 @@ export const AdminArticleEditor: React.FC<AdminArticleEditorProps> = ({ initialA
     ogDescription: initialArticle?.ogDescription || ''
   });
 
-  const [isMediaModalOpen, setIsMediaModalOpen] = useState(false);
-  const [mediaTarget, setMediaTarget] = useState<'featured' | 'editor'>('featured');
   const [newTagInput, setNewTagInput] = useState('');
   const [toastMsg, setToastMsg] = useState('');
   const showToast = (msg: string) => {
     setToastMsg(msg);
     setTimeout(() => setToastMsg(''), 3000);
   };
-
-  // Multiple Article Images & Drag-and-Drop State
-  const [galleryImages, setGalleryImages] = useState<ArticleImage[]>(initialArticle?.galleryImages || []);
-  const [isDragOver, setIsDragOver] = useState(false);
-
-  const handleMultipleFilesUpload = async (files: FileList | File[]) => {
-    const fileArray = Array.from(files).filter((file) => file.type.startsWith('image/'));
-    if (fileArray.length === 0) {
-      showToast('Please select image files only.');
-      return;
-    }
-
-    try {
-      const newImages: ArticleImage[] = [];
-
-      for (let index = 0; index < fileArray.length; index += 1) {
-        const file = fileArray[index];
-        const optimized = await optimizeImageFile(file, {
-          maxWidth: 1280,
-          maxHeight: 1280,
-          quality: 0.76
-        });
-
-        const imgObj: ArticleImage = {
-          id: `img-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
-          url: optimized.dataUrl,
-          title: file.name.replace(/\.[^/.]+$/, ""),
-          caption: file.name.replace(/\.[^/.]+$/, ""),
-          altText: file.name,
-          sourceCredit: 'The Stoce Times Studio',
-          order: galleryImages.length + index + 1
-        };
-        newImages.push(imgObj);
-
-        try {
-          StorageService.addMediaItem({
-            name: file.name,
-            url: optimized.dataUrl,
-            altText: file.name,
-            dimensions: optimized.width && optimized.height ? `${optimized.width}x${optimized.height}` : undefined,
-            size: optimized.sizeLabel
-          });
-        } catch (error) {
-          console.warn('Media library save failed:', error);
-        }
-      }
-
-      const orderedImages = [...newImages].sort((a, b) => a.order - b.order);
-      const insertedHtml = orderedImages.map(img => `\n<figure style="margin: 20px 0; text-align: center;">
-  <img src="${img.url}" alt="${img.altText || img.title || 'Article image'}" style="width: 100%; max-height: 520px; object-fit: cover; border-radius: 16px; border: 1px solid #e2e8f0;" />
-  <figcaption style="font-size: 12px; color: #64748b; margin-top: 8px; font-style: italic;">${img.caption || img.title || ''}</figcaption>
-</figure>`).join('\n');
-
-      setGalleryImages(prev => [...prev, ...orderedImages]);
-      setFormData(prev => ({
-        ...prev,
-        content: `${prev.content || ''}\n${insertedHtml}`,
-        featuredImage: prev.featuredImage || (orderedImages[0] ? orderedImages[0].url : '')
-      }));
-      showToast(`Uploaded & inserted ${orderedImages.length} article images!`);
-    } catch (error) {
-      console.error('Article image upload failed:', error);
-      showToast('Image upload failed. Please try a smaller image.');
-    }
-  };
-
-  const handleInsertSingleImageIntoContent = (img: ArticleImage) => {
-    const figureHtml = `\n<figure style="margin: 20px 0; text-align: center;">\n  <img src="${img.url}" alt="${img.altText || img.title || 'Article image'}" style="width: 100%; max-height: 480px; object-fit: cover; border-radius: 16px; border: 1px solid #e2e8f0;" />\n  ${img.caption ? `<figcaption style="font-size: 12px; color: #64748b; margin-top: 8px; font-style: italic;">${img.caption} ${img.sourceCredit ? `(Credit: ${img.sourceCredit})` : ''}</figcaption>` : ''}\n</figure>\n`;
-    setFormData(prev => ({ ...prev, content: (prev.content || '') + figureHtml }));
-    showToast('Image inserted into article body!');
-  };
-
-  const handleInsertGalleryGridIntoContent = () => {
-    if (galleryImages.length === 0) {
-      alert('Please upload article images first.');
-      return;
-    }
-    const gridHtml = `\n<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin: 24px 0;">\n${galleryImages.map(img => `  <figure style="margin:0;">\n    <img src="${img.url}" alt="${img.altText || 'Gallery image'}" style="width: 100%; height: 200px; object-fit: cover; border-radius: 12px;" />\n    ${img.caption ? `<figcaption style="font-size: 11px; color: #64748b; margin-top: 4px;">${img.caption}</figcaption>` : ''}\n  </figure>`).join('\n')}\n</div>\n`;
-    setFormData(prev => ({ ...prev, content: (prev.content || '') + gridHtml }));
-    showToast('Image gallery grid inserted into article content!');
-  };
-
 
   // FAQ state + functions
   const [faqs, setFaqs] = useState<{ id: string; question: string; answer: string }[]>(
@@ -379,6 +292,11 @@ export const AdminArticleEditor: React.FC<AdminArticleEditorProps> = ({ initialA
 
   const buildSlug = (title: string) => title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
 
+  const getFirstImageFromContent = (html: string): string => {
+    const doc = new DOMParser().parseFromString(html || '', 'text/html');
+    return doc.querySelector('img')?.getAttribute('src') || '';
+  };
+
   const handleSave = async (status: Article['status']) => {
     const cleanTitle = String(formData.title || '').trim();
     const cleanContent = String(formData.content || '').trim();
@@ -416,7 +334,25 @@ export const AdminArticleEditor: React.FC<AdminArticleEditorProps> = ({ initialA
 
     const authorToUse = isAuthorRole ? currentUser.id : (formData.authorId || currentUser.id);
     let optimizedContent = cleanContent;
-    let optimizedFeaturedImage = formData.featuredImage || '';
+    const getDynamicTopicImage = (t: string, categoryId: string = ''): string => {
+      const topic = t.toLowerCase();
+      if (topic.includes('stock') || topic.includes('nifty') || topic.includes('sensex') || topic.includes('market') || categoryId === 'stock-market') {
+        return 'https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?auto=format&fit=crop&w=1200&q=80';
+      }
+      if (topic.includes('bank') || topic.includes('saving') || topic.includes('fd') || topic.includes('deposit') || categoryId === 'banking') {
+        return 'https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?auto=format&fit=crop&w=1200&q=80';
+      }
+      if (topic.includes('card') || topic.includes('credit') || topic.includes('score') || topic.includes('cibil')) {
+        return 'https://images.unsplash.com/photo-1556742049-0a670fc80782?auto=format&fit=crop&w=1200&q=80';
+      }
+      if (topic.includes('sip') || topic.includes('fund') || topic.includes('invest') || categoryId === 'investment') {
+        return 'https://images.unsplash.com/photo-1579621970563-ebec7560ff3e?auto=format&fit=crop&w=1200&q=80';
+      }
+      return 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&w=1200&q=80';
+    };
+
+    const firstContentImage = getFirstImageFromContent(cleanContent);
+    let optimizedFeaturedImage = firstContentImage || formData.featuredImage || getDynamicTopicImage(cleanTitle, formData.categoryId);
 
     try {
       optimizedContent = await optimizeHtmlImageSources(cleanContent, {
@@ -444,7 +380,7 @@ export const AdminArticleEditor: React.FC<AdminArticleEditorProps> = ({ initialA
       excerpt: cleanExcerpt,
       content: optimizedContent,
       featuredImage: optimizedFeaturedImage,
-      galleryImages,
+      galleryImages: [],
       faqs,
       authorId: authorToUse,
       status: finalStatus,
@@ -607,10 +543,6 @@ export const AdminArticleEditor: React.FC<AdminArticleEditorProps> = ({ initialA
             <RichTextEditor
               value={formData.content || ''}
               onChange={(content) => setFormData(prev => ({ ...prev, content }))}
-              onOpenMediaPicker={() => {
-                setMediaTarget('editor');
-                setIsMediaModalOpen(true);
-              }}
             />
           </div>
 
@@ -811,200 +743,6 @@ export const AdminArticleEditor: React.FC<AdminArticleEditorProps> = ({ initialA
                   className="w-full p-2.5 rounded-xl border border-slate-300"
                 />
               </div>
-            </div>
-          </div>
-
-          {/* MULTIPLE ARTICLE IMAGES & GALLERY UPLOADER CARD */}
-          <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4 font-sans text-xs">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="font-extrabold text-slate-900 text-sm flex items-center gap-2">
-                <ImageIcon className="w-4 h-4 text-emerald-600" /> Multiple Article Images ({galleryImages.length})
-              </h3>
-              {galleryImages.length > 0 && (
-                <button
-                  type="button"
-                  onClick={handleInsertGalleryGridIntoContent}
-                  className="text-[11px] font-extrabold text-blue-600 hover:underline bg-blue-50 px-2.5 py-1 rounded-lg border border-blue-200 cursor-pointer"
-                >
-                  Insert Grid Gallery
-                </button>
-              )}
-            </div>
-
-            {/* Drag and Drop Zone */}
-            <div
-              onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
-              onDragLeave={() => setIsDragOver(false)}
-              onDrop={(e) => {
-                e.preventDefault();
-                setIsDragOver(false);
-                if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-                  void handleMultipleFilesUpload(e.dataTransfer.files);
-                }
-              }}
-              className={`p-6 border-2 border-dashed rounded-2xl text-center space-y-2 transition-all ${
-                isDragOver ? 'border-emerald-500 bg-emerald-50/50' : 'border-slate-300 bg-slate-50/50 hover:bg-slate-100/60'
-              }`}
-            >
-              <Upload className="w-6 h-6 text-emerald-600 mx-auto" />
-              <p className="font-bold text-slate-700">Drag & Drop Images from Computer</p>
-              <p className="text-[11px] text-slate-400">Upload PNG, JPG or WebP directly from your local computer.</p>
-              
-              <label className="inline-block mt-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold rounded-xl shadow cursor-pointer transition-all">
-                <span>Upload Images from Computer</span>
-                <input
-                  type="file"
-                  multiple
-                  accept="image/*"
-                  className="hidden"
-                  onChange={(e) => {
-                    if (e.target.files && e.target.files.length > 0) {
-                      void handleMultipleFilesUpload(e.target.files);
-                    }
-                  }}
-                />
-              </label>
-            </div>
-
-            {/* List of Uploaded Article Images */}
-            {galleryImages.length > 0 && (
-              <div className="space-y-4 pt-2">
-                {galleryImages.map((img) => (
-                  <div key={img.id} className="p-3 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
-                    <div className="flex items-center gap-3">
-                      <img src={img.url} alt={img.title} className="w-16 h-16 rounded-xl object-cover border shrink-0" />
-                      <div className="flex-1 space-y-1">
-                        <input
-                          type="text"
-                          value={img.title || ''}
-                          onChange={(e) => {
-                            const newTitle = e.target.value;
-                            setGalleryImages(prev => prev.map(item => item.id === img.id ? { ...item, title: newTitle } : item));
-                          }}
-                          placeholder="Image Title..."
-                          className="w-full px-2 py-1 rounded-lg border border-slate-300 font-bold text-xs"
-                        />
-                        <input
-                          type="text"
-                          value={img.caption || ''}
-                          onChange={(e) => {
-                            const newCaption = e.target.value;
-                            setGalleryImages(prev => prev.map(item => item.id === img.id ? { ...item, caption: newCaption } : item));
-                          }}
-                          placeholder="Caption & Source Credit..."
-                          className="w-full px-2 py-1 rounded-lg border border-slate-300 text-[11px]"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="flex flex-wrap items-center justify-between gap-1.5 text-[11px] pt-1 border-t border-slate-200">
-                      <button
-                        type="button"
-                        onClick={() => handleInsertSingleImageIntoContent(img)}
-                        className="text-emerald-700 font-bold hover:underline cursor-pointer"
-                      >
-                        📌 Insert into Article
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => setFormData(prev => ({ ...prev, featuredImage: img.url }))}
-                        className="text-blue-700 font-bold hover:underline cursor-pointer"
-                      >
-                        📸 Set Featured
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => setGalleryImages(prev => prev.filter(item => item.id !== img.id))}
-                        className="text-rose-600 font-bold hover:underline cursor-pointer"
-                      >
-                        🗑️ Remove
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Featured Image Card */}
-          <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="font-extrabold text-slate-900 text-sm flex items-center gap-2">
-                <ImageIcon className="w-4 h-4 text-blue-600" /> Featured Image
-              </h3>
-              <button
-                type="button"
-                onClick={() => {
-                  setMediaTarget('featured');
-                  setIsMediaModalOpen(true);
-                }}
-                className="text-[11px] font-bold text-emerald-600 hover:underline"
-              >
-                Media Library
-              </button>
-            </div>
-
-            <div className="space-y-3">
-              {formData.featuredImage && (
-                <div className="aspect-[16/9] rounded-2xl overflow-hidden bg-slate-100 border border-slate-200">
-                  <img src={formData.featuredImage} alt="Featured Preview" className="w-full h-full object-cover" />
-                </div>
-              )}
-
-              {/* Direct Local Computer File Picker Upload Button */}
-              <div className="flex items-center gap-2">
-                <label className="flex-1 py-2.5 px-3 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 text-emerald-800 rounded-xl text-xs font-bold flex items-center justify-center gap-2 cursor-pointer transition-colors shadow-xs">
-                  <Upload className="w-4 h-4 text-emerald-600" />
-                  <span>Upload Featured Image from Computer</span>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) {
-                        void (async () => {
-                          try {
-                            const optimized = await optimizeImageFile(file, {
-                              maxWidth: 1280,
-                              maxHeight: 720,
-                              quality: 0.78
-                            });
-
-                            setFormData(prev => ({ ...prev, featuredImage: optimized.dataUrl }));
-                            try {
-                              StorageService.addMediaItem({
-                                name: file.name,
-                                url: optimized.dataUrl,
-                                altText: file.name,
-                                dimensions: optimized.width && optimized.height ? `${optimized.width}x${optimized.height}` : undefined,
-                                size: optimized.sizeLabel
-                              });
-                            } catch (error) {
-                              console.warn('Media library save failed:', error);
-                            }
-                            showToast('Featured image uploaded from computer!');
-                          } catch (error) {
-                            console.error('Featured image upload failed:', error);
-                            showToast('Featured image upload failed. Try a smaller image.');
-                          }
-                        })();
-                      }
-                      e.target.value = '';
-                    }}
-                  />
-                </label>
-              </div>
-
-              <input
-                type="text"
-                value={formData.featuredImage}
-                onChange={(e) => setFormData({ ...formData, featuredImage: e.target.value })}
-                placeholder="Or paste image URL (https://...)"
-                className="w-full p-2.5 rounded-xl border border-slate-300 text-xs font-mono"
-              />
             </div>
           </div>
 
@@ -1210,21 +948,6 @@ export const AdminArticleEditor: React.FC<AdminArticleEditorProps> = ({ initialA
         </div>
 
       </div>
-
-      {/* Media Library Selector Modal */}
-      <MediaLibraryModal
-        isOpen={isMediaModalOpen}
-        onClose={() => setIsMediaModalOpen(false)}
-        onSelectImage={(url, alt) => {
-          if (mediaTarget === 'featured') {
-            setFormData(prev => ({ ...prev, featuredImage: url }));
-          } else {
-            const imgHtml = `\n<figure style="margin: 20px 0; text-align: center;">\n  <img src="${url}" alt="${alt || 'Article image'}" style="width: 100%; max-height: 520px; object-fit: cover; border-radius: 16px; border: 1px solid #e2e8f0;" />\n  ${alt ? `<figcaption style="font-size: 12px; color: #64748b; margin-top: 8px; font-style: italic;">${alt}</figcaption>` : ''}\n</figure>\n`;
-            setFormData(prev => ({ ...prev, content: (prev.content || '') + imgHtml }));
-          }
-          setIsMediaModalOpen(false);
-        }}
-      />
 
     </div>
   );

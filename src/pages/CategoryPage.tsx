@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { StorageService } from '../services/storageService';
-import { CategoryId } from '../types';
+import { CategoryId, Article } from '../types';
 import { ArticleCard } from '../components/articles/ArticleCard';
 import { AdSlot } from '../components/ads/AdSlot';
-import { TrendingUp, Wallet, Building2, PieChart, Newspaper, Filter, Tag, ArrowRight, ChevronRight } from 'lucide-react';
+import { TrendingUp, Wallet, Building2, PieChart, Newspaper, User, ChevronRight, Eye, Layers } from 'lucide-react';
 
 interface CategoryPageProps {
   categoryId: CategoryId;
@@ -12,27 +12,38 @@ interface CategoryPageProps {
 
 export const CategoryPage: React.FC<CategoryPageProps> = ({ categoryId, onNavigate }) => {
   const [selectedSubcategory, setSelectedSubcategory] = useState<string>('All');
+  const [articles, setArticles] = useState<Article[]>(() => StorageService.getArticles());
+
+  useEffect(() => {
+    const refreshArticles = () => setArticles(StorageService.getArticles());
+    window.addEventListener('storage', refreshArticles);
+    window.addEventListener('article-views-updated', refreshArticles as EventListener);
+    return () => {
+      window.removeEventListener('storage', refreshArticles);
+      window.removeEventListener('article-views-updated', refreshArticles as EventListener);
+    };
+  }, []);
   
   const categories = StorageService.getCategories();
   const currentCategory = categories.find(c => c.id === categoryId) || categories[0];
   
   // Sort articles strictly by publish date descending (newest first!)
-  const allArticles = StorageService.getArticles()
+  const allArticles = useMemo(() => articles
     .filter(a => a.categoryId === categoryId && a.status === 'published')
-    .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
+    .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()), [articles, categoryId]);
 
   const filteredArticles = selectedSubcategory === 'All'
     ? allArticles
     : allArticles.filter(a => a.subCategory === selectedSubcategory || a.tags.includes(selectedSubcategory));
 
   const leadArticle = filteredArticles[0];
-  const leadAuthor = leadArticle ? StorageService.getAuthorById(leadArticle.authorId) : undefined;
 
   const firstBatch = filteredArticles.slice(1, 4);
   const secondBatch = filteredArticles.slice(4);
 
   const categoryIconMap: Record<string, any> = {
     'stock-market': TrendingUp,
+    'ipo': Layers,
     'personal-finance': Wallet,
     'banking': Building2,
     'investment': PieChart,
@@ -57,7 +68,7 @@ export const CategoryPage: React.FC<CategoryPageProps> = ({ categoryId, onNaviga
           
           <div className="inline-flex items-center gap-2 bg-[#16A34A]/20 text-[#16A34A] border border-[#16A34A]/30 px-3.5 py-1.5 rounded-full text-[11px] font-extrabold uppercase tracking-widest">
             <IconComponent className="w-4 h-4 text-[#16A34A]" />
-            <span>TheStoceTimes.com Desk</span>
+            <span>TheStockTimes.online Desk</span>
           </div>
 
           <h1 className="text-3xl sm:text-5xl font-extrabold tracking-tight text-white font-serif leading-tight">
@@ -137,14 +148,11 @@ export const CategoryPage: React.FC<CategoryPageProps> = ({ categoryId, onNaviga
             </p>
 
             <div className="flex items-center gap-3 pt-2 text-xs text-slate-500 font-medium border-t border-slate-100">
-              {leadAuthor && (
-                <img
-                  src={leadAuthor.avatar}
-                  alt={leadAuthor.name}
-                  className="w-7 h-7 rounded-full object-cover border border-slate-300"
-                />
-              )}
-              <span className="font-bold text-slate-800">{leadAuthor?.name || 'TheStoceTimes.com Desk'}</span>
+              <User className="w-4 h-4 text-[#16A34A]" />
+              <span className="font-bold text-slate-800">The Stock Times</span>
+              <span className="text-slate-300">•</span>
+              <Eye className="w-4 h-4 text-[#155EEF]" />
+              <span className="font-mono font-bold text-slate-700">{(leadArticle.views || 0).toLocaleString()} views</span>
             </div>
           </div>
         </div>
@@ -172,6 +180,9 @@ export const CategoryPage: React.FC<CategoryPageProps> = ({ categoryId, onNaviga
       {/* Category Mid Ad (category_mid) */}
       <AdSlot placement="category_mid" />
 
+      {/* Category Between Articles Ad */}
+      <AdSlot placement="category-between-articles" />
+
       {/* Grid of Remaining Articles */}
       {secondBatch.length > 0 && (
         <div className="space-y-6">
@@ -184,6 +195,9 @@ export const CategoryPage: React.FC<CategoryPageProps> = ({ categoryId, onNaviga
           </div>
         </div>
       )}
+
+      {/* Category Bottom Ad */}
+      <AdSlot placement="category_bottom" />
 
     </div>
   );

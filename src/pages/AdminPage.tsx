@@ -18,7 +18,8 @@ import { AdminComparisonCatalogs } from './admin/AdminComparisonCatalogs';
 import { AdminAds } from './admin/AdminAds';
 import { AdminSubscribers } from './admin/AdminSubscribers';
 import { AdminLegal } from './admin/AdminLegal';
-import { MediaLibraryModal } from '../components/admin/MediaLibraryModal';
+import { AdminAiEngine } from './admin/AdminAiEngine';
+import { AdminPopupNotifications } from './admin/AdminPopupNotifications';
 
 interface AdminPageProps {
   onNavigate: (route: string, param?: string) => void;
@@ -32,9 +33,6 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onNavigate }) => {
 
   // Selected Article for Editing
   const [editingArticle, setEditingArticle] = useState<Article | null>(null);
-
-  // Standalone Media Library Modal Trigger
-  const [mediaModalOpen, setMediaModalOpen] = useState<boolean>(false);
 
   if (!isAuthenticated) {
     return (
@@ -54,9 +52,6 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onNavigate }) => {
   const handleNavSelect = (navKey: string) => {
     setSubNav(navKey);
     setMobileSidebarOpen(false);
-    if (navKey === 'media') {
-      setMediaModalOpen(true);
-    }
   };
 
   const handleEditArticle = (art: Article) => {
@@ -70,8 +65,6 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onNavigate }) => {
       setSubNav('articles-new');
     } else if (action === 'new-category') {
       setSubNav('categories');
-    } else if (action === 'upload-media') {
-      setMediaModalOpen(true);
     } else if (action === 'settings') {
       setSubNav('settings');
     } else if (action === 'view-site') {
@@ -81,23 +74,23 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onNavigate }) => {
 
   const getPageTitle = () => {
     switch (subNav) {
-      case 'dashboard': return 'TheStoceTimes.com — Admin Dashboard';
+      case 'dashboard': return 'TheStockTimes.online — Admin Dashboard';
       case 'articles': return 'Articles List';
       case 'articles-new': return 'Author New Article';
       case 'articles-edit': return 'Edit Article';
-      case 'ads': return 'TheStoceTimes.com Monetization & Ads Engine';
-      case 'rules': return 'TheStoceTimes.com Financial Rules & Rates Engine';
+      case 'ads': return 'TheStockTimes.online Monetization & Ads Engine';
+      case 'popup-notifications': return 'Popup Notification Banner';
+      case 'rules': return 'TheStockTimes.online Financial Rules & Rates Engine';
       case 'catalogs': return 'Product Catalogs (Cards & Mutual Funds)';
       case 'categories': return 'Categories Management';
       case 'tags': return 'Tags & Topics';
-      case 'media': return 'Media Library Gallery';
       case 'authors': return 'Research Authors Roster';
       case 'trending': return 'Trending Articles Pinned';
       case 'featured': return 'Lead Featured Stories';
       case 'analytics': return 'Readership Analytics';
       case 'comments': return 'Reader Comments Moderation';
-      case 'settings': return 'TheStoceTimes.com System Settings';
-      default: return 'TheStoceTimes.com Admin';
+      case 'settings': return 'TheStockTimes.online System Settings';
+      default: return 'TheStockTimes.online Admin';
     }
   };
 
@@ -105,6 +98,16 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onNavigate }) => {
     switch (subNav) {
       case 'dashboard':
         return <AdminDashboard onNavigateSub={handleNavSelect} />;
+
+      case 'ai-engine':
+        return (
+          <AdminAiEngine 
+            onNavigateToEditor={(art) => {
+              setEditingArticle(art);
+              setSubNav('articles-edit');
+            }} 
+          />
+        );
 
       case 'articles':
       case 'articles-drafts':
@@ -141,6 +144,9 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onNavigate }) => {
 
       case 'ads':
         return <AdminAds />;
+
+      case 'popup-notifications':
+        return <AdminPopupNotifications />;
 
       case 'rules':
         return <AdminFinancialRules />;
@@ -208,15 +214,6 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onNavigate }) => {
         </main>
 
       </div>
-
-      {/* Standalone Media Gallery Modal */}
-      {mediaModalOpen && (
-        <MediaLibraryModal
-          isOpen={mediaModalOpen}
-          onSelectImage={() => setMediaModalOpen(false)}
-          onClose={() => setMediaModalOpen(false)}
-        />
-      )}
 
     </div>
   );

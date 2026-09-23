@@ -18,6 +18,7 @@ const ADSENSE_KEY = 'finance_pulse_adsense_v1';
 const HOUSE_ADS_KEY = 'finance_pulse_house_ads_v1';
 const ANALYTICS_KEY = 'finance_pulse_ad_analytics_v1';
 const DEFAULT_ADSENSE_PUBLISHER_ID = import.meta.env.VITE_ADSENSE_PUB_ID || 'ca-pub-5020716602157264';
+const AD_CONFIG_CHANGE_EVENT = 'thestocktimes-ad-config-updated';
 
 export interface PlacementSetting {
   placementKey: AdPlacementKey;
@@ -30,11 +31,16 @@ export interface PlacementSetting {
 
 const defaultPlacements: PlacementSetting[] = [
   { placementKey: 'global_top', label: 'Global Top Header Banner (global_top)', pageGroup: 'Global', enabled: true, network: 'google-adsense', device: 'all' },
+  { placementKey: 'homepage-top', label: 'Homepage Top Sponsored Slot (homepage-top)', pageGroup: 'Home', enabled: true, network: 'google-adsense', device: 'all' },
   { placementKey: 'homepage_mid', label: 'Homepage In-Feed Mid Ad (homepage_mid)', pageGroup: 'Home', enabled: true, network: 'house', device: 'all' },
+  { placementKey: 'homepage-between-articles', label: 'Homepage Between Article Sections (homepage-between-articles)', pageGroup: 'Home', enabled: true, network: 'google-adsense', device: 'all' },
   { placementKey: 'homepage-sidebar', label: 'Homepage Sidebar Ad (homepage_sidebar)', pageGroup: 'Home', enabled: true, network: 'google-adsense', device: 'desktop' },
+  { placementKey: 'below-navigation', label: 'Homepage Below Navigation Strip (below-navigation)', pageGroup: 'Home', enabled: true, network: 'google-adsense', device: 'all' },
   
   { placementKey: 'category_top', label: 'Category Page Top Hero Banner (category_top)', pageGroup: 'Categories', enabled: true, network: 'google-adsense', device: 'all' },
   { placementKey: 'category_mid', label: 'Category Page In-Feed Mid Ad (category_mid)', pageGroup: 'Categories', enabled: true, network: 'google-adsense', device: 'all' },
+  { placementKey: 'category-between-articles', label: 'Category Between Articles Ad (category-between-articles)', pageGroup: 'Categories', enabled: true, network: 'google-adsense', device: 'all' },
+  { placementKey: 'category_bottom', label: 'Category Page Bottom Ad (category_bottom)', pageGroup: 'Categories', enabled: true, network: 'google-adsense', device: 'all' },
   
   { placementKey: 'article_top', label: 'Article Reader Top Ad (article_top)', pageGroup: 'Articles', enabled: true, network: 'google-adsense', device: 'all' },
   { placementKey: 'article-after-intro', label: 'Article Below Featured Image Ad (article-after-intro)', pageGroup: 'Articles', enabled: true, network: 'google-adsense', device: 'all' },
@@ -44,15 +50,26 @@ const defaultPlacements: PlacementSetting[] = [
   { placementKey: 'article_sidebar', label: 'Article Desktop Sidebar Sticky Ad (article_sidebar)', pageGroup: 'Articles', enabled: true, network: 'house', device: 'desktop' },
   
   { placementKey: 'search-page', label: 'Search Page Below Search Bar Ad (search_page)', pageGroup: 'Search', enabled: true, network: 'google-adsense', device: 'all' },
+  { placementKey: 'search_top', label: 'Search Page Top Ad (search_top)', pageGroup: 'Search', enabled: true, network: 'google-adsense', device: 'all' },
+  { placementKey: 'search_mid', label: 'Search Page Mid Results Ad (search_mid)', pageGroup: 'Search', enabled: true, network: 'google-adsense', device: 'all' },
+  { placementKey: 'search_bottom', label: 'Search Page Bottom Ad (search_bottom)', pageGroup: 'Search', enabled: true, network: 'google-adsense', device: 'all' },
   
   { placementKey: 'calculator_top', label: 'Financial Calculator Top Intro Ad (calculator_top)', pageGroup: 'Calculators', enabled: true, network: 'google-adsense', device: 'all' },
+  { placementKey: 'calculator_mid', label: 'Financial Calculator Mid-Page Ad (calculator_mid)', pageGroup: 'Calculators', enabled: true, network: 'google-adsense', device: 'all' },
+  { placementKey: 'calculator_sidebar', label: 'Financial Calculator Sidebar / Companion Ad (calculator_sidebar)', pageGroup: 'Calculators', enabled: true, network: 'google-adsense', device: 'all' },
   { placementKey: 'calculator_after_result', label: 'Calculator Immediately After Result (calculator_after_result)', pageGroup: 'Calculators', enabled: true, network: 'google-adsense', device: 'all' },
   { placementKey: 'calculator_bottom', label: 'Financial Calculator Bottom Ad (calculator_bottom)', pageGroup: 'Calculators', enabled: true, network: 'google-adsense', device: 'all' },
   
   { placementKey: 'comparison_top', label: 'Comparison Tool Top Intro Ad (comparison_top)', pageGroup: 'Comparisons', enabled: true, network: 'google-adsense', device: 'all' },
+  { placementKey: 'comparison_mid', label: 'Comparison Tool Mid-Page Ad (comparison_mid)', pageGroup: 'Comparisons', enabled: true, network: 'google-adsense', device: 'all' },
+  { placementKey: 'comparison_sidebar', label: 'Comparison Tool Sidebar / Companion Ad (comparison_sidebar)', pageGroup: 'Comparisons', enabled: true, network: 'google-adsense', device: 'all' },
   { placementKey: 'comparison_after_result', label: 'Comparison Immediately After Result (comparison_after_result)', pageGroup: 'Comparisons', enabled: true, network: 'google-adsense', device: 'all' },
   { placementKey: 'comparison_bottom', label: 'Comparison Tool Bottom Ad (comparison_bottom)', pageGroup: 'Comparisons', enabled: true, network: 'google-adsense', device: 'all' },
   
+  { placementKey: 'page_top', label: 'Standard Page Top Ad (page_top)', pageGroup: 'Global', enabled: true, network: 'google-adsense', device: 'all' },
+  { placementKey: 'page_mid', label: 'Standard Page Mid Content Ad (page_mid)', pageGroup: 'Global', enabled: true, network: 'google-adsense', device: 'all' },
+  { placementKey: 'page_sidebar', label: 'Standard Page Sidebar Ad (page_sidebar)', pageGroup: 'Global', enabled: true, network: 'google-adsense', device: 'desktop' },
+  { placementKey: 'page_bottom', label: 'Standard Page Bottom Ad (page_bottom)', pageGroup: 'Global', enabled: true, network: 'google-adsense', device: 'all' },
   { placementKey: 'footer_global', label: 'Global Pre-Footer Banner Ad (footer_global)', pageGroup: 'Global', enabled: true, network: 'google-adsense', device: 'all' }
 ];
 
@@ -62,12 +79,12 @@ const defaultFrequencyRules: AdFrequencyRules = {
   directAdsEnabled: true,
   houseAdsEnabled: true,
   sponsoredContentEnabled: true,
-  maxAdsPerArticle: 5,
+  maxAdsPerArticle: 6,
   minContentWordDistance: 300,
   maxSidebarAds: 2,
-  maxMobileAds: 4,
-  desktopMaxAds: 5,
-  mobileMaxAds: 4
+  maxMobileAds: 5,
+  desktopMaxAds: 7,
+  mobileMaxAds: 5
 };
 
 const defaultAdSense: AdSenseConfig = {
@@ -78,7 +95,20 @@ const defaultAdSense: AdSenseConfig = {
   scriptLoaded: true
 };
 
-const defaultAdUnits: AdUnit[] = [];
+const DEFAULT_ADSENSE_SLOT_ID = import.meta.env.VITE_ADSENSE_SLOT_ID || '8845697109';
+
+const defaultAdUnits: AdUnit[] = defaultPlacements
+  .filter((placement) => placement.network === 'google-adsense')
+  .map((placement) => ({
+    id: `default-unit-${placement.placementKey}`,
+    name: `${placement.label} Default AdSense Unit`,
+    type: placement.placementKey.includes('article') ? 'in-article' : 'responsive',
+    network: 'google-adsense',
+    slotId: DEFAULT_ADSENSE_SLOT_ID,
+    placement: placement.placementKey,
+    targetDevice: placement.device === 'desktop' || placement.device === 'mobile' ? placement.device : 'all',
+    status: 'active'
+  }));
 
 const defaultHouseAds: HouseAd[] = [
   {
@@ -130,6 +160,63 @@ const defaultHouseAds: HouseAd[] = [
 ];
 
 export class AdService {
+  private static getStoredAdUnits(): AdUnit[] {
+    try {
+      const data = localStorage.getItem(AD_UNITS_KEY);
+      if (!data) return [];
+
+      const units = JSON.parse(data) as AdUnit[];
+      const demoSlotIds = new Set(['9876543210', '1234567890', '5544332211', '6677889900']);
+      const cleanedUnits = units.filter(unit => {
+        const hasRealCode = Boolean(unit.slotId || unit.customCode || unit.ampCode || unit.creativeUrl);
+        const isDemoSlot = Boolean(unit.slotId && demoSlotIds.has(unit.slotId));
+        const isGeneratedDefault = unit.id?.startsWith('default-unit-');
+        return hasRealCode && !isDemoSlot && !isGeneratedDefault;
+      });
+
+      if (cleanedUnits.length !== units.length) {
+        localStorage.setItem(AD_UNITS_KEY, JSON.stringify(cleanedUnits));
+      }
+
+      return cleanedUnits;
+    } catch (err) {
+      console.error('Failed to load stored ad units', err);
+      return [];
+    }
+  }
+
+  private static notifyConfigChanged(): void {
+    if (typeof window === 'undefined') return;
+    window.dispatchEvent(new CustomEvent(AD_CONFIG_CHANGE_EVENT));
+  }
+
+  public static subscribeToChanges(callback: () => void): () => void {
+    if (typeof window === 'undefined') return () => {};
+
+    const handleChange = () => callback();
+    const handleStorage = (event: StorageEvent) => {
+      if (
+        !event.key ||
+        [
+          AD_CONFIG_KEY,
+          PLACEMENTS_CONFIG_KEY,
+          AD_UNITS_KEY,
+          ADSENSE_KEY,
+          HOUSE_ADS_KEY
+        ].includes(event.key)
+      ) {
+        callback();
+      }
+    };
+
+    window.addEventListener(AD_CONFIG_CHANGE_EVENT, handleChange);
+    window.addEventListener('storage', handleStorage);
+
+    return () => {
+      window.removeEventListener(AD_CONFIG_CHANGE_EVENT, handleChange);
+      window.removeEventListener('storage', handleStorage);
+    };
+  }
   
   public static getRules(): AdFrequencyRules {
     try {
@@ -143,13 +230,24 @@ export class AdService {
 
   public static saveRules(rules: AdFrequencyRules): void {
     localStorage.setItem(AD_CONFIG_KEY, JSON.stringify(rules));
+    this.notifyConfigChanged();
   }
 
   // Placements Configuration
   public static getPlacementsConfig(): PlacementSetting[] {
     try {
       const data = localStorage.getItem(PLACEMENTS_CONFIG_KEY);
-      if (data) return JSON.parse(data);
+      if (data) {
+        const stored = JSON.parse(data) as PlacementSetting[];
+        const merged = defaultPlacements.map((placement) => ({
+          ...placement,
+          ...stored.find((item) => item.placementKey === placement.placementKey)
+        }));
+        const customStored = stored.filter(
+          (item) => !defaultPlacements.some((placement) => placement.placementKey === item.placementKey)
+        );
+        return [...merged, ...customStored];
+      }
     } catch (err) {
       console.error('Failed to load placements config', err);
     }
@@ -158,6 +256,7 @@ export class AdService {
 
   public static savePlacementsConfig(config: PlacementSetting[]): void {
     localStorage.setItem(PLACEMENTS_CONFIG_KEY, JSON.stringify(config));
+    this.notifyConfigChanged();
   }
 
   public static isPlacementEnabled(placementKey: AdPlacementKey): boolean {
@@ -173,25 +272,21 @@ export class AdService {
   }
 
   public static getAdUnits(): AdUnit[] {
-    try {
-      const data = localStorage.getItem(AD_UNITS_KEY);
-      if (data) {
-        const units = JSON.parse(data) as AdUnit[];
-        const demoSlotIds = new Set(['9876543210', '1234567890', '5544332211', '6677889900']);
-        const cleanedUnits = units.filter(unit => unit.slotId && !demoSlotIds.has(unit.slotId));
-        if (cleanedUnits.length !== units.length) {
-          localStorage.setItem(AD_UNITS_KEY, JSON.stringify(cleanedUnits));
-        }
-        return cleanedUnits;
-      }
-    } catch (err) {
-      console.error('Failed to load ad units', err);
-    }
-    return defaultAdUnits;
+    const storedUnits = this.getStoredAdUnits();
+    const mergedDefaults = defaultAdUnits.map((fallbackUnit) => {
+      const overrideUnit = [...storedUnits].reverse().find((unit) => {
+        const samePlacement = unit.placement === fallbackUnit.placement;
+        const sameDevice = unit.targetDevice === fallbackUnit.targetDevice || unit.targetDevice === 'all' || fallbackUnit.targetDevice === 'all';
+        return samePlacement && sameDevice;
+      });
+      return overrideUnit || fallbackUnit;
+    });
+    const extraUnits = storedUnits.filter((unit) => !defaultAdUnits.some((fallbackUnit) => fallbackUnit.placement === unit.placement));
+    return [...mergedDefaults, ...extraUnits];
   }
 
   public static saveAdUnit(unit: AdUnit): void {
-    const units = this.getAdUnits();
+    const units = this.getStoredAdUnits();
     const normalizedUnit: AdUnit = {
       ...unit,
       id: unit.id || 'unit-' + Date.now(),
@@ -202,13 +297,25 @@ export class AdService {
     };
     const idx = units.findIndex(u => u.id === normalizedUnit.id);
     if (idx >= 0) units[idx] = normalizedUnit;
-    else units.push(normalizedUnit);
+    else {
+      const withoutSamePlacement = units.filter((u) => {
+        const samePlacement = u.placement === normalizedUnit.placement;
+        const sameDevice = (u.targetDevice || 'all') === (normalizedUnit.targetDevice || 'all');
+        return !(samePlacement && sameDevice);
+      });
+      withoutSamePlacement.push(normalizedUnit);
+      localStorage.setItem(AD_UNITS_KEY, JSON.stringify(withoutSamePlacement));
+      this.notifyConfigChanged();
+      return;
+    }
     localStorage.setItem(AD_UNITS_KEY, JSON.stringify(units));
+    this.notifyConfigChanged();
   }
 
   public static deleteAdUnit(id: string): void {
-    const units = this.getAdUnits().filter(u => u.id !== id);
+    const units = this.getStoredAdUnits().filter(u => u.id !== id);
     localStorage.setItem(AD_UNITS_KEY, JSON.stringify(units));
+    this.notifyConfigChanged();
   }
 
   public static getAdSenseConfig(): AdSenseConfig {
@@ -228,7 +335,12 @@ export class AdService {
       verificationCode: config.verificationCode || `<meta name="google-adsense-account" content="${config.publisherId.trim()}">`
     };
     localStorage.setItem(ADSENSE_KEY, JSON.stringify(normalizedConfig));
-    this.ensureAdSenseScript();
+    if (normalizedConfig.autoAdsEnabled || normalizedConfig.manualAdsEnabled) {
+      this.ensureAdSenseScript();
+    } else {
+      this.removeAdSenseScript();
+    }
+    this.notifyConfigChanged();
   }
 
   public static ensureAdSenseScript(): void {
@@ -247,17 +359,28 @@ export class AdService {
     }
     metaAdSense.setAttribute('content', publisherId);
 
-    const existing = document.querySelector<HTMLScriptElement>('script[data-managed-adsense="true"]');
+    const existing = document.querySelector<HTMLScriptElement>('script#google-adsense-script');
+    document.querySelectorAll<HTMLScriptElement>('script[data-managed-adsense="true"]').forEach((legacyScript) => {
+      legacyScript.remove();
+    });
     const src = `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${encodeURIComponent(publisherId)}`;
     if (existing?.src === src) return;
     existing?.remove();
 
     const script = document.createElement('script');
+    script.id = 'google-adsense-script';
     script.async = true;
     script.crossOrigin = 'anonymous';
     script.src = src;
-    script.dataset.managedAdsense = 'true';
     document.head.appendChild(script);
+  }
+
+  public static removeAdSenseScript(): void {
+    if (typeof document === 'undefined') return;
+    document.querySelector<HTMLScriptElement>('script#google-adsense-script')?.remove();
+    document.querySelectorAll<HTMLScriptElement>('script[data-managed-adsense="true"]').forEach((legacyScript) => {
+      legacyScript.remove();
+    });
   }
 
   public static getHouseAds(): HouseAd[] {
@@ -276,11 +399,13 @@ export class AdService {
     if (idx >= 0) ads[idx] = ad;
     else ads.push({ ...ad, id: ad.id || 'house-' + Date.now() });
     localStorage.setItem(HOUSE_ADS_KEY, JSON.stringify(ads));
+    this.notifyConfigChanged();
   }
 
   public static deleteHouseAd(id: string): void {
     const ads = this.getHouseAds().filter(a => a.id !== id);
     localStorage.setItem(HOUSE_ADS_KEY, JSON.stringify(ads));
+    this.notifyConfigChanged();
   }
 
   // Analytics Tracker
@@ -337,39 +462,6 @@ export class AdService {
 
   // Automatic In-Article Ad Inserter
   public static insertInArticleAds(contentHtml: string): string {
-    const rules = this.getRules();
-    if (!rules.globalAdsMasterSwitch || !this.isPlacementEnabled('article_mid')) {
-      return contentHtml;
-    }
-
-    const paragraphs = contentHtml.split(/(<\/p>)/i);
-    if (paragraphs.length < 4) return contentHtml;
-
-    let adCount = 0;
-    const maxAds = rules.maxAdsPerArticle || 5;
-    let result = '';
-
-    for (let i = 0; i < paragraphs.length; i++) {
-      result += paragraphs[i];
-      if (paragraphs[i].toLowerCase() === '</p>') {
-        const pIndex = Math.floor(i / 2);
-        // Inject after paragraph 2, 4, 6, 8, 10
-        if ((pIndex === 2 || pIndex === 4 || pIndex === 6 || pIndex === 8 || pIndex === 10) && adCount < maxAds) {
-          adCount++;
-          result += `\n<div class="my-6 p-4 bg-slate-50 border border-slate-200 rounded-2xl text-center shadow-sm">
-            <div class="flex items-center justify-between mb-1.5 px-1">
-              <span class="text-[10px] uppercase font-bold text-slate-400">Advertisement</span>
-              <span class="text-[10px] font-mono text-emerald-600 font-bold">TheStoceTimes.com In-Article Ad #${adCount}</span>
-            </div>
-            <div class="bg-white border border-slate-200 p-4 rounded-xl text-xs text-slate-600 font-mono flex items-center justify-center gap-2">
-              <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-              <span>[Google AdSense / Direct Sponsored Banner — Slot #${adCount}]</span>
-            </div>
-          </div>\n`;
-        }
-      }
-    }
-
-    return result;
+    return contentHtml;
   }
 }

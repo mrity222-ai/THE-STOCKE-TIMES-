@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { StorageService } from '../../services/storageService';
 import { Subscriber } from '../../types';
 import { 
@@ -21,15 +21,34 @@ export const AdminSubscribers: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<'All' | 'Active' | 'Unsubscribed' | 'Verified'>('All');
   const [toastMsg, setToastMsg] = useState<string>('');
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const showToast = (msg: string) => {
     setToastMsg(msg);
     setTimeout(() => setToastMsg(''), 3000);
   };
 
-  const reloadSubscribers = () => {
+  const reloadSubscribers = async () => {
+    setIsRefreshing(true);
+    const latest = await StorageService.fetchSubscribersFromServer();
+    setSubscribers(latest);
+    setIsRefreshing(false);
+  };
+
+  const reloadLocalSubscribers = () => {
     setSubscribers(StorageService.getSubscribers());
   };
+
+  useEffect(() => {
+    reloadSubscribers();
+    const handleUpdate = () => setSubscribers(StorageService.getSubscribers());
+    window.addEventListener('subscribers-updated', handleUpdate);
+    window.addEventListener('storage', handleUpdate);
+    return () => {
+      window.removeEventListener('subscribers-updated', handleUpdate);
+      window.removeEventListener('storage', handleUpdate);
+    };
+  }, []);
 
   const filteredSubscribers = useMemo(() => {
     return subscribers.filter(sub => {
@@ -47,14 +66,14 @@ export const AdminSubscribers: React.FC = () => {
     const newStatus = sub.status === 'Active' ? 'Unsubscribed' : 'Active';
     StorageService.updateSubscriberStatus(sub.id, newStatus);
     showToast(`Subscriber ${sub.email} status set to ${newStatus}`);
-    reloadSubscribers();
+    reloadLocalSubscribers();
   };
 
   const handleDelete = (id: string, email: string) => {
     if (confirm(`Are you sure you want to remove subscriber ${email}?`)) {
       StorageService.deleteSubscriber(id);
       showToast(`Subscriber ${email} removed.`);
-      reloadSubscribers();
+      reloadLocalSubscribers();
     }
   };
 
@@ -108,17 +127,27 @@ export const AdminSubscribers: React.FC = () => {
             <span>Newsletter Subscribers Management</span>
           </h1>
           <p className="text-slate-500 text-xs mt-1 font-light">
-            Monitor, manage, search, and export audience members subscribed to The Stoce Times editorial broadcasts.
+            Monitor, manage, search, and export audience members subscribed to The Stock Times editorial broadcasts.
           </p>
         </div>
 
-        <button
-          onClick={handleExportCSV}
-          className="inline-flex items-center gap-2 bg-[#16A34A] hover:bg-emerald-600 text-white px-4 py-2.5 rounded-xl text-xs font-bold shadow-md transition-all cursor-pointer self-start md:self-auto"
-        >
-          <Download className="w-4 h-4" />
-          <span>Export Subscriber List (CSV)</span>
-        </button>
+        <div className="flex flex-wrap items-center gap-2 self-start md:self-auto">
+          <button
+            onClick={reloadSubscribers}
+            disabled={isRefreshing}
+            className="inline-flex items-center gap-2 bg-white hover:bg-slate-50 text-[#0B1F33] border border-slate-200 px-4 py-2.5 rounded-xl text-xs font-bold shadow-sm transition-all cursor-pointer disabled:opacity-60"
+          >
+            <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+            <span>{isRefreshing ? 'Refreshing...' : 'Refresh'}</span>
+          </button>
+          <button
+            onClick={handleExportCSV}
+            className="inline-flex items-center gap-2 bg-[#16A34A] hover:bg-emerald-600 text-white px-4 py-2.5 rounded-xl text-xs font-bold shadow-md transition-all cursor-pointer"
+          >
+            <Download className="w-4 h-4" />
+            <span>Export Subscriber List (CSV)</span>
+          </button>
+        </div>
       </div>
 
       {/* Overview Stat Counters */}

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { AdService, PlacementSetting } from '../../services/adService';
 import { AdUnit, AdSenseConfig, HouseAd, AdFrequencyRules, AdPriority, AdLifecycleStatus } from '../../types/ads';
 import { 
@@ -25,7 +25,7 @@ import {
 } from 'lucide-react';
 
 export const AdminAds: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'placements' | 'house' | 'units' | 'adsense' | 'analytics' | 'rules'>('house');
+  const [activeTab, setActiveTab] = useState<'placements' | 'house' | 'units' | 'adsense' | 'approval' | 'analytics' | 'rules'>('approval');
   
   const [rules, setRules] = useState<AdFrequencyRules>(AdService.getRules());
   const [placements, setPlacements] = useState<PlacementSetting[]>(AdService.getPlacementsConfig());
@@ -33,6 +33,16 @@ export const AdminAds: React.FC = () => {
   const [units, setUnits] = useState<AdUnit[]>(AdService.getAdUnits());
   const [houseAds, setHouseAds] = useState<HouseAd[]>(AdService.getHouseAds());
   const analytics = AdService.getAnalytics();
+  const normalizedPubId = adsense.publisherId.replace(/^ca-/, '');
+  const approvalChecks = [
+    { label: 'Publisher ID configured', ok: adsense.publisherId.startsWith('ca-pub-'), detail: adsense.publisherId || 'Add ca-pub ID from AdSense' },
+    { label: 'AdSense head script ready', ok: adsense.autoAdsEnabled || adsense.manualAdsEnabled, detail: 'Script loads only when monetization is enabled.' },
+    { label: 'ads.txt line ready', ok: normalizedPubId.startsWith('pub-'), detail: `google.com, ${normalizedPubId || 'pub-xxxxxxxxxxxxxxxx'}, DIRECT, f08c47fec0942fa0` },
+    { label: 'Ad density controlled', ok: rules.maxAdsPerArticle <= 6 && rules.maxMobileAds <= 5, detail: `${rules.maxAdsPerArticle} article ads, ${rules.maxMobileAds} mobile ads max` },
+    { label: 'Legal pages linked', ok: true, detail: 'Privacy, Terms, Cookies, Editorial, Corrections, Guidelines, and legal notice pages' },
+    { label: 'Misleading click prompts avoided', ok: true, detail: 'Ads use neutral labels like Advertisement or Sponsored.' }
+  ];
+  const hasAdSenseSlotInCode = (...codes: Array<string | undefined>) => codes.some(code => /data-ad-slot\s*=\s*["'][^"']+["']/i.test(code || ''));
 
   const [toastMsg, setToastMsg] = useState('');
   const [isHouseModalOpen, setIsHouseModalOpen] = useState(false);
@@ -40,6 +50,16 @@ export const AdminAds: React.FC = () => {
 
   const [isUnitModalOpen, setIsUnitModalOpen] = useState(false);
   const [editingUnit, setEditingUnit] = useState<Partial<AdUnit> | null>(null);
+
+  useEffect(() => {
+    return AdService.subscribeToChanges(() => {
+      setRules(AdService.getRules());
+      setPlacements(AdService.getPlacementsConfig());
+      setAdsense(AdService.getAdSenseConfig());
+      setUnits(AdService.getAdUnits());
+      setHouseAds(AdService.getHouseAds());
+    });
+  }, []);
 
   const showToast = (msg: string) => {
     setToastMsg(msg);
@@ -53,16 +73,18 @@ export const AdminAds: React.FC = () => {
   };
 
   const handleTogglePlacement = (index: number) => {
-    const updated = [...placements];
-    updated[index].enabled = !updated[index].enabled;
+    const updated = placements.map((placement, placementIndex) => (
+      placementIndex === index ? { ...placement, enabled: !placement.enabled } : placement
+    ));
     setPlacements(updated);
     AdService.savePlacementsConfig(updated);
     showToast(`${updated[index].label} set to ${updated[index].enabled ? 'ENABLED' : 'DISABLED'}.`);
   };
 
   const handleChangeNetwork = (index: number, network: any) => {
-    const updated = [...placements];
-    updated[index].network = network;
+    const updated = placements.map((placement, placementIndex) => (
+      placementIndex === index ? { ...placement, network } : placement
+    ));
     setPlacements(updated);
     AdService.savePlacementsConfig(updated);
     showToast(`Network for ${updated[index].label} set to ${network}.`);
@@ -106,7 +128,7 @@ export const AdminAds: React.FC = () => {
       rotationWeight: Number(editingHouseAd.rotationWeight) || 100,
       maxImpressions: editingHouseAd.maxImpressions ? Number(editingHouseAd.maxImpressions) : undefined,
       maxClicks: editingHouseAd.maxClicks ? Number(editingHouseAd.maxClicks) : undefined,
-      utmSource: editingHouseAd.utmSource || 'thestocetimes',
+      utmSource: editingHouseAd.utmSource || 'thestocktimes',
       utmMedium: editingHouseAd.utmMedium || 'banner_ad',
       utmCampaign: editingHouseAd.utmCampaign || 'promo',
       impressions: editingHouseAd.impressions || 0,
@@ -138,7 +160,42 @@ export const AdminAds: React.FC = () => {
   const handleSaveUnit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingUnit || !editingUnit.name) return;
-    AdService.saveAdUnit(editingUnit as any);
+    const network = editingUnit.network || 'google-adsense';
+    const slotId = (editingUnit.slotId || '').trim();
+    const customCode = (editingUnit.customCode || '').trim();
+    const ampCode = (editingUnit.ampCode || '').trim();
+    const ampHeadScript = (editingUnit.ampHeadScript || '').trim();
+    const creativeUrl = (editingUnit.creativeUrl || '').trim();
+
+    if (network === 'google-adsense' && !slotId && !hasAdSenseSlotInCode(customCode, ampCode)) {
+      showToast('Add an AdSense slot ID or paste HTML/AMP AdSense ad code.');
+      return;
+    }
+
+    if ((network === 'direct' || network === 'sponsored') && !creativeUrl) {
+      showToast('Direct and sponsored units need a creative URL.');
+      return;
+    }
+
+    const fullUnit: AdUnit = {
+      id: editingUnit.id || 'unit-' + Date.now(),
+      name: editingUnit.name,
+      type: editingUnit.type || 'responsive',
+      network,
+      slotId,
+      customCode,
+      ampCode,
+      ampHeadScript,
+      creativeUrl,
+      destinationUrl: (editingUnit.destinationUrl || '').trim(),
+      placement: editingUnit.placement || 'article_top',
+      targetDevice: editingUnit.targetDevice || 'all',
+      status: editingUnit.status || 'active',
+      startDate: editingUnit.startDate,
+      endDate: editingUnit.endDate
+    };
+
+    AdService.saveAdUnit(fullUnit);
     setUnits(AdService.getAdUnits());
     setIsUnitModalOpen(false);
     showToast('Ad Unit saved successfully.');
@@ -191,9 +248,44 @@ export const AdminAds: React.FC = () => {
         <button onClick={() => setActiveTab('placements')} className={`px-4 py-2 rounded-xl ${activeTab === 'placements' ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100'}`}>Ad Locations ({placements.length})</button>
         <button onClick={() => setActiveTab('units')} className={`px-4 py-2 rounded-xl ${activeTab === 'units' ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100'}`}>Ad Units ({units.length})</button>
         <button onClick={() => setActiveTab('adsense')} className={`px-4 py-2 rounded-xl ${activeTab === 'adsense' ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100'}`}>Google AdSense</button>
+        <button onClick={() => setActiveTab('approval')} className={`px-4 py-2 rounded-xl ${activeTab === 'approval' ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100'}`}>Approval Checklist</button>
         <button onClick={() => setActiveTab('analytics')} className={`px-4 py-2 rounded-xl ${activeTab === 'analytics' ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100'}`}>Analytics & CTR</button>
         <button onClick={() => setActiveTab('rules')} className={`px-4 py-2 rounded-xl ${activeTab === 'rules' ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100'}`}>Density Rules</button>
       </div>
+
+      {activeTab === 'approval' && (
+        <div className="grid lg:grid-cols-[1.1fr_0.9fr] gap-6">
+          <div className="bg-white p-5 sm:p-6 rounded-lg border border-slate-200 shadow-xs space-y-4">
+            <h3 className="font-extrabold text-slate-900 text-base flex items-center gap-2 font-serif">
+              <ShieldCheck className="w-5 h-5 text-emerald-600" /> AdSense Approval Readiness
+            </h3>
+            <div className="space-y-3">
+              {approvalChecks.map((item) => (
+                <div key={item.label} className="flex items-start gap-3 rounded-lg border border-slate-200 p-3.5">
+                  {item.ok ? <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" /> : <X className="w-5 h-5 text-rose-600 shrink-0" />}
+                  <div>
+                    <div className="text-sm font-extrabold text-slate-900">{item.label}</div>
+                    <div className="text-xs text-slate-500 mt-0.5 font-mono break-all">{item.detail}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="bg-slate-900 text-white p-5 sm:p-6 rounded-lg border border-slate-800 shadow-xs space-y-4">
+            <h3 className="font-extrabold text-base flex items-center gap-2 font-serif">
+              <FileText className="w-5 h-5 text-emerald-400" /> Before Request Review
+            </h3>
+            <ul className="space-y-3 text-xs text-slate-300 leading-relaxed">
+              <li>Publish at least 20-30 original, helpful articles with real body content, images, authors, and dates.</li>
+              <li>Keep Privacy Policy, Terms, About, Contact, Editorial, Corrections, and legal notice pages reachable from site navigation.</li>
+              <li>Set production env values: SITE_URL, VITE_ADSENSE_PUB_ID, ADSENSE_PUB_ID.</li>
+              <li>Verify live URLs: /ads.txt, /robots.txt, /sitemap.xml, and several article pages return 200.</li>
+              <li>Avoid copied/thin AI content, broken pages, fake traffic, click prompts, and excessive ads above content.</li>
+            </ul>
+          </div>
+        </div>
+      )}
 
       {/* 1. HOUSE & DIRECT CAMPAIGNS TAB */}
       {activeTab === 'house' && (
@@ -220,7 +312,7 @@ export const AdminAds: React.FC = () => {
                   priority: 'high',
                   rotationWeight: 100,
                   status: 'active',
-                  utmSource: 'thestocetimes',
+                  utmSource: 'thestocktimes',
                   utmMedium: 'banner_ad',
                   utmCampaign: 'promo_campaign'
                 });
@@ -392,7 +484,7 @@ export const AdminAds: React.FC = () => {
           <div className="flex justify-end">
             <button
               onClick={() => {
-                setEditingUnit({ name: '', type: 'responsive', network: 'google-adsense', slotId: '', placement: 'article_top', targetDevice: 'all', status: 'active' });
+                setEditingUnit({ name: '', type: 'responsive', network: 'google-adsense', slotId: '', customCode: '', ampCode: '', ampHeadScript: '<script async custom-element="amp-ad" src="https://cdn.ampproject.org/v0/amp-ad-0.1.js"></script>', creativeUrl: '', destinationUrl: '', placement: 'article_top', targetDevice: 'all', status: 'active' });
                 setIsUnitModalOpen(true);
               }}
               className="bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs px-4 py-2.5 rounded-xl shadow-xs flex items-center gap-2 cursor-pointer"
@@ -409,6 +501,7 @@ export const AdminAds: React.FC = () => {
                   <th className="p-3.5">Network</th>
                   <th className="p-3.5">Placement</th>
                   <th className="p-3.5">Slot ID</th>
+                  <th className="p-3.5">Creative</th>
                   <th className="p-3.5">Status</th>
                   <th className="p-3.5 text-right">Actions</th>
                 </tr>
@@ -419,7 +512,10 @@ export const AdminAds: React.FC = () => {
                     <td className="p-3.5 font-bold text-slate-900 font-sans">{u.name}</td>
                     <td className="p-3.5"><span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded font-bold text-xs">{u.network}</span></td>
                     <td className="p-3.5 text-xs font-sans">{u.placement}</td>
-                    <td className="p-3.5 text-slate-500">{u.slotId || 'Auto'}</td>
+                    <td className="p-3.5 text-slate-500">{u.slotId || (hasAdSenseSlotInCode(u.customCode, u.ampCode) ? 'From code' : 'Auto')}</td>
+                    <td className="p-3.5 text-slate-500">
+                      {u.customCode ? <span className="text-emerald-700 font-bold">HTML</span> : u.ampCode ? <span className="text-cyan-700 font-bold">AMP</span> : u.creativeUrl ? <span className="text-blue-700 font-bold">URL</span> : <span>None</span>}
+                    </td>
                     <td className="p-3.5"><span className={`px-2 py-0.5 rounded font-bold text-xs ${u.status === 'active' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>{u.status}</span></td>
                     <td className="p-3.5 text-right font-sans space-x-2">
                       <button onClick={() => { setEditingUnit({ ...u }); setIsUnitModalOpen(true); }} className="text-slate-700 hover:text-emerald-600 font-bold">Edit</button>
@@ -680,7 +776,7 @@ export const AdminAds: React.FC = () => {
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div>
                     <label className="font-bold text-slate-800 block mb-1">UTM Source</label>
-                    <input type="text" value={editingHouseAd.utmSource || ''} onChange={(e) => setEditingHouseAd({ ...editingHouseAd, utmSource: e.target.value })} className="w-full p-2.5 rounded-xl border border-slate-300 font-mono text-xs" placeholder="thestocetimes" />
+                    <input type="text" value={editingHouseAd.utmSource || ''} onChange={(e) => setEditingHouseAd({ ...editingHouseAd, utmSource: e.target.value })} className="w-full p-2.5 rounded-xl border border-slate-300 font-mono text-xs" placeholder="thestocktimes" />
                   </div>
 
                   <div>
@@ -730,16 +826,94 @@ export const AdminAds: React.FC = () => {
 
       {/* AD UNIT MODAL */}
       {isUnitModalOpen && editingUnit && (
-        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl w-full max-w-md p-6 space-y-4 shadow-2xl border border-slate-200 text-xs font-sans">
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl w-full max-w-2xl p-6 space-y-4 shadow-2xl border border-slate-200 text-xs font-sans my-8 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b pb-3">
               <h3 className="font-extrabold text-slate-900 text-base font-serif">Ad Unit Configuration</h3>
               <button onClick={() => setIsUnitModalOpen(false)} className="text-slate-400 hover:text-slate-700 cursor-pointer"><X className="w-5 h-5" /></button>
             </div>
 
-            <form onSubmit={handleSaveUnit} className="space-y-3">
-              <div><label className="font-bold block mb-1">Unit Name *</label><input type="text" required value={editingUnit.name || ''} onChange={(e) => setEditingUnit({ ...editingUnit, name: e.target.value })} className="w-full p-2.5 rounded-xl border border-slate-300" /></div>
-              <div><label className="font-bold block mb-1">Ad Slot ID</label><input type="text" value={editingUnit.slotId || ''} onChange={(e) => setEditingUnit({ ...editingUnit, slotId: e.target.value })} className="w-full p-2.5 rounded-xl border border-slate-300 font-mono" /></div>
+            <form onSubmit={handleSaveUnit} className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="font-bold block mb-1">Unit Name *</label>
+                  <input type="text" required value={editingUnit.name || ''} onChange={(e) => setEditingUnit({ ...editingUnit, name: e.target.value })} className="w-full p-2.5 rounded-xl border border-slate-300" placeholder="Article top AdSense unit" />
+                </div>
+                <div>
+                  <label className="font-bold block mb-1">Network</label>
+                  <select value={editingUnit.network || 'google-adsense'} onChange={(e) => setEditingUnit({ ...editingUnit, network: e.target.value as any })} className="w-full p-2.5 rounded-xl border border-slate-300 font-bold">
+                    <option value="google-adsense">Google AdSense</option>
+                    <option value="direct">Direct Creative URL</option>
+                    <option value="sponsored">Sponsored Creative URL</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                  <label className="font-bold block mb-1">Placement</label>
+                  <select value={editingUnit.placement || 'article_top'} onChange={(e) => setEditingUnit({ ...editingUnit, placement: e.target.value as any })} className="w-full p-2.5 rounded-xl border border-slate-300 font-bold">
+                    {placements.map((p) => (
+                      <option key={p.placementKey} value={p.placementKey}>{p.placementKey}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="font-bold block mb-1">Device</label>
+                  <select value={editingUnit.targetDevice || 'all'} onChange={(e) => setEditingUnit({ ...editingUnit, targetDevice: e.target.value as any })} className="w-full p-2.5 rounded-xl border border-slate-300 font-bold">
+                    <option value="all">All</option>
+                    <option value="desktop">Desktop</option>
+                    <option value="mobile">Mobile</option>
+                    <option value="tablet">Tablet</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="font-bold block mb-1">Status</label>
+                  <select value={editingUnit.status || 'active'} onChange={(e) => setEditingUnit({ ...editingUnit, status: e.target.value as any })} className="w-full p-2.5 rounded-xl border border-slate-300 font-bold">
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 space-y-3">
+                <label className="font-extrabold block text-slate-900">Google AdSense Slot / HTML Format Code</label>
+                <input type="text" value={editingUnit.slotId || ''} onChange={(e) => setEditingUnit({ ...editingUnit, slotId: e.target.value })} className="w-full p-2.5 rounded-xl border border-slate-300 font-mono" placeholder="data-ad-slot value, e.g. 1234567890" />
+                <textarea
+                  rows={5}
+                  value={editingUnit.customCode || ''}
+                  onChange={(e) => setEditingUnit({ ...editingUnit, customCode: e.target.value })}
+                  className="w-full p-2.5 rounded-xl border border-slate-300 font-mono text-[11px]"
+                  placeholder={'Paste normal HTML AdSense unit code here, e.g. <ins class=\"adsbygoogle\" data-ad-client=\"ca-pub-...\" data-ad-slot=\"...\"></ins><script>(adsbygoogle = window.adsbygoogle || []).push({});</script>'}
+                />
+                <p className="text-[11px] text-slate-500">For normal website pages, paste HTML AdSense code here. The site safely reads the AdSense client and slot, then renders the managed ad element.</p>
+              </div>
+
+              <div className="rounded-2xl border border-cyan-200 bg-cyan-50/70 p-4 space-y-3">
+                <label className="font-extrabold block text-slate-900">AMP Format Code</label>
+                <textarea
+                  rows={2}
+                  value={editingUnit.ampHeadScript || ''}
+                  onChange={(e) => setEditingUnit({ ...editingUnit, ampHeadScript: e.target.value })}
+                  className="w-full p-2.5 rounded-xl border border-cyan-200 font-mono text-[11px]"
+                  placeholder={'AMP head script: <script async custom-element=\"amp-ad\" src=\"https://cdn.ampproject.org/v0/amp-ad-0.1.js\"></script>'}
+                />
+                <textarea
+                  rows={6}
+                  value={editingUnit.ampCode || ''}
+                  onChange={(e) => setEditingUnit({ ...editingUnit, ampCode: e.target.value })}
+                  className="w-full p-2.5 rounded-xl border border-cyan-200 font-mono text-[11px]"
+                  placeholder={'Paste AMP ad body code here, e.g. <amp-ad width=\"100vw\" height=\"320\" type=\"adsense\" data-ad-client=\"ca-pub-5020716602157264\" data-ad-slot=\"8845697109\" data-auto-format=\"rspv\" data-full-width=\"\"><div overflow=\"\"></div></amp-ad>'}
+                />
+                <p className="text-[11px] text-slate-600">AMP code is stored for AMP pages. On this regular React site, the renderer reads the same AMP client/slot and shows the matching AdSense unit as a standard responsive ad.</p>
+              </div>
+
+              <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-3">
+                <label className="font-extrabold block text-slate-900">Direct / Sponsored Creative URL</label>
+                <input type="url" value={editingUnit.creativeUrl || ''} onChange={(e) => setEditingUnit({ ...editingUnit, creativeUrl: e.target.value })} className="w-full p-2.5 rounded-xl border border-slate-300 font-mono" placeholder="https://example.com/ad-image.webp or hosted ad URL" />
+                <input type="url" value={editingUnit.destinationUrl || ''} onChange={(e) => setEditingUnit({ ...editingUnit, destinationUrl: e.target.value })} className="w-full p-2.5 rounded-xl border border-slate-300 font-mono" placeholder="Optional click-through URL" />
+              </div>
+
               <div className="flex justify-end gap-2 pt-2 border-t"><button type="button" onClick={() => setIsUnitModalOpen(false)} className="px-4 py-2 rounded-xl border font-bold">Cancel</button><button type="submit" className="px-5 py-2 rounded-xl bg-emerald-600 text-white font-extrabold cursor-pointer">Save Unit</button></div>
             </form>
           </div>

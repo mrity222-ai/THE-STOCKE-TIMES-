@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Mail, Send, CheckCircle2, AlertTriangle, Loader2, AlertCircle } from 'lucide-react';
 import { LatestArticlesSection } from '../components/articles/LatestArticlesSection';
 import { apiFetch } from '../services/apiConfig';
+import { AdSlot } from '../components/ads/AdSlot';
 
 interface ContactPageProps {
   onNavigate?: (route: string, param?: string) => void;
@@ -74,17 +75,19 @@ export const ContactPage: React.FC<ContactPageProps> = ({ onNavigate }) => {
       <div className="bg-gradient-to-r from-[#0B1F33] via-[#0B1F33] to-[#155EEF]/35 text-white rounded-3xl p-8 sm:p-12 border border-slate-800 shadow-2xl text-center max-w-3xl mx-auto space-y-4">
         <div className="inline-flex items-center gap-2 bg-[#16A34A]/20 text-[#16A34A] border border-[#16A34A]/30 px-3.5 py-1.5 rounded-full text-xs font-extrabold uppercase tracking-widest">
           <Mail className="w-4 h-4 text-[#16A34A]" />
-          <span>The Stoce Times Reader Desk</span>
+          <span>The Stock Times Reader Desk</span>
         </div>
 
         <h1 className="text-3xl sm:text-5xl font-extrabold tracking-tight text-white font-serif">
-          Contact The Stoce Times
+          Contact The Stock Times
         </h1>
 
         <p className="text-slate-300 text-sm sm:text-base font-light leading-relaxed font-sans">
-          Have a question, feedback, correction or suggestion? We would like to hear from you. The Stoce Times welcomes feedback from readers regarding our articles, market coverage, financial tools and website experience.
+          Have a question, feedback, correction or suggestion? We would like to hear from you. The Stock Times welcomes feedback from readers regarding our articles, market coverage, financial tools and website experience.
         </p>
       </div>
+
+      <AdSlot placement="page_top" />
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start max-w-6xl mx-auto">
         
@@ -211,6 +214,8 @@ export const ContactPage: React.FC<ContactPageProps> = ({ onNavigate }) => {
 
         {/* Contact Info & Department Card (5 Cols) */}
         <div className="lg:col-span-5 space-y-6">
+          <AdSlot placement="page_sidebar" />
+
           <div className="bg-[#0B1F33] text-white rounded-3xl p-8 border border-slate-800 space-y-6 shadow-2xl">
             
             <div className="space-y-2 border-b border-slate-800 pb-4">
@@ -221,20 +226,20 @@ export const ContactPage: React.FC<ContactPageProps> = ({ onNavigate }) => {
             <div className="space-y-4 text-xs">
               <div className="space-y-1">
                 <span className="text-slate-400 font-bold block uppercase tracking-wider text-[10px]">Website</span>
-                <span className="text-white font-serif text-base font-extrabold block">The Stoce Times</span>
+                <span className="text-white font-serif text-base font-extrabold block">The Stock Times</span>
               </div>
 
               <div className="space-y-1">
                 <span className="text-slate-400 font-bold block uppercase tracking-wider text-[10px]">General Contact Email</span>
-                <a href="mailto:contact@thestocetimes.com" className="text-emerald-400 font-mono text-xs hover:underline block font-bold">
-                  contact@thestocetimes.com
+                <a href="mailto:contact@thestocktimes.online" className="text-emerald-400 font-mono text-xs hover:underline block font-bold">
+                  contact@thestocktimes.online
                 </a>
               </div>
 
               <div className="space-y-1 pt-2 border-t border-slate-800/80">
                 <span className="text-slate-400 font-bold block uppercase tracking-wider text-[10px]">Advertising & Business Enquiries</span>
-                <a href="mailto:business@thestocetimes.com" className="text-[#155EEF] font-mono text-xs hover:underline block font-bold">
-                  business@thestocetimes.com
+                <a href="mailto:business@thestocktimes.online" className="text-[#155EEF] font-mono text-xs hover:underline block font-bold">
+                  business@thestocktimes.online
                 </a>
               </div>
 
@@ -251,7 +256,7 @@ export const ContactPage: React.FC<ContactPageProps> = ({ onNavigate }) => {
           <div className="bg-white rounded-3xl p-6 border border-[#E2E8F0] shadow-sm space-y-4 text-xs text-slate-700 font-light">
             <h3 className="font-extrabold text-[#0B1F33] text-sm font-serif">Editorial Feedback & Corrections</h3>
             <p>
-              If you have feedback regarding an article, market analysis or other editorial content published on The Stoce Times, please include the article title or URL where relevant.
+              If you have feedback regarding an article, market analysis or other editorial content published on The Stock Times, please include the article title or URL where relevant.
             </p>
             <p>
               We aim to provide accurate and useful financial information. If you believe an article contains an incorrect, outdated or misleading factual statement, please contact us with the relevant details for prompt review and correction.
@@ -261,6 +266,8 @@ export const ContactPage: React.FC<ContactPageProps> = ({ onNavigate }) => {
 
       </div>
 
+      <AdSlot placement="page_mid" />
+
       {/* Bottom Related / New Articles Section */}
       <LatestArticlesSection
         title="Explore Latest Articles & Market Reports"
@@ -268,6 +275,8 @@ export const ContactPage: React.FC<ContactPageProps> = ({ onNavigate }) => {
         limit={4}
         onNavigate={onNavigate || (() => {})}
       />
+
+      <AdSlot placement="page_bottom" />
 
     </div>
   );

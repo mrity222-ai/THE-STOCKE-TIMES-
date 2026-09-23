@@ -4,13 +4,13 @@ import { StorageService } from '../../services/storageService';
 import { ArticleCard } from '../articles/ArticleCard';
 import { LatestArticlesSection } from '../articles/LatestArticlesSection';
 import { AdSlot } from '../ads/AdSlot';
+import { CurrencySelector } from '../common/CurrencySelector';
 import { 
   Scale, 
   Share2, 
   Printer, 
   RotateCcw, 
   Check, 
-  ShieldAlert, 
   ChevronDown, 
   ChevronUp, 
   Info, 
@@ -107,6 +107,8 @@ export const ComparisonWrapper: React.FC<ComparisonWrapperProps> = ({
 
         {/* Action Controls */}
         <div className="pt-3 flex flex-wrap items-center gap-3 border-t border-slate-800/80 text-xs">
+          <CurrencySelector variant="pill" showLabel={true} />
+
           <button
             onClick={handleCopyShare}
             className="bg-slate-800/90 hover:bg-slate-700 text-slate-200 px-3.5 py-2 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 font-bold border border-slate-700"
@@ -132,6 +134,9 @@ export const ComparisonWrapper: React.FC<ComparisonWrapperProps> = ({
       <div>
         {children}
       </div>
+
+      {/* AD 2: Immediately after comparison result area */}
+      <AdSlot placement="comparison_after_result" />
 
       {/* Comparison Explanation & FAQ Section */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 pt-6">
@@ -197,19 +202,11 @@ export const ComparisonWrapper: React.FC<ComparisonWrapperProps> = ({
 
         </div>
 
-        {/* Right Column: Related Articles & Disclaimer (5 Cols) */}
+        {/* Right Column: Related Articles (5 Cols) */}
         <aside className="lg:col-span-5 space-y-6">
-          
-          {/* Disclaimer Box */}
-          <div className="bg-[#FFFBEB] border border-[#F59E0B] rounded-3xl p-6 text-xs text-amber-950 space-y-2 shadow-sm">
-            <div className="flex items-center gap-2 font-bold text-amber-900">
-              <ShieldAlert className="w-4 h-4 text-[#F59E0B] shrink-0" />
-              <span>Financial Disclaimer</span>
-            </div>
-            <p className="leading-relaxed font-normal text-amber-900">
-              Disclaimer: Comparison results are generated for informational and decision-support purposes only. Actual taxation, yield returns, and regulatory benefits may vary according to personal income tax slabs and financial policies.
-            </p>
-          </div>
+
+          {/* AD 3: Comparison companion ad */}
+          <AdSlot placement="comparison_sidebar" />
 
           {/* Related Finance Articles */}
           <div className="bg-white rounded-3xl p-6 border border-[#E2E8F0] shadow-sm space-y-4">
@@ -229,6 +226,9 @@ export const ComparisonWrapper: React.FC<ComparisonWrapperProps> = ({
 
       </div>
 
+      {/* AD 4: Mid-page comparison ad */}
+      <AdSlot placement="comparison_mid" />
+
       {/* Bottom Related / New Articles Section */}
       <LatestArticlesSection
         title="More Comparison Guides & Market Research"
@@ -236,6 +236,9 @@ export const ComparisonWrapper: React.FC<ComparisonWrapperProps> = ({
         limit={4}
         onNavigate={onNavigate}
       />
+
+      {/* AD 5: Bottom comparison ad */}
+      <AdSlot placement="comparison_bottom" />
 
     </div>
   );

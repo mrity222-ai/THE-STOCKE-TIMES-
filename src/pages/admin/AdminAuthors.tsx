@@ -219,7 +219,7 @@ export const AdminAuthors: React.FC = () => {
                     required
                     value={editingUser.email || ''}
                     onChange={(e) => setEditingUser({ ...editingUser, email: e.target.value })}
-                    placeholder="author@thestocetimes.com"
+                    placeholder="author@thestocktimes.online"
                     className="w-full px-3 py-2 rounded-xl border border-slate-300 font-medium"
                   />
                 </div>

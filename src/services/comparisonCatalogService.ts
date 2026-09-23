@@ -17,7 +17,7 @@ const defaultCards: CreditCardItem[] = [
     forexMarkupPct: 2.0,
     minMonthlyIncome: 100000,
     categoryBestFor: 'Travel',
-    welcomeBenefits: '₹2,500 Voucher + Club Marriott Membership',
+    welcomeBenefits: '2,500 reward voucher + Club Marriott Membership',
     fuelSurchargeWaiver: true,
     status: 'active'
   },
@@ -34,7 +34,7 @@ const defaultCards: CreditCardItem[] = [
     forexMarkupPct: 3.5,
     minMonthlyIncome: 25000,
     categoryBestFor: 'Cashback',
-    welcomeBenefits: '₹500 Amazon Pay Balance',
+    welcomeBenefits: '500 Amazon Pay balance',
     fuelSurchargeWaiver: true,
     status: 'active'
   },
@@ -51,7 +51,7 @@ const defaultCards: CreditCardItem[] = [
     forexMarkupPct: 3.5,
     minMonthlyIncome: 30000,
     categoryBestFor: 'Rewards',
-    welcomeBenefits: '₹500 Amazon Gift Card',
+    welcomeBenefits: '500 Amazon gift card',
     fuelSurchargeWaiver: true,
     status: 'active'
   },
@@ -68,7 +68,7 @@ const defaultCards: CreditCardItem[] = [
     forexMarkupPct: 3.5,
     minMonthlyIncome: 35000,
     categoryBestFor: 'Cashback',
-    welcomeBenefits: '100% Cashback up to ₹500 on Google Pay',
+    welcomeBenefits: '100% cashback up to 500 on Google Pay',
     fuelSurchargeWaiver: true,
     status: 'active'
   }

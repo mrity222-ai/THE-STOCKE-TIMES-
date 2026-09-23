@@ -4,14 +4,39 @@ import { AdService } from './adService';
 import { adminApiFetch, apiFetch } from './apiConfig';
 
 export class ApiService {
+  private static normalizeAuthorId(authorId?: string): string {
+    const id = String(authorId || '').trim();
+    const legacyMap: Record<string, string> = {
+      'author-1': 'auth-1',
+      'author-2': 'auth-2',
+      'author-3': 'usr-admin-1',
+      'author-4': 'auth-1',
+      'admin-1': 'usr-admin-1'
+    };
+    return legacyMap[id] || id || 'usr-admin-1';
+  }
+
+  private static parseJsonList(value: any): any[] {
+    if (Array.isArray(value)) return value;
+    if (typeof value !== 'string' || value.trim() === '') return [];
+    try {
+      const parsed = JSON.parse(value);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+
   private static normalizeArticle(art: any): Article {
     return {
       ...art,
       id: art.id,
+      authorId: this.normalizeAuthorId(art.author_id || art.authorId),
       categoryId: art.category_id || art.categoryId,
       subCategory: art.sub_category || art.subCategory || '',
       featuredImage: art.featured_image || art.featuredImage || '',
       imageCaption: art.image_caption || art.imageCaption || '',
+      imageSource: art.image_source || art.imageSource || '',
       readTimeMinutes: art.read_time_minutes || art.readTimeMinutes || 5,
       publishedAt: art.published_at || art.publishedAt || new Date().toISOString(),
       showPublishedDate: art.show_published_date !== undefined ? Boolean(art.show_published_date) : art.showPublishedDate ?? true,
@@ -21,9 +46,11 @@ export class ApiService {
       isTrending: Boolean(art.is_trending ?? art.isTrending),
       isPopular: Boolean(art.is_popular ?? art.isPopular),
       status: art.status || 'published',
-      tags: typeof art.tags === 'string' ? JSON.parse(art.tags || '[]') : art.tags || [],
-      highlights: typeof art.highlights === 'string' ? JSON.parse(art.highlights || '[]') : art.highlights || [],
-      focusKeywords: typeof art.focus_keywords === 'string' ? JSON.parse(art.focus_keywords || '[]') : art.focusKeywords || [],
+      tags: this.parseJsonList(art.tags),
+      galleryImages: this.parseJsonList(art.gallery_images || art.galleryImages),
+      faqs: this.parseJsonList(art.faqs),
+      highlights: this.parseJsonList(art.highlights),
+      focusKeywords: this.parseJsonList(art.focus_keywords || art.focusKeywords),
       seoTitle: art.seo_title || art.seoTitle || art.title,
       seoDescription: art.seo_description || art.seoDescription || art.excerpt,
       canonicalUrl: art.canonical_url || art.canonicalUrl || '',
@@ -47,7 +74,6 @@ export class ApiService {
     return { connected: false };
   }
 
-  // Articles Sync
   public static async fetchArticles(): Promise<Article[]> {
     try {
       const response = await apiFetch('/articles', { signal: AbortSignal.timeout(2500) });

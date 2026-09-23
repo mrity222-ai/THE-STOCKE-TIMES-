@@ -1,4 +1,5 @@
 import { Article, Author } from '../types';
+import { getUserCurrencyPreference } from '../utils/currency';
 import { AdService } from './adService';
 
 export class SeoService {
@@ -14,9 +15,9 @@ export class SeoService {
     noIndex: boolean = false
   ): void {
     const domain = window.location.origin;
-    const formattedTitle = title.includes('TheStoceTimes.com')
+    const formattedTitle = title.includes('TheStockTimes.online')
       ? title
-      : `${title} | TheStoceTimes.com`;
+      : `${title} | TheStockTimes.online`;
 
     document.title = formattedTitle;
 
@@ -138,7 +139,7 @@ export class SeoService {
   /**
    * Generate NewsArticle Schema (JSON-LD)
    */
-  static generateArticleSchema(article: Article, author?: Author): object {
+  static generateArticleSchema(article: Article, _author?: Author): object {
     const domain = window.location.origin;
     return {
       "@context": "https://schema.org",
@@ -153,14 +154,13 @@ export class SeoService {
       "datePublished": article.publishedAt,
       "dateModified": article.updatedAt || article.publishedAt,
       "author": {
-        "@type": "Person",
-        "name": author ? author.name : "TheStoceTimes.com Editorial Team",
-        "jobTitle": author ? author.role : "Senior Financial Analyst",
-        "url": author ? `${domain}/about` : domain
+        "@type": "Organization",
+        "name": "The Stock Times",
+        "url": domain
       },
       "publisher": {
         "@type": "NewsMediaOrganization",
-        "name": "TheStoceTimes.com",
+        "name": "TheStockTimes.online",
         "url": domain,
         "logo": {
           "@type": "ImageObject",
@@ -175,6 +175,7 @@ export class SeoService {
    * Generate WebApplication Schema for Calculators & Tools
    */
   static generateWebApplicationSchema(toolName: string, description: string, url: string): object {
+    const domain = window.location.origin;
     return {
       "@context": "https://schema.org",
       "@type": "WebApplication",
@@ -184,11 +185,39 @@ export class SeoService {
       "applicationCategory": "FinanceApplication",
       "operatingSystem": "All",
       "browserRequirements": "Requires JavaScript. Requires HTML5.",
+      "inLanguage": "en",
+      "isAccessibleForFree": true,
+      "creator": {
+        "@type": "Organization",
+        "name": "The Stock Times",
+        "url": domain
+      },
+      "publisher": {
+        "@type": "NewsMediaOrganization",
+        "name": "TheStockTimes.online",
+        "url": domain
+      },
       "offers": {
         "@type": "Offer",
         "price": "0",
-        "priceCurrency": "INR"
+        "priceCurrency": getUserCurrencyPreference().currency
       }
+    };
+  }
+
+  static generateItemListSchema(name: string, items: { name: string; url: string; description?: string }[]): object {
+    return {
+      "@context": "https://schema.org",
+      "@type": "ItemList",
+      "name": name,
+      "numberOfItems": items.length,
+      "itemListElement": items.map((item, index) => ({
+        "@type": "ListItem",
+        "position": index + 1,
+        "name": item.name,
+        "description": item.description,
+        "url": item.url
+      }))
     };
   }
 
@@ -204,7 +233,7 @@ export class SeoService {
         {
           "@type": "ListItem",
           "position": 1,
-          "name": "TheStoceTimes.com",
+          "name": "TheStockTimes.online",
           "item": domain
         },
         ...items.map((item, index) => ({
@@ -225,8 +254,8 @@ export class SeoService {
     return {
       "@context": "https://schema.org",
       "@type": "WebSite",
-      "name": "TheStoceTimes.com",
-      "alternateName": "The Stoce Times Financial Publication",
+      "name": "TheStockTimes.online",
+      "alternateName": "The Stock Times Financial Publication",
       "url": domain,
       "potentialAction": {
         "@type": "SearchAction",
@@ -247,6 +276,7 @@ export class SeoService {
     const staticRoutes = [
       { path: '/', priority: '1.0', changefreq: 'daily' },
       { path: '/stock-market', priority: '0.9', changefreq: 'daily' },
+      { path: '/ipo', priority: '0.9', changefreq: 'daily' },
       { path: '/personal-finance', priority: '0.9', changefreq: 'daily' },
       { path: '/banking', priority: '0.9', changefreq: 'daily' },
       { path: '/investment', priority: '0.9', changefreq: 'daily' },
@@ -262,34 +292,34 @@ export class SeoService {
       { path: '/legal/cookie', priority: '0.5', changefreq: 'monthly' },
 
       // 20 Financial Calculators
-      { path: '/sip-calculator', priority: '0.8', changefreq: 'weekly' },
-      { path: '/emi-calculator', priority: '0.8', changefreq: 'weekly' },
-      { path: '/lumpsum-calculator', priority: '0.8', changefreq: 'weekly' },
-      { path: '/fd-calculator', priority: '0.8', changefreq: 'weekly' },
-      { path: '/rd-calculator', priority: '0.8', changefreq: 'weekly' },
-      { path: '/ppf-calculator', priority: '0.8', changefreq: 'weekly' },
-      { path: '/nps-calculator', priority: '0.8', changefreq: 'weekly' },
-      { path: '/income-tax-calculator', priority: '0.8', changefreq: 'weekly' },
-      { path: '/home-loan-calculator', priority: '0.8', changefreq: 'weekly' },
-      { path: '/car-loan-calculator', priority: '0.8', changefreq: 'weekly' },
-      { path: '/personal-loan-calculator', priority: '0.8', changefreq: 'weekly' },
-      { path: '/compound-interest-calculator', priority: '0.8', changefreq: 'weekly' },
-      { path: '/inflation-calculator', priority: '0.8', changefreq: 'weekly' },
-      { path: '/retirement-calculator', priority: '0.8', changefreq: 'weekly' },
-      { path: '/swp-calculator', priority: '0.8', changefreq: 'weekly' },
-      { path: '/hra-calculator', priority: '0.8', changefreq: 'weekly' },
-      { path: '/gratuity-calculator', priority: '0.8', changefreq: 'weekly' },
-      { path: '/epf-calculator', priority: '0.8', changefreq: 'weekly' },
-      { path: '/ssy-calculator', priority: '0.8', changefreq: 'weekly' },
-      { path: '/step-up-sip-calculator', priority: '0.8', changefreq: 'weekly' },
+      { path: '/financial-tools/emi-calculator', priority: '0.85', changefreq: 'weekly' },
+      { path: '/financial-tools/loan-eligibility-calculator', priority: '0.85', changefreq: 'weekly' },
+      { path: '/financial-tools/sip-calculator', priority: '0.85', changefreq: 'weekly' },
+      { path: '/financial-tools/lumpsum-calculator', priority: '0.85', changefreq: 'weekly' },
+      { path: '/financial-tools/cagr-calculator', priority: '0.85', changefreq: 'weekly' },
+      { path: '/financial-tools/swp-calculator', priority: '0.85', changefreq: 'weekly' },
+      { path: '/financial-tools/sip-vs-lumpsum', priority: '0.85', changefreq: 'weekly' },
+      { path: '/financial-tools/fd-calculator', priority: '0.85', changefreq: 'weekly' },
+      { path: '/financial-tools/rd-calculator', priority: '0.85', changefreq: 'weekly' },
+      { path: '/financial-tools/ppf-calculator', priority: '0.85', changefreq: 'weekly' },
+      { path: '/financial-tools/epf-calculator', priority: '0.85', changefreq: 'weekly' },
+      { path: '/financial-tools/nps-calculator', priority: '0.85', changefreq: 'weekly' },
+      { path: '/financial-tools/income-tax-calculator', priority: '0.85', changefreq: 'weekly' },
+      { path: '/financial-tools/salary-calculator', priority: '0.85', changefreq: 'weekly' },
+      { path: '/financial-tools/gst-calculator', priority: '0.85', changefreq: 'weekly' },
+      { path: '/financial-tools/retirement-calculator', priority: '0.85', changefreq: 'weekly' },
+      { path: '/financial-tools/inflation-calculator', priority: '0.85', changefreq: 'weekly' },
+      { path: '/financial-tools/compound-interest-calculator', priority: '0.85', changefreq: 'weekly' },
+      { path: '/financial-tools/simple-interest-calculator', priority: '0.85', changefreq: 'weekly' },
+      { path: '/financial-tools/net-worth-calculator', priority: '0.85', changefreq: 'weekly' },
 
       // 6 Comparison Tools
-      { path: '/old-vs-new-tax-regime', priority: '0.8', changefreq: 'weekly' },
-      { path: '/direct-vs-regular-mutual-fund', priority: '0.8', changefreq: 'weekly' },
-      { path: '/sip-vs-lumpsum', priority: '0.8', changefreq: 'weekly' },
-      { path: '/fd-vs-debt-fund', priority: '0.8', changefreq: 'weekly' },
-      { path: '/buy-vs-rent-house', priority: '0.8', changefreq: 'weekly' },
-      { path: '/ppf-vs-elss', priority: '0.8', changefreq: 'weekly' }
+      { path: '/comparison-tools/sip-vs-fd', priority: '0.85', changefreq: 'weekly' },
+      { path: '/comparison-tools/fd-vs-debt-fund', priority: '0.85', changefreq: 'weekly' },
+      { path: '/comparison-tools/rent-vs-buy', priority: '0.85', changefreq: 'weekly' },
+      { path: '/comparison-tools/loan-comparison', priority: '0.85', changefreq: 'weekly' },
+      { path: '/comparison-tools/credit-card-comparison', priority: '0.85', changefreq: 'weekly' },
+      { path: '/comparison-tools/mutual-fund-comparison', priority: '0.85', changefreq: 'weekly' }
     ];
 
     let xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n`;

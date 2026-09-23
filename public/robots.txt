@@ -4,4 +4,4 @@ Disallow: /admin
 Disallow: /api/
 
 # Sitemap Location
-Sitemap: http://localhost:5173/sitemap.xml
+Sitemap: https://thestocktimes.online/sitemap.xml

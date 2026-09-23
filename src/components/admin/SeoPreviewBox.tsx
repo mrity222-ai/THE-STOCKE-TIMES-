@@ -11,7 +11,7 @@ interface SeoPreviewBoxProps {
 export const SeoPreviewBox: React.FC<SeoPreviewBoxProps> = ({ title, slug, description, image }) => {
   const [tab, setTab] = useState<'google' | 'social'>('google');
 
-  const domain = 'thestocetimes.com';
+  const domain = 'thestocktimes.online';
   const displayTitle = title || 'Enter article title...';
   const displaySlug = slug || 'example-article-slug';
   const displayDesc = description || 'Enter article SEO meta description snippet...';
@@ -57,7 +57,7 @@ export const SeoPreviewBox: React.FC<SeoPreviewBoxProps> = ({ title, slug, descr
           </div>
 
           <h3 className="text-base font-bold text-blue-700 hover:underline cursor-pointer line-clamp-1">
-            {displayTitle} | TheStoceTimes.com
+            {displayTitle} | TheStockTimes.online
           </h3>
 
           <p className="text-xs text-slate-600 leading-relaxed line-clamp-2">

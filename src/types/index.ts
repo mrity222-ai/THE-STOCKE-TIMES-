@@ -66,17 +66,6 @@ export interface Article {
   socialShareImage?: string;
 }
 
-export interface MediaItem {
-  id: string;
-  name: string;
-  url: string;
-  size?: string;
-  uploadedAt: string;
-  dimensions?: string;
-  altText?: string;
-  type?: 'image' | 'video' | 'document';
-}
-
 export interface TagItem {
   id: string;
   name: string;
@@ -199,4 +188,15 @@ export interface Subscriber {
   verificationStatus: 'Verified' | 'Pending';
   status: 'Active' | 'Unsubscribed';
   lastEmailSentDate?: string;
+}
+
+export interface PopupNotificationSettings {
+  enabled: boolean;
+  title: string;
+  message: string;
+  imageUrl: string;
+  linkUrl: string;
+  linkLabel: string;
+  delaySeconds: number;
+  updatedAt?: string;
 }

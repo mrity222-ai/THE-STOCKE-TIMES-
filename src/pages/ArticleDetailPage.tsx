@@ -6,7 +6,6 @@ import { ApiService } from '../services/apiService';
 import { TableOfContents } from '../components/articles/TableOfContents';
 import { ArticleCard } from '../components/articles/ArticleCard';
 import { AdSlot } from '../components/ads/AdSlot';
-import { CommentsSection } from '../components/articles/CommentsSection';
 import { LatestArticlesSection } from '../components/articles/LatestArticlesSection';
 import { SidebarRecommendedArticles } from '../components/articles/SidebarRecommendedArticles';
 import { NewsletterBox } from '../components/widgets/NewsletterBox';
@@ -21,19 +20,15 @@ import {
   MessageCircle,
   Copy,
   Check,
-  ShieldAlert,
   Sparkles,
   ChevronLeft,
   ChevronRight,
   Bookmark,
   Eye,
-  CheckCircle2,
   Sun,
   Moon,
   Type,
   ArrowLeft,
-  UserPlus,
-  UserCheck,
   ArrowRight,
   ExternalLink,
   Flame
@@ -51,7 +46,6 @@ export const ArticleDetailPage: React.FC<ArticleDetailPageProps> = ({ slug, onNa
   const [scrollProgress, setScrollProgress] = useState(0);
   const [readingTheme, setReadingTheme] = useState<'light' | 'dark'>('light');
   const [fontSizeLevel, setFontSizeLevel] = useState<'normal' | 'large' | 'xlarge'>('normal');
-  const [followingAuthor, setFollowingAuthor] = useState(false);
   const [faqs, setFaqs] = useState<{ id: string; question: string; answer: string }[]>([]);
 
   const [socialMedia, setSocialMedia] = useState({
@@ -81,19 +75,28 @@ export const ArticleDetailPage: React.FC<ArticleDetailPageProps> = ({ slug, onNa
   }, []);
 
   const fallbackArticle = useMemo(() => {
-    return StorageService.getArticleBySlug(slug) || StorageService.getArticles()[0];
+    return StorageService.getArticleBySlug(slug) || StorageService.getArticles()[0] || null;
   }, [slug]);
 
-  const [article, setArticle] = useState<Article>(fallbackArticle);
+  const [article, setArticle] = useState<Article | null>(fallbackArticle);
+  const [isArticleLoading, setIsArticleLoading] = useState(true);
 
   useEffect(() => {
     let isMounted = true;
+    setIsArticleLoading(true);
     setArticle(fallbackArticle);
-    ApiService.fetchArticleBySlug(slug).then((freshArticle) => {
-      if (isMounted && freshArticle) {
-        setArticle(freshArticle);
+    ApiService.fetchArticleBySlug(slug)
+      .then((freshArticle) => {
+        if (isMounted) {
+          setArticle(freshArticle || fallbackArticle);
+        }
+      })
+      .finally(() => {
+        if (isMounted) {
+          setIsArticleLoading(false);
+        }
       }
-    });
+    );
     return () => {
       isMounted = false;
     };
@@ -101,32 +104,18 @@ export const ArticleDetailPage: React.FC<ArticleDetailPageProps> = ({ slug, onNa
 
   const [currentViews, setCurrentViews] = useState<number>(article?.views || 0);
 
-  // Author dynamic lookup state for instant avatar sync
-  const [author, setAuthor] = useState(() => StorageService.getAuthorById(article.authorId) || StorageService.getAuthors()[0]);
-
   useEffect(() => {
     if (article?.id) {
       const liveViews = StorageService.incrementArticleViews(article.id);
       setCurrentViews(liveViews);
     }
-  }, [article.id]);
+  }, [article?.id]);
 
   useEffect(() => {
-    const handleProfileUpdate = () => {
-      if (article?.authorId) {
-        const freshAuthor = StorageService.getAuthorById(article.authorId) || StorageService.getAuthors()[0];
-        setAuthor(freshAuthor);
-      }
-    };
-    window.addEventListener('user-profile-updated', handleProfileUpdate);
-    window.addEventListener('storage', handleProfileUpdate);
-    return () => {
-      window.removeEventListener('user-profile-updated', handleProfileUpdate);
-      window.removeEventListener('storage', handleProfileUpdate);
-    };
-  }, [article.authorId]);
-
-  useEffect(() => {
+    if (!article) {
+      setFaqs([]);
+      return;
+    }
     if (Array.isArray(article?.faqs) && article.faqs.length > 0) {
       setFaqs(article.faqs);
     } else {
@@ -156,14 +145,15 @@ export const ArticleDetailPage: React.FC<ArticleDetailPageProps> = ({ slug, onNa
   }, [allArticles]);
 
   const relatedArticles = useMemo(() => {
+    if (!article) return [];
     return allArticles
       .filter(a => a.id !== article.id && a.categoryId === article.categoryId)
       .slice(0, 3);
   }, [allArticles, article]);
 
-  const currentIndex = allArticles.findIndex(a => a.id === article.id);
+  const currentIndex = article ? allArticles.findIndex(a => a.id === article.id) : -1;
   const prevArticle = currentIndex > 0 ? allArticles[currentIndex - 1] : undefined;
-  const nextArticle = currentIndex < allArticles.length - 1 ? allArticles[currentIndex + 1] : undefined;
+  const nextArticle = currentIndex >= 0 && currentIndex < allArticles.length - 1 ? allArticles[currentIndex + 1] : undefined;
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -173,7 +163,7 @@ export const ArticleDetailPage: React.FC<ArticleDetailPageProps> = ({ slug, onNa
       const canonicalUrl = article.canonicalUrl || `${domain}/article/${article.slug}`;
 
       SeoService.updateMetaTags(
-        article.seoTitle || `${article.title} | The Stoce Times`,
+        article.seoTitle || `${article.title} | The Stock Times`,
         article.seoDescription || article.excerpt,
         article.featuredImage,
         `${domain}/article/${article.slug}`,
@@ -181,7 +171,7 @@ export const ArticleDetailPage: React.FC<ArticleDetailPageProps> = ({ slug, onNa
       );
 
       SeoService.injectJsonLd([
-        SeoService.generateArticleSchema(article, author),
+        SeoService.generateArticleSchema(article),
         ...(SeoService.generateFaqSchema(faqs) ? [SeoService.generateFaqSchema(faqs)!] : []),
         SeoService.generateBreadcrumbSchema([
           { name: article.categoryId.replace('-', ' ').toUpperCase(), url: `/${article.categoryId}` },
@@ -189,7 +179,7 @@ export const ArticleDetailPage: React.FC<ArticleDetailPageProps> = ({ slug, onNa
         ])
       ]);
     }
-  }, [slug, article, author, faqs]);
+  }, [slug, article, faqs]);
 
   useEffect(() => {
     const container = document.querySelector('.article-body');
@@ -211,7 +201,30 @@ export const ArticleDetailPage: React.FC<ArticleDetailPageProps> = ({ slug, onNa
 
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
-  }, [slug, article.content]);
+  }, [slug, article?.content]);
+
+  if (!article) {
+    return (
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+        <div className="bg-white border border-slate-200 rounded-3xl p-8 sm:p-10 shadow-sm text-center space-y-3">
+          <h1 className="text-2xl font-extrabold text-[#0B1F33] font-serif">
+            {isArticleLoading ? 'Loading article...' : 'Article not found'}
+          </h1>
+          <p className="text-sm text-slate-500">
+            {isArticleLoading ? 'Please wait while we fetch the latest published version.' : 'This article may be unpublished, deleted, or the URL may be incorrect.'}
+          </p>
+          {!isArticleLoading && (
+            <button
+              onClick={() => onNavigate('home')}
+              className="mt-3 inline-flex items-center justify-center rounded-xl bg-emerald-600 px-5 py-2.5 text-xs font-extrabold text-white hover:bg-emerald-500 transition-colors"
+            >
+              Back to Home
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   const formattedDate = new Date(article.publishedAt).toLocaleDateString('en-US', {
     month: 'long',
@@ -235,9 +248,9 @@ export const ArticleDetailPage: React.FC<ArticleDetailPageProps> = ({ slug, onNa
   const shareUrl = encodeURIComponent(window.location.href);
 
   const fontSizeClassMap = {
-    normal: 'text-[#111827] text-base sm:text-lg leading-[1.85]',
-    large: 'text-[#111827] text-lg sm:text-xl leading-[1.9]',
-    xlarge: 'text-[#111827] text-xl sm:text-2xl leading-[1.95]'
+    normal: 'text-[#111827] text-[15px] sm:text-base leading-[1.78]',
+    large: 'text-[#111827] text-base sm:text-lg leading-[1.82]',
+    xlarge: 'text-[#111827] text-lg sm:text-xl leading-[1.88]'
   };
 
   return (
@@ -254,7 +267,7 @@ export const ArticleDetailPage: React.FC<ArticleDetailPageProps> = ({ slug, onNa
       </div>
 
       {/* Sticky Compact Reading Toolbar */}
-      <div className={`sticky top-20 z-30 border-b py-2.5 px-4 sm:px-8 transition-colors duration-300 backdrop-blur-md ${
+      <div className={`sticky top-[116px] lg:top-[142px] z-[40] border-b py-2 px-4 sm:px-8 transition-colors duration-300 backdrop-blur-md ${
         readingTheme === 'dark' ? 'bg-[#0B1220]/90 border-[#1E293B] text-[#E5E7EB]' : 'bg-white/90 border-[#E2E8F0] text-[#0B1F33]'
       }`}>
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-4 text-xs font-sans">
@@ -319,7 +332,7 @@ export const ArticleDetailPage: React.FC<ArticleDetailPageProps> = ({ slug, onNa
       </div>
 
       {/* Header Container - #071f33 Deep Navy Editorial Header */}
-      <header className="bg-[#071f33] text-white py-10 border-b border-slate-800/90 shadow-xl">
+      <header className="bg-[#071f33] text-white py-8 border-b border-slate-800/90 shadow-xl">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 font-sans">
 
           {/* Breadcrumb Navigation */}
@@ -348,63 +361,32 @@ export const ArticleDetailPage: React.FC<ArticleDetailPageProps> = ({ slug, onNa
           {/* Article Title */}
           <h1 
             style={{ textWrap: 'balance' }}
-            className="text-[30px] sm:text-[40px] lg:text-[48px] font-extrabold tracking-tight text-white leading-[1.1] my-3.5 font-serif max-w-4xl"
+            className="text-[24px] sm:text-[32px] lg:text-[38px] font-extrabold tracking-tight text-white leading-[1.12] my-3 font-serif max-w-4xl"
           >
             {article.title}
           </h1>
 
           {/* Article Subheading / Excerpt Box */}
           <div className="max-w-4xl my-4 p-4 border-l-4 border-[#16A34A] bg-white/[0.03] rounded-r-xl font-sans">
-            <p className="text-slate-300 text-sm sm:text-base font-light leading-relaxed">
+            <p className="text-slate-300 text-xs sm:text-sm font-light leading-relaxed">
               {article.excerpt}
             </p>
           </div>
 
-          {/* Author & Article Metadata Row with Follow Button */}
+          {/* Publication Metadata Row */}
           <div className="max-w-4xl flex flex-wrap items-center justify-between gap-4 pt-4 mt-6 border-t border-white/10 text-xs sm:text-sm font-sans">
             <div className="flex items-center gap-3">
-              <div 
-                onClick={() => author && onNavigate('author', author.id)}
-                className="flex items-center gap-3 cursor-pointer group"
-              >
-                {author && (
-                  <img
-                    src={author.avatar}
-                    alt={author.name}
-                    className="w-11 h-11 rounded-full object-cover border-2 border-[#16A34A] shadow-sm shrink-0"
-                  />
-                )}
-                {author && (
-                  <div>
-                    <span className="font-bold text-white group-hover:text-[#16A34A] transition-colors block text-sm sm:text-base">
-                      {author.name} {author.credentials ? `(${author.credentials})` : ''}
-                    </span>
-                    <span className="text-slate-400 text-xs font-mono block">{author.role}</span>
-                  </div>
-                )}
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-full border-2 border-[#16A34A] bg-white/10 text-[#16A34A] flex items-center justify-center shadow-sm shrink-0">
+                  <User className="w-5 h-5" />
+                </div>
+                <div>
+                  <span className="font-bold text-white block text-sm sm:text-base">
+                    The Stock Times
+                  </span>
+                  <span className="text-slate-400 text-xs font-mono block">Editorial Desk</span>
+                </div>
               </div>
-
-              {/* Follow Author Button */}
-              <button
-                onClick={() => setFollowingAuthor(!followingAuthor)}
-                className={`ml-2 px-3 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer flex items-center gap-1 border ${
-                  followingAuthor
-                    ? 'bg-emerald-500 text-slate-950 border-emerald-400 font-extrabold'
-                    : 'bg-white/10 hover:bg-white/20 text-white border-white/20'
-                }`}
-              >
-                {followingAuthor ? (
-                  <>
-                    <UserCheck className="w-3.5 h-3.5 text-slate-950" />
-                    <span>Following</span>
-                  </>
-                ) : (
-                  <>
-                    <UserPlus className="w-3.5 h-3.5" />
-                    <span>Follow Author</span>
-                  </>
-                )}
-              </button>
             </div>
 
             <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-slate-300 font-medium font-mono text-xs sm:text-sm">
@@ -434,7 +416,7 @@ export const ArticleDetailPage: React.FC<ArticleDetailPageProps> = ({ slug, onNa
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
 
           {/* 1. MAIN CONTENT COLUMN (~70% width = 8 cols) */}
-          <main className="lg:col-span-8 space-y-8">
+          <main className="lg:col-span-8 space-y-7 min-w-0">
 
             {/* AD 1: Top Article Ad Placement */}
             <AdSlot placement="article_top" />
@@ -466,17 +448,15 @@ export const ArticleDetailPage: React.FC<ArticleDetailPageProps> = ({ slug, onNa
             <AdSlot placement="article-after-intro" />
 
             {/* AI-Powered Summary Box */}
-            <div className={`p-6 rounded-3xl border shadow-md space-y-4 font-sans ${
-              readingTheme === 'dark' ? 'bg-emerald-950/40 border-emerald-800/60 text-white' : 'bg-emerald-50/60 border-emerald-200 text-[#0B1F33]'
-            }`}>
-              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-emerald-200/50 pb-3">
+            <div className="p-6 rounded-3xl border shadow-md space-y-4 font-sans bg-[#064E3B] border-[#065F46] text-white">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/20 pb-3">
                 <div className="flex items-center gap-2">
-                  <div className="w-7 h-7 rounded-lg bg-[#16A34A] text-white flex items-center justify-center shadow-sm">
+                  <div className="w-7 h-7 rounded-lg bg-white/15 text-white flex items-center justify-center shadow-sm">
                     <Sparkles className="w-4 h-4 fill-white" />
                   </div>
-                  <h3 className="text-base font-extrabold font-serif">AI-Powered Summary</h3>
+                  <h3 className="text-sm font-extrabold font-serif text-white">AI-Powered Summary</h3>
                 </div>
-                <span className="text-[10px] font-extrabold uppercase tracking-wider text-[#16A34A] bg-emerald-100/80 px-2.5 py-0.5 rounded-full border border-emerald-300">
+                <span className="text-[10px] font-extrabold uppercase tracking-wider text-white bg-white/10 px-2.5 py-0.5 rounded-full border border-white/25">
                   Verified Key Takeaways
                 </span>
               </div>
@@ -489,28 +469,25 @@ export const ArticleDetailPage: React.FC<ArticleDetailPageProps> = ({ slug, onNa
                   'Key market benchmarks, sector rotation trends, and regulatory updates summarized for investors.'
                 ]).slice(0, 5).map((pt, idx) => (
                   <li key={idx} className="flex items-start gap-2.5">
-                    <span className="w-5 h-5 rounded-full bg-[#16A34A]/20 text-[#16A34A] flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">
+                    <span className="w-5 h-5 rounded-full bg-white/15 text-white flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">
                       ✓
                     </span>
-                    <span className="leading-relaxed text-slate-800 dark:text-slate-200">{pt}</span>
+                    <span className="leading-relaxed text-white">{pt}</span>
                   </li>
                 ))}
               </ul>
 
-              <div className="pt-3 border-t border-emerald-200/50 flex flex-wrap items-center justify-between gap-3 text-[11px]">
+              <div className="pt-3 border-t border-white/20 flex flex-wrap items-center justify-between gap-3 text-[11px]">
                 <button
                   onClick={() => {
                     const el = document.querySelector('.article-body');
                     if (el) el.scrollIntoView({ behavior: 'smooth' });
                   }}
-                  className="inline-flex items-center gap-1.5 font-bold text-[#155EEF] hover:underline cursor-pointer"
+                  className="inline-flex items-center gap-1.5 font-bold text-white hover:text-emerald-100 hover:underline cursor-pointer"
                 >
                   <span>Read Full Story</span>
                   <ArrowRight className="w-3.5 h-3.5" />
                 </button>
-                <span className="text-slate-500 italic">
-                  Disclaimer: This summary is AI-generated and reviewed for accuracy.
-                </span>
               </div>
             </div>
 
@@ -600,62 +577,6 @@ export const ArticleDetailPage: React.FC<ArticleDetailPageProps> = ({ slug, onNa
               </div>
             )}
 
-            {/* Financial & Regulatory Disclaimer */}
-            <div className={`border rounded-2xl p-6 text-xs space-y-2.5 my-6 shadow-sm font-sans ${
-              readingTheme === 'dark' ? 'bg-amber-950/40 border-amber-800/60 text-amber-200' : 'bg-[#FFFBEB] border-[#F59E0B] text-amber-950'
-            }`}>
-              <div className="flex items-center gap-2 font-bold text-amber-600 text-sm">
-                <ShieldAlert className="w-4.5 h-4.5 text-[#F59E0B] shrink-0" />
-                <span>Financial & Regulatory Disclaimer</span>
-              </div>
-              <p className="leading-relaxed font-normal">
-                Disclaimer: Information provided on TheStoceTimes.com is strictly for educational and news reporting purposes only. Content does not constitute personal financial, tax, or investment advice. Always consult a certified financial planner before making major investment decisions.
-              </p>
-            </div>
-
-            {/* Author Information Card */}
-            {author && (
-              <div className={`rounded-3xl p-6 sm:p-8 border shadow-sm flex flex-col sm:flex-row items-start gap-6 font-sans ${
-                readingTheme === 'dark' ? 'bg-[#111827] border-[#1E293B] text-white' : 'bg-white border-[#E2E8F0] text-[#0B1F33]'
-              }`}>
-                <img
-                  src={author.avatar}
-                  alt={author.name}
-                  className="w-20 h-20 rounded-2xl object-cover border-2 border-[#16A34A] shadow-sm shrink-0"
-                />
-                <div className="space-y-2 flex-1">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div>
-                      <h3 className="text-lg font-extrabold font-serif">{author.name}</h3>
-                      <span className="text-xs font-mono text-slate-400">{author.credentials || 'Senior Writer'}</span>
-                    </div>
-
-                    <button
-                      onClick={() => setFollowingAuthor(!followingAuthor)}
-                      className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer flex items-center gap-1 border ${
-                        followingAuthor
-                          ? 'bg-emerald-500 text-slate-950 border-emerald-400 font-extrabold'
-                          : 'bg-slate-100 hover:bg-slate-200 text-slate-800 border-slate-200'
-                      }`}
-                    >
-                      {followingAuthor ? (
-                        <>
-                          <UserCheck className="w-3.5 h-3.5 text-slate-950" />
-                          <span>Following</span>
-                        </>
-                      ) : (
-                        <>
-                          <UserPlus className="w-3.5 h-3.5" />
-                          <span>Follow Author</span>
-                        </>
-                      )}
-                    </button>
-                  </div>
-                  <p className="text-xs text-slate-500 leading-relaxed font-normal">{author.bio}</p>
-                </div>
-              </div>
-            )}
-
             {/* Prev / Next Article Buttons */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-6 border-t border-slate-200 font-sans">
               {prevArticle ? (
@@ -694,12 +615,6 @@ export const ArticleDetailPage: React.FC<ArticleDetailPageProps> = ({ slug, onNa
             {/* AD 5: Bottom Article Ad Placement */}
             <AdSlot placement="article_bottom" />
 
-            {/* Comments Moderation Section */}
-            <CommentsSection
-              articleId={article.id}
-              readingTheme={readingTheme}
-            />
-
             {/* Article FAQs Accordion */}
             {faqs.length > 0 && (
               <section className={`rounded-3xl border p-6 sm:p-8 shadow-sm font-sans ${
@@ -709,15 +624,15 @@ export const ArticleDetailPage: React.FC<ArticleDetailPageProps> = ({ slug, onNa
                   <span className="text-[11px] font-extrabold uppercase tracking-widest text-[#16A34A]">
                     FAQ ACCORDION
                   </span>
-                  <h2 className="text-2xl font-extrabold font-serif mt-1">
+                  <h2 className="text-xl font-extrabold font-serif mt-1">
                     Frequently Asked Questions
                   </h2>
                 </div>
 
                 <div className="space-y-3">
-                  {faqs.map((faq) => (
+                  {faqs.map((faq, index) => (
                     <details
-                      key={faq.id}
+                      key={faq.id || `${faq.question}-${index}`}
                       className={`group rounded-xl border p-4 ${
                         readingTheme === 'dark' ? 'border-[#334155] bg-[#0F172A]' : 'border-slate-200 bg-slate-50'
                       }`}
@@ -740,7 +655,7 @@ export const ArticleDetailPage: React.FC<ArticleDetailPageProps> = ({ slug, onNa
           </main>
 
           {/* 2. RIGHT SIDEBAR (~30% width = 4 cols - Sticky) */}
-          <aside className="lg:col-span-4 space-y-6 lg:sticky lg:top-24 self-start font-sans">
+          <aside className="lg:col-span-4 space-y-5 lg:sticky lg:top-[152px] self-start font-sans min-w-0 lg:max-h-[calc(100vh-164px)] lg:overflow-y-auto lg:overscroll-contain lg:pr-1">
 
             {/* Table of Contents Widget */}
             <TableOfContents contentHtml={article.content} />
@@ -752,7 +667,7 @@ export const ArticleDetailPage: React.FC<ArticleDetailPageProps> = ({ slug, onNa
             <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
               <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
                 <Flame className="w-5 h-5 text-rose-500 fill-rose-500" />
-                <h3 className="font-extrabold text-base text-[#0B1F33] font-serif">Trending Articles</h3>
+                <h3 className="font-extrabold text-sm text-[#0B1F33] font-serif">Trending Articles</h3>
               </div>
 
               <div className="space-y-3">
@@ -796,7 +711,7 @@ export const ArticleDetailPage: React.FC<ArticleDetailPageProps> = ({ slug, onNa
             <div className="flex items-center justify-between">
               <div>
                 <span className="text-[11px] font-extrabold uppercase tracking-widest text-[#155EEF] block">RECOMMENDED READS</span>
-                <h3 className={`text-2xl font-extrabold tracking-tight font-serif ${
+                <h3 className={`text-xl font-extrabold tracking-tight font-serif ${
                   readingTheme === 'dark' ? 'text-white' : 'text-[#0B1F33]'
                 }`}>
                   Related Finance Articles

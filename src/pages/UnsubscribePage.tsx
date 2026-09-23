@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { StorageService } from '../services/storageService';
 import { Mail, CheckCircle2, ShieldAlert, ArrowLeft } from 'lucide-react';
+import { AdSlot } from '../components/ads/AdSlot';
 
 interface UnsubscribePageProps {
   onNavigate: (route: string) => void;
@@ -46,6 +47,7 @@ export const UnsubscribePage: React.FC<UnsubscribePageProps> = ({ onNavigate }) 
 
   return (
     <div className="max-w-xl mx-auto px-4 py-16 font-sans space-y-6 animate-in fade-in duration-200">
+      <AdSlot placement="page_top" />
       
       <div className="bg-white p-8 sm:p-10 rounded-3xl border border-slate-200 shadow-xl space-y-6 text-center">
         
@@ -55,7 +57,7 @@ export const UnsubscribePage: React.FC<UnsubscribePageProps> = ({ onNavigate }) 
 
         <div className="space-y-2">
           <h1 className="text-2xl sm:text-3xl font-extrabold text-[#0B1F33] font-serif">
-            Unsubscribe from The Stoce Times
+            Unsubscribe from The Stock Times
           </h1>
           <p className="text-slate-500 text-xs sm:text-sm font-light leading-relaxed">
             We are sorry to see you go. You can unsubscribe or re-subscribe anytime.
@@ -98,11 +100,15 @@ export const UnsubscribePage: React.FC<UnsubscribePageProps> = ({ onNavigate }) 
             onClick={() => onNavigate('home')}
             className="inline-flex items-center gap-1.5 text-xs font-bold text-[#155EEF] hover:underline cursor-pointer"
           >
-            <ArrowLeft className="w-4 h-4" /> Return to The Stoce Times Homepage
+            <ArrowLeft className="w-4 h-4" /> Return to The Stock Times Homepage
           </button>
         </div>
 
       </div>
+
+      <AdSlot placement="page_mid" />
+      <AdSlot placement="page_sidebar" />
+      <AdSlot placement="page_bottom" />
 
     </div>
   );

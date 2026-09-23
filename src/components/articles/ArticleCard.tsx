@@ -1,7 +1,6 @@
 import React from 'react';
-import { Article, Author } from '../../types';
-import { StorageService } from '../../services/storageService';
-import { Clock, Calendar, User, ArrowRight, Flame } from 'lucide-react';
+import { Article } from '../../types';
+import { Clock, Calendar, User, ArrowRight, Flame, Eye } from 'lucide-react';
 
 interface ArticleCardProps {
   article: Article;
@@ -10,20 +9,6 @@ interface ArticleCardProps {
 }
 
 export const ArticleCard: React.FC<ArticleCardProps> = ({ article, onNavigate, layout = 'standard' }) => {
-  const [author, setAuthor] = React.useState<Author | undefined>(() => StorageService.getAuthorById(article.authorId));
-
-  React.useEffect(() => {
-    const handleUpdate = () => {
-      setAuthor(StorageService.getAuthorById(article.authorId));
-    };
-    window.addEventListener('user-profile-updated', handleUpdate);
-    window.addEventListener('storage', handleUpdate);
-    return () => {
-      window.removeEventListener('user-profile-updated', handleUpdate);
-      window.removeEventListener('storage', handleUpdate);
-    };
-  }, [article.authorId]);
-
   const formattedDate = new Date(article.publishedAt).toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric',
@@ -32,6 +17,7 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({ article, onNavigate, l
 
   const categoryNameMap: Record<string, string> = {
     'stock-market': 'Stock Market',
+    'ipo': 'IPO',
     'personal-finance': 'Personal Finance',
     'banking': 'Banking',
     'investment': 'Investment',
@@ -40,6 +26,7 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({ article, onNavigate, l
 
   const categoryBadgeColors: Record<string, string> = {
     'stock-market': 'bg-blue-50 text-[#155EEF] border-blue-200',
+    'ipo': 'bg-cyan-50 text-cyan-700 border-cyan-200',
     'personal-finance': 'bg-emerald-50 text-[#16A34A] border-emerald-200',
     'banking': 'bg-purple-50 text-purple-700 border-purple-200',
     'investment': 'bg-amber-50 text-amber-700 border-amber-200',
@@ -90,17 +77,15 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({ article, onNavigate, l
 
           <div className="flex items-center justify-between text-xs text-slate-500 pt-3 border-t border-slate-100 font-sans">
             <div className="flex items-center gap-2">
-              {author && (
-                <img
-                  src={author.avatar}
-                  alt={author.name}
-                  className="w-5 h-5 rounded-full object-cover border border-slate-200"
-                />
-              )}
-              <span className="font-semibold text-slate-700 text-xs">{author?.name.split(',')[0] || 'Editorial Desk'}</span>
+              <User className="w-3.5 h-3.5 text-[#16A34A]" />
+              <span className="font-semibold text-slate-700 text-xs">The Stock Times</span>
             </div>
 
             <div className="flex items-center gap-3 font-mono text-xs text-slate-400">
+              <span className="flex items-center gap-1">
+                <Eye className="w-3.5 h-3.5" />
+                {(article.views || 0).toLocaleString()} views
+              </span>
               {article.showPublishedDate !== false && (
                 <span className="flex items-center gap-1">
                   <Calendar className="w-3.5 h-3.5" />
@@ -141,6 +126,8 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({ article, onNavigate, l
             {article.title}
           </h4>
           <span className="text-xs text-slate-400 mt-1 flex items-center gap-1 font-mono">
+            <Eye className="w-3 h-3" /> {(article.views || 0).toLocaleString()} views
+            <span>•</span>
             <Clock className="w-3 h-3" /> {article.readTimeMinutes} min read
           </span>
         </div>
@@ -188,19 +175,16 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({ article, onNavigate, l
         {/* Footer Meta */}
         <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500 font-sans">
           <div className="flex items-center gap-2">
-            {author ? (
-              <img
-                src={author.avatar}
-                alt={author.name}
-                className="w-5 h-5 rounded-full object-cover border border-slate-200"
-              />
-            ) : (
-              <User className="w-3.5 h-3.5 text-slate-400" />
-            )}
-            <span className="font-semibold text-slate-700 text-xs">{author?.name.split(',')[0] || 'Editorial Desk'}</span>
+            <User className="w-3.5 h-3.5 text-[#16A34A]" />
+            <span className="font-semibold text-slate-700 text-xs">The Stock Times</span>
           </div>
 
           <div className="flex items-center gap-1.5 text-xs text-slate-400 font-mono">
+            <span className="inline-flex items-center gap-1">
+              <Eye className="w-3.5 h-3.5" />
+              {(article.views || 0).toLocaleString()}
+            </span>
+            <span>•</span>
             <span>{formattedDate}</span>
             <span>•</span>
             <span>{article.readTimeMinutes}m</span>

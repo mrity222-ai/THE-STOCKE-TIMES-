@@ -8,7 +8,6 @@ import {
   ChevronDown, 
   FileText, 
   FolderPlus, 
-  Upload, 
   LogOut, 
   Settings, 
   ShieldCheck,
@@ -22,7 +21,7 @@ import { ApiService } from '../../services/apiService';
 interface AdminHeaderProps {
   pageTitle: string;
   onToggleMobileSidebar: () => void;
-  onQuickAction: (action: 'new-article' | 'new-category' | 'upload-media' | 'settings' | 'profile' | 'view-site') => void;
+  onQuickAction: (action: 'new-article' | 'new-category' | 'settings' | 'profile' | 'view-site') => void;
   onLogout: () => void;
   onGlobalSearch: (q: string) => void;
 }
@@ -101,24 +100,24 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
   };
 
   return (
-    <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-200 h-16 px-4 sm:px-6 flex items-center justify-between shadow-sm">
+    <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-200 min-h-16 px-3 sm:px-6 py-2 flex items-center justify-between gap-3 shadow-sm">
       
       {/* Left: Mobile Toggle & Page Title */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2 sm:gap-3 min-w-0">
         <button
           onClick={onToggleMobileSidebar}
-          className="p-2 rounded-xl text-slate-700 hover:bg-slate-100 lg:hidden"
+          className="p-2 rounded-lg text-slate-700 hover:bg-slate-100 lg:hidden shrink-0"
         >
           <Menu className="w-5 h-5" />
         </button>
 
-        <h1 className="text-lg sm:text-xl font-extrabold text-slate-900 tracking-tight">
+        <h1 className="text-base sm:text-xl leading-tight font-extrabold text-slate-900 tracking-tight line-clamp-2 max-w-[210px] sm:max-w-none">
           {pageTitle}
         </h1>
       </div>
 
       {/* Center & Right Controls */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2 sm:gap-3 shrink-0">
         
         {/* Live MySQL Database Status Badge */}
         <div className={`hidden md:flex items-center gap-1.5 px-3 py-1 rounded-full border text-xs font-mono font-bold ${
@@ -133,7 +132,7 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
         {/* View Public Site Link */}
         <button
           onClick={() => onQuickAction('view-site')}
-          className="hidden sm:flex items-center gap-1.5 text-xs font-bold text-slate-600 hover:text-emerald-600 bg-slate-100 hover:bg-emerald-50 px-3 py-1.5 rounded-xl border border-slate-200 transition-colors"
+          className="hidden sm:flex items-center gap-1.5 text-xs font-bold text-slate-600 hover:text-emerald-600 bg-slate-100 hover:bg-emerald-50 px-3 py-1.5 rounded-lg border border-slate-200 transition-colors"
         >
           <span>View Site</span>
           <ExternalLink className="w-3.5 h-3.5" />
@@ -143,7 +142,7 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
         <div className="relative" ref={quickAddRef}>
           <button
             onClick={toggleQuickAdd}
-            className="bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs px-3.5 py-2 rounded-xl shadow-sm flex items-center gap-1.5 transition-all cursor-pointer"
+            className="bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs px-3 py-2 rounded-lg shadow-sm flex items-center gap-1.5 transition-all cursor-pointer"
           >
             <Plus className="w-4 h-4" />
             <span className="hidden sm:inline">Add New</span>
@@ -151,7 +150,7 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
           </button>
 
           {quickAddOpen && (
-            <div className="absolute right-0 mt-2 w-48 bg-white rounded-2xl shadow-2xl border border-slate-200 py-2 z-50 animate-in fade-in duration-150">
+            <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-2xl border border-slate-200 py-2 z-50 animate-in fade-in duration-150">
               <button
                 onClick={() => { setQuickAddOpen(false); onQuickAction('new-article'); }}
                 className="w-full text-left px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-50 hover:text-emerald-600 flex items-center gap-2 cursor-pointer"
@@ -164,12 +163,6 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
               >
                 <FolderPlus className="w-4 h-4 text-blue-600" /> New Category
               </button>
-              <button
-                onClick={() => { setQuickAddOpen(false); onQuickAction('upload-media'); }}
-                className="w-full text-left px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-50 hover:text-emerald-600 flex items-center gap-2 cursor-pointer"
-              >
-                <Upload className="w-4 h-4 text-purple-600" /> Upload Media
-              </button>
             </div>
           )}
         </div>
@@ -178,7 +171,7 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
         <div className="relative" ref={profileRef}>
           <button
             onClick={toggleProfile}
-            className="flex items-center gap-2 p-1 rounded-xl hover:bg-slate-100 transition-colors cursor-pointer"
+              className="flex items-center gap-2 p-1 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
           >
             <img
               src={currentUser.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80'}
@@ -190,7 +183,7 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
           </button>
 
           {profileDropdownOpen && (
-            <div className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-2xl border border-slate-200 py-2 z-50 animate-in fade-in duration-150 space-y-1">
+            <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-2xl border border-slate-200 py-2 z-50 animate-in fade-in duration-150 space-y-1">
               <div className="px-4 py-2.5 border-b border-slate-100">
                 <span className="font-extrabold text-xs text-slate-900 block">{currentUser.name}</span>
                 <span className="text-[10px] text-slate-500 font-mono block">{currentUser.email}</span>

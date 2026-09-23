@@ -11,7 +11,9 @@ import {
   Newspaper, 
   ArrowRight,
   Sparkles,
-  Percent
+  Percent,
+  Globe2,
+  MessageCircleQuestion
 } from 'lucide-react';
 
 interface FinancialToolsLandingPageProps {
@@ -23,6 +25,7 @@ export const FinancialToolsLandingPage: React.FC<FinancialToolsLandingPageProps>
   const [searchQuery, setSearchQuery] = useState<string>('');
 
   const categories = ['All', 'Loans & EMI', 'Investment', 'Savings', 'Tax & Salary', 'Financial Planning'];
+  const categoryIcons = [Wallet, TrendingUp, Building2, PieChart, Newspaper, Percent];
 
   const filteredCalculators = CALCULATORS_REGISTRY.filter((calc) => {
     const matchesCategory = selectedCategory === 'All' || calc.category === selectedCategory;
@@ -39,7 +42,7 @@ export const FinancialToolsLandingPage: React.FC<FinancialToolsLandingPageProps>
       <div className="bg-gradient-to-r from-[#0B1F33] via-[#0B1F33] to-[#155EEF]/35 text-white rounded-3xl p-8 sm:p-12 border border-slate-800 shadow-2xl space-y-6">
         <div className="inline-flex items-center gap-2 bg-[#16A34A]/20 text-[#16A34A] border border-[#16A34A]/30 px-4 py-1.5 rounded-full text-xs font-extrabold uppercase tracking-widest">
           <Calculator className="w-4 h-4 text-[#16A34A]" />
-          <span>TheStoceTimes.com Financial Engine</span>
+          <span>TheStockTimes.online Financial Engine</span>
         </div>
 
         <h1 className="text-3xl sm:text-5xl font-extrabold tracking-tight text-white leading-tight font-serif">
@@ -49,6 +52,23 @@ export const FinancialToolsLandingPage: React.FC<FinancialToolsLandingPageProps>
         <p className="text-slate-300 text-sm sm:text-base font-light max-w-3xl leading-relaxed font-sans">
           Accurate, responsive, and policy-compliant financial calculators. Compute home loan EMIs, mutual fund SIP returns, income tax liability, EPF, PPF, NPS, and wealth growth instantly.
         </p>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 max-w-4xl">
+          {[
+            { label: 'SEO Ready', value: '20 indexable tool pages', icon: Globe2 },
+            { label: 'AEO Ready', value: 'FAQ answers for search engines', icon: MessageCircleQuestion },
+            { label: 'GEO Ready', value: 'India-first finance terms', icon: Sparkles }
+          ].map((item) => {
+            const Icon = item.icon;
+            return (
+              <div key={item.label} className="rounded-2xl border border-white/10 bg-white/[0.06] p-4">
+                <Icon className="w-4 h-4 text-[#16A34A] mb-2" />
+                <span className="block text-[10px] font-extrabold uppercase tracking-widest text-emerald-300">{item.label}</span>
+                <span className="text-xs font-bold text-white">{item.value}</span>
+              </div>
+            );
+          })}
+        </div>
 
         {/* Search Bar & Category Filter Pills */}
         <div className="pt-2 space-y-4">
@@ -94,6 +114,28 @@ export const FinancialToolsLandingPage: React.FC<FinancialToolsLandingPageProps>
         </div>
       </div>
 
+      <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {categories.filter(cat => cat !== 'All').map((cat, index) => {
+          const Icon = categoryIcons[index] || Calculator;
+          const count = CALCULATORS_REGISTRY.filter(calc => calc.category === cat).length;
+          return (
+            <button
+              key={cat}
+              type="button"
+              onClick={() => setSelectedCategory(cat)}
+              className="text-left rounded-2xl border border-slate-200 bg-white p-5 shadow-sm hover:border-[#155EEF]/50 hover:shadow-md transition-all cursor-pointer"
+            >
+              <Icon className="w-5 h-5 text-[#155EEF] mb-3" />
+              <h3 className="text-sm font-extrabold text-[#0B1F33] font-serif">{cat}</h3>
+              <p className="mt-1 text-xs text-slate-500 leading-relaxed">{count} calculators with formulas, examples, FAQs, and structured data support.</p>
+            </button>
+          );
+        })}
+      </section>
+
+      {/* AD 2: Calculator suite companion ad */}
+      <AdSlot placement="calculator_sidebar" />
+
       {/* Calculator Cards Grid (First 9) */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-stretch">
         {filteredCalculators.slice(0, 9).map((calc) => (
@@ -127,7 +169,7 @@ export const FinancialToolsLandingPage: React.FC<FinancialToolsLandingPageProps>
         ))}
       </div>
 
-      {/* AD 2: Middle In-Feed Ad Slot */}
+      {/* AD 3: Middle In-Feed Ad Slot */}
       <AdSlot placement="calculator_after_result" />
 
       {/* Calculator Cards Grid (Remaining) */}
@@ -165,8 +207,32 @@ export const FinancialToolsLandingPage: React.FC<FinancialToolsLandingPageProps>
         </div>
       )}
 
-      {/* AD 3: Bottom Banner Ad Slot */}
+      {/* AD 4: Mid-page educational ad */}
+      <AdSlot placement="calculator_mid" />
+
+      {/* AD 5: Bottom Banner Ad Slot */}
       <AdSlot placement="calculator_bottom" />
+
+      <section className="rounded-3xl border border-slate-200 bg-white p-6 sm:p-8 shadow-sm space-y-5">
+        <div>
+          <span className="text-[11px] font-extrabold uppercase tracking-widest text-[#16A34A]">SEO AEO GEO COVERAGE</span>
+          <h2 className="mt-1 text-2xl font-extrabold text-[#0B1F33] font-serif">Financial calculator pages built to rank and answer questions</h2>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+          <div className="rounded-2xl bg-slate-50 p-4 border border-slate-200">
+            <h3 className="font-extrabold text-[#0B1F33]">SEO</h3>
+            <p className="mt-1 text-xs text-slate-600 leading-relaxed">Each tool has a focused title, canonical URL, descriptive copy, internal links, and sitemap coverage.</p>
+          </div>
+          <div className="rounded-2xl bg-slate-50 p-4 border border-slate-200">
+            <h3 className="font-extrabold text-[#0B1F33]">AEO</h3>
+            <p className="mt-1 text-xs text-slate-600 leading-relaxed">FAQ-style answers help Google, Bing, and AI answer engines understand direct user questions.</p>
+          </div>
+          <div className="rounded-2xl bg-slate-50 p-4 border border-slate-200">
+            <h3 className="font-extrabold text-[#0B1F33]">GEO</h3>
+            <p className="mt-1 text-xs text-slate-600 leading-relaxed">India-focused finance language covers EMI, SIP, FD, PPF, EPF, NPS, GST, salary, and tax terms.</p>
+          </div>
+        </div>
+      </section>
 
     </div>
   );

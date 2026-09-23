@@ -1,12 +1,27 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { StorageService } from '../../services/storageService';
 import { AdSlot } from '../../components/ads/AdSlot';
 import { BarChart3, TrendingUp, Users, Eye, Clock, ArrowUpRight, ShieldCheck, Globe } from 'lucide-react';
+import { AnalyticsSummary, Article } from '../../types';
 
 export const AdminAnalytics: React.FC = () => {
   const [timeframe, setTimeframe] = useState<'7d' | '30d' | '90d' | '12m'>('30d');
-  const analytics = StorageService.getAnalyticsSummary();
-  const articles = StorageService.getArticles();
+  const [analytics, setAnalytics] = useState<AnalyticsSummary>(() => StorageService.getAnalyticsSummary());
+  const [articles, setArticles] = useState<Article[]>(() => StorageService.getArticles());
+
+  useEffect(() => {
+    const refreshAnalytics = () => {
+      setAnalytics(StorageService.getAnalyticsSummary());
+      setArticles(StorageService.getArticles());
+    };
+
+    window.addEventListener('article-views-updated', refreshAnalytics as EventListener);
+    window.addEventListener('storage', refreshAnalytics);
+    return () => {
+      window.removeEventListener('article-views-updated', refreshAnalytics as EventListener);
+      window.removeEventListener('storage', refreshAnalytics);
+    };
+  }, []);
 
   const topArticles = [...articles].sort((a, b) => b.views - a.views).slice(0, 5);
 

@@ -57,7 +57,7 @@ export const AdminCategories: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
         <div>
           <h2 className="text-xl font-extrabold text-slate-900 tracking-tight">Categories Management</h2>
-          <p className="text-xs text-slate-500 mt-0.5">Organize your TheStoceTimes.com platform into clear content verticals.</p>
+          <p className="text-xs text-slate-500 mt-0.5">Organize your TheStockTimes.online platform into clear content verticals.</p>
         </div>
 
         <button

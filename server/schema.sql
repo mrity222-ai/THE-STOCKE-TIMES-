@@ -137,6 +137,18 @@ CREATE TABLE IF NOT EXISTS subscribers (
   status VARCHAR(32) DEFAULT 'active'
 );
 
+CREATE TABLE IF NOT EXISTS popup_notification_settings (
+  id TINYINT PRIMARY KEY DEFAULT 1,
+  enabled BOOLEAN DEFAULT FALSE,
+  title VARCHAR(255) DEFAULT '',
+  message TEXT,
+  image_url LONGTEXT,
+  link_url TEXT,
+  link_label VARCHAR(120) DEFAULT 'Open Update',
+  delay_seconds INT DEFAULT 10,
+  updated_at VARCHAR(64) NOT NULL
+);
+
 -- 10. Contact Messages Table
 CREATE TABLE IF NOT EXISTS contact_messages (
   id VARCHAR(64) PRIMARY KEY,

@@ -22,13 +22,11 @@ import {
   Undo2,
   Upload
 } from 'lucide-react';
-import { StorageService } from '../../services/storageService';
 import { optimizeImageFile } from '../../utils/imageUpload';
 
 interface RichTextEditorProps {
   value: string;
   onChange: (content: string) => void;
-  onOpenMediaPicker?: () => void;
 }
 
 type EditorMode = 'compose' | 'html' | 'preview';
@@ -51,7 +49,7 @@ const imageFigureHtml = (url: string, altText: string, caption?: string) => `\n<
   }
 </figure>\n`;
 
-export const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange, onOpenMediaPicker }) => {
+export const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange }) => {
   const [mode, setMode] = useState<EditorMode>('compose');
   const [toastMsg, setToastMsg] = useState('');
   const [isDraggingOver, setIsDraggingOver] = useState(false);
@@ -150,19 +148,6 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange,
     showToast('Link inserted');
   };
 
-  const handleInsertImageUrl = () => {
-    if (onOpenMediaPicker) {
-      onOpenMediaPicker();
-      return;
-    }
-
-    const url = window.prompt('Paste image URL:', 'https://');
-    if (!url) return;
-    const caption = window.prompt('Image caption:', '') || '';
-    insertHtml(imageFigureHtml(url, caption || 'Article image', caption));
-    showToast('Image inserted');
-  };
-
   const handleImageFiles = async (files: FileList | File[]) => {
     const imageFiles = Array.from(files).filter((file) => file.type.startsWith('image/'));
     if (!imageFiles.length) return;
@@ -187,17 +172,6 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange,
         const dataUrl = optimized.dataUrl;
         setUploadProgress(Math.min(99, Math.round(baseProgress + fileShare)));
 
-        try {
-          StorageService.addMediaItem({
-            name: file.name,
-            url: dataUrl,
-            altText: file.name,
-            dimensions: optimized.width && optimized.height ? `${optimized.width}x${optimized.height}` : undefined,
-            size: optimized.sizeLabel
-          });
-        } catch (error) {
-          console.warn('Media library save failed:', error);
-        }
         snippets.push(imageFigureHtml(dataUrl, file.name, file.name.replace(/\.[^/.]+$/, '')));
       }
 
@@ -356,7 +330,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange,
             <button type="button" onClick={handleInsertLink} className={toolbarButtonClass} title="Insert link">
               <LinkIcon className="h-4 w-4" />
             </button>
-            <button type="button" onClick={handleInsertImageUrl} className={toolbarButtonClass} title="Media library image">
+            <button type="button" onClick={() => fileInputRef.current?.click()} className={toolbarButtonClass} title="Insert image from computer">
               <ImageIcon className="h-4 w-4" />
             </button>
             <button

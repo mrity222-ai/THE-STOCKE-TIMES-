@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useReducer, useRef, useState } from 'react';
 import { AdPlacementKey } from '../../types/ads';
 import { AdService } from '../../services/adService';
 import { Sparkles, Info } from 'lucide-react';
@@ -8,7 +8,36 @@ interface AdSlotProps {
   className?: string;
 }
 
+const extractAdCodeAttribute = (code: string | undefined, attr: string): string => {
+  if (!code) return '';
+  const match = code.match(new RegExp(`${attr}\\s*=\\s*["']([^"']+)["']`, 'i'));
+  return match?.[1]?.trim() || '';
+};
+
+const extractFirstAdCodeAttribute = (codes: Array<string | undefined>, attr: string): string => {
+  for (const code of codes) {
+    const value = extractAdCodeAttribute(code, attr);
+    if (value) return value;
+  }
+  return '';
+};
+
+const isSafeCreativeUrl = (url: string | undefined): boolean => {
+  if (!url) return false;
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === 'https:' || parsed.protocol === 'http:';
+  } catch {
+    return false;
+  }
+};
+
+const isImageCreative = (url: string): boolean => /\.(png|jpe?g|gif|webp|avif)(\?.*)?$/i.test(url);
+
 export const AdSlot: React.FC<AdSlotProps> = ({ placement, className = '' }) => {
+  const [, refreshConfig] = useReducer((value: number) => value + 1, 0);
+  const [adSenseCollapsed, setAdSenseCollapsed] = useState(false);
+  const googleAdRef = useRef<HTMLDivElement>(null);
   const rules = AdService.getRules();
   const adsense = AdService.getAdSenseConfig();
   const houseAds = AdService.getHouseAds();
@@ -22,29 +51,109 @@ export const AdSlot: React.FC<AdSlotProps> = ({ placement, className = '' }) => 
   const currentDevice = getCurrentDevice();
   const matchesDevice = !placementSetting || placementSetting.device === 'all' || placementSetting.device === currentDevice;
   const isEnabled = AdService.isPlacementEnabled(placement) && matchesDevice;
+  const isSidebar = placement.includes('sidebar');
+  const reservedMinHeight = isSidebar ? 'min-h-[280px]' : 'min-h-[100px] sm:min-h-[120px]';
+  const activeUnit = AdService.getAdUnits().find((unit) => {
+    const deviceOk = unit.targetDevice === 'all' || unit.targetDevice === currentDevice;
+    return unit.placement === placement && unit.status === 'active' && deviceOk;
+  });
+  const htmlAdCode = activeUnit?.customCode || '';
+  const ampAdCode = activeUnit?.ampCode || '';
+  const snippetClient = extractFirstAdCodeAttribute([htmlAdCode, ampAdCode], 'data-ad-client');
+  const snippetSlot = extractFirstAdCodeAttribute([htmlAdCode, ampAdCode], 'data-ad-slot');
+  const snippetFormat = extractFirstAdCodeAttribute([htmlAdCode, ampAdCode], 'data-ad-format') || extractFirstAdCodeAttribute([ampAdCode], 'data-auto-format');
+  const snippetResponsive = extractFirstAdCodeAttribute([htmlAdCode, ampAdCode], 'data-full-width-responsive') || (ampAdCode.includes('data-full-width') ? 'true' : '');
+  const effectiveClient = snippetClient || adsense.publisherId;
+  const effectiveSlot = snippetSlot || activeUnit?.slotId || '';
+  const creativeUrl = activeUnit?.creativeUrl?.trim();
+  const destinationUrl = activeUnit?.destinationUrl?.trim();
+  const isGoogleUnit = activeUnit?.network === 'google-adsense';
+  const canRenderGoogleUnit = Boolean(
+    placementSetting?.network === 'google-adsense' &&
+    isGoogleUnit &&
+    rules.googleAdsenseEnabled &&
+    adsense.manualAdsEnabled &&
+    effectiveClient &&
+    effectiveSlot
+  );
+
+  useEffect(() => {
+    return AdService.subscribeToChanges(refreshConfig);
+  }, []);
+
+  useEffect(() => {
+    setAdSenseCollapsed(false);
+  }, [placement, effectiveClient, effectiveSlot, canRenderGoogleUnit]);
 
   useEffect(() => {
     if (isEnabled) {
       AdService.trackImpression(placement);
+    }
+
+    if (isEnabled && canRenderGoogleUnit) {
       try {
         AdService.ensureAdSenseScript();
-        // Push to window.adsbygoogle when AdSense script is loaded
         if (window && (window as any).adsbygoogle) {
           ((window as any).adsbygoogle = (window as any).adsbygoogle || []).push({});
         }
       } catch (err) {
-        // Ignore AdSense script initialization errors when offline
+        // Ignore AdSense script initialization errors when offline.
       }
     }
-  }, [placement, isEnabled]);
+  }, [placement, isEnabled, canRenderGoogleUnit]);
+
+  useEffect(() => {
+    if (!isEnabled || !canRenderGoogleUnit) return;
+
+    const container = googleAdRef.current;
+    if (!container || typeof MutationObserver === 'undefined') return;
+
+    let cancelled = false;
+    const startedAt = Date.now();
+    const getStatus = () => {
+      const ins = container.querySelector<HTMLElement>('.adsbygoogle');
+      const adStatus = ins?.getAttribute('data-ad-status');
+      const hasRenderedCreative = adStatus === 'filled' && Boolean(container.querySelector('iframe'));
+      const waitedLongEnough = Date.now() - startedAt > 2600;
+
+      if (hasRenderedCreative) return 'filled';
+      if (adStatus === 'unfilled' || waitedLongEnough) return 'unfilled';
+      return 'pending';
+    };
+
+    const collapseIfUnfilled = () => {
+      if (cancelled) return;
+      if (getStatus() === 'unfilled') setAdSenseCollapsed(true);
+    };
+
+    const observer = new MutationObserver(() => {
+      if (getStatus() === 'filled') {
+        setAdSenseCollapsed(false);
+      } else {
+        collapseIfUnfilled();
+      }
+    });
+
+    observer.observe(container, {
+      attributes: true,
+      childList: true,
+      subtree: true
+    });
+
+    const shortTimer = window.setTimeout(collapseIfUnfilled, 2800);
+    const longTimer = window.setTimeout(collapseIfUnfilled, 8000);
+
+    return () => {
+      cancelled = true;
+      observer.disconnect();
+      window.clearTimeout(shortTimer);
+      window.clearTimeout(longTimer);
+    };
+  }, [isEnabled, canRenderGoogleUnit, placement, effectiveClient, effectiveSlot]);
 
   if (!isEnabled) {
     return null; // Ad placement disabled from Admin Panel or Master Switch is OFF
   }
-
-  // Determine reserved minimum height based on placement type to prevent CLS (Cumulative Layout Shift)
-  const isSidebar = placement.includes('sidebar');
-  const reservedMinHeight = isSidebar ? 'min-h-[280px]' : 'min-h-[100px] sm:min-h-[120px]';
 
   // House Ad rendering (Strict AdSense Policy Compliance: clearly marked as Promoted Tool)
   const now = new Date();
@@ -68,7 +177,7 @@ export const AdSlot: React.FC<AdSlotProps> = ({ placement, className = '' }) => 
     const activeHouse = houseAd;
     const targetUrl = activeHouse.targetUrl || activeHouse.destinationUrl || '/';
     return (
-      <div className={`my-4 bg-slate-900 text-white rounded-2xl p-5 border border-slate-800 shadow-md ${reservedMinHeight} flex flex-col justify-between ${className}`}>
+      <div data-ad-placement={placement} className={`my-4 bg-slate-900 text-white rounded-2xl p-5 border border-slate-800 shadow-md ${reservedMinHeight} flex flex-col justify-between ${className}`}>
         {/* Strict Non-Deceptive Disclosure Label */}
         <div className="flex items-center justify-between border-b border-slate-800 pb-2 mb-3">
           <span className="text-[10px] font-mono font-extrabold uppercase tracking-wider text-emerald-400 flex items-center gap-1">
@@ -100,45 +209,79 @@ export const AdSlot: React.FC<AdSlotProps> = ({ placement, className = '' }) => 
     );
   }
 
-  if (placementSetting?.network !== 'google-adsense' || !rules.googleAdsenseEnabled || !adsense.manualAdsEnabled || !adsense.publisherId) {
-    return null;
+  if (
+    activeUnit &&
+    (placementSetting?.network === 'direct' || placementSetting?.network === 'sponsored') &&
+    ((placementSetting.network === 'direct' && rules.directAdsEnabled) || (placementSetting.network === 'sponsored' && rules.sponsoredContentEnabled)) &&
+    activeUnit.network === placementSetting.network &&
+    isSafeCreativeUrl(creativeUrl)
+  ) {
+    const creative = creativeUrl as string;
+    const creativeBody = isImageCreative(creative) ? (
+      <img
+        src={creative}
+        alt={`${activeUnit.name} advertisement`}
+        className="max-h-[280px] w-full object-contain rounded-xl bg-white"
+        loading="lazy"
+      />
+    ) : (
+      <iframe
+        src={creative}
+        title={`${activeUnit.name} advertisement`}
+        className="min-h-[250px] w-full rounded-xl border-0 bg-white"
+        loading="lazy"
+        sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
+      />
+    );
+
+    return (
+      <div data-ad-placement={placement} className={`my-4 bg-slate-50/90 border border-slate-200/90 rounded-2xl p-4 text-center shadow-sm overflow-hidden ${reservedMinHeight} flex flex-col justify-between ${className}`}>
+        <div className="flex items-center justify-between text-[10px] text-slate-400 font-mono uppercase mb-2 border-b border-slate-200/70 pb-1">
+          <span className="font-bold tracking-wider text-slate-400">ADVERTISEMENT</span>
+          <span className="text-[9px] text-slate-400 font-mono flex items-center gap-1">
+            <Info className="w-3 h-3 text-slate-400" />
+            <span>{placementSetting.network === 'sponsored' ? 'Sponsored' : 'Direct Ad'}</span>
+          </span>
+        </div>
+
+        {destinationUrl ? (
+          <a href={destinationUrl} target="_blank" rel="noopener noreferrer sponsored" onClick={() => AdService.trackClick(placement)}>
+            {creativeBody}
+          </a>
+        ) : (
+          creativeBody
+        )}
+      </div>
+    );
   }
 
-  const activeUnit = AdService.getAdUnits().find((unit) => {
-    const deviceOk = unit.targetDevice === 'all' || unit.targetDevice === currentDevice;
-    return unit.placement === placement && unit.status === 'active' && unit.network === 'google-adsense' && deviceOk;
-  });
-
-  if (!activeUnit?.slotId) {
+  if (!canRenderGoogleUnit || adSenseCollapsed) {
     return null;
   }
 
   // Google AdSense Responsive Unit Container (Fixed reserved bounding box to eliminate CLS)
   return (
-    <div className={`my-4 bg-slate-50/90 border border-slate-200/90 rounded-2xl p-4 text-center shadow-sm overflow-hidden ${reservedMinHeight} flex flex-col justify-between ${className}`}>
+    <div ref={googleAdRef} data-ad-placement={placement} className={`my-4 bg-slate-50/90 border border-slate-200/90 rounded-2xl p-4 text-center shadow-sm overflow-hidden ${reservedMinHeight} flex flex-col justify-between ${className}`}>
       
       {/* Strict AdSense Disclosure Header (Mandatory Rule: Clear ADVERTISEMENT label) */}
       <div className="flex items-center justify-between text-[10px] text-slate-400 font-mono uppercase mb-2 border-b border-slate-200/70 pb-1">
         <span className="font-bold tracking-wider text-slate-400">ADVERTISEMENT</span>
         <span className="text-[9px] text-slate-400 font-mono flex items-center gap-1">
           <Info className="w-3 h-3 text-slate-400" />
-          <span>Google AdSense • {adsense.publisherId}</span>
+          <span>Google AdSense • {effectiveClient}</span>
         </span>
       </div>
 
       {/* AdSense Responsive Ins Container */}
-      <div 
-        onClick={() => AdService.trackClick(placement)}
-        className={`${reservedMinHeight} bg-white border border-slate-200/80 rounded-xl flex items-center justify-center p-3 transition-colors group relative overflow-hidden`}
-      >
+      <div className={`${reservedMinHeight} bg-white border border-slate-200/80 rounded-xl flex items-center justify-center p-3 transition-colors group relative overflow-hidden`}>
         {/* Real AdSense Ins Element */}
         <ins
           className="adsbygoogle"
           style={{ display: 'block', width: '100%', minHeight: isSidebar ? '250px' : '90px' }}
-          data-ad-client={adsense.publisherId}
-          data-ad-slot={activeUnit.slotId}
-          data-ad-format="auto"
-          data-full-width-responsive="true"
+          data-ad-client={effectiveClient}
+          data-ad-slot={effectiveSlot}
+          data-ad-format={snippetFormat || (activeUnit?.type === 'in-article' ? 'fluid' : 'auto')}
+          data-full-width-responsive={snippetResponsive || 'true'}
         />
 
       </div>

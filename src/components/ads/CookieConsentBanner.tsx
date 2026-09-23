@@ -28,6 +28,12 @@ export const CookieConsentBanner: React.FC = () => {
             We use cookies and third-party advertising partners (such as Google AdSense) to personalize content, financial tools, and analyze traffic.
           </p>
           <div className="pt-2 flex items-center justify-end gap-2">
+            <a
+              href="/legal/privacy"
+              className="text-slate-300 hover:text-white font-bold text-xs px-3 py-2 rounded-xl transition-colors"
+            >
+              Privacy Policy
+            </a>
             <button
               onClick={handleAccept}
               className="bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs px-4 py-2 rounded-xl shadow flex items-center gap-1.5 cursor-pointer transition-colors"

@@ -5,7 +5,6 @@ import {
   FileText, 
   FolderTree, 
   Tag, 
-  Image as ImageIcon, 
   Users, 
   Flame, 
   Sparkles, 
@@ -23,6 +22,7 @@ import {
   Layers,
   DollarSign,
   Mail,
+  BellRing,
   Camera
 } from 'lucide-react';
 import { StorageService } from '../../services/storageService';
@@ -64,6 +64,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
 
   const navItems = [
     { key: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, adminOnly: true },
+    { key: 'ai-engine', label: 'AI Content Engine', icon: Sparkles, adminOnly: true },
     { 
       key: 'articles', 
       label: 'Articles', 
@@ -76,11 +77,11 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
     },
     { key: 'subscribers', label: 'Subscribers', icon: Mail, adminOnly: true },
     { key: 'ads', label: 'Monetization & Ads', icon: DollarSign, adminOnly: true },
+    { key: 'popup-notifications', label: 'Popup Banner', icon: BellRing, adminOnly: true },
     { key: 'rules', label: 'Financial Rules', icon: ShieldCheck, adminOnly: true },
     { key: 'catalogs', label: 'Product Catalogs', icon: Layers, adminOnly: true },
     { key: 'categories', label: 'Categories', icon: FolderTree, adminOnly: true },
     { key: 'tags', label: 'Tags', icon: Tag, adminOnly: true },
-    { key: 'media', label: 'Media Gallery', icon: ImageIcon },
     { key: 'authors', label: 'Users & Authors', icon: Users, adminOnly: true },
     { key: 'trending', label: 'Trending Articles', icon: Flame, adminOnly: true },
     { key: 'featured', label: 'Featured Articles', icon: Sparkles, adminOnly: true },
@@ -124,7 +125,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
             {!collapsed && (
               <div className="flex flex-col">
                 <span className="font-serif font-black text-[#ffffff] text-sm tracking-tight leading-none">
-                  TheStoceTimes
+                  TheStockTimes
                 </span>
                 <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest mt-1">
                   {isAuthorRole ? 'Author Workspace' : 'Control Portal'}

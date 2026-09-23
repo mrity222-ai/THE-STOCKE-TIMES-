@@ -1,5 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { AdSlot } from '../components/ads/AdSlot';
+import { formatCurrency, getCurrencyLabel, getCurrencySymbol } from '../utils/currency';
+import { useCurrencyPreference } from '../hooks/useCurrencyPreference';
 import { 
   Calculator, 
   TrendingUp, 
@@ -7,7 +9,6 @@ import {
   Sliders, 
   ArrowRight, 
   HelpCircle, 
-  ShieldAlert, 
   Calendar, 
   Sparkles,
   ChevronDown,
@@ -20,9 +21,13 @@ interface SipCalculatorPageProps {
 
 export const SipCalculatorPage: React.FC<SipCalculatorPageProps> = ({ onNavigate }) => {
   const [mode, setMode] = useState<'sip' | 'lumpsum'>('sip');
+  useCurrencyPreference();
+  const currencyLabel = getCurrencyLabel();
+  const currencySymbol = getCurrencySymbol();
+  const money = (value: number) => formatCurrency(value);
 
   // Inputs State
-  const [investmentAmount, setInvestmentAmount] = useState<number>(5000); // ₹5,000 / mo
+  const [investmentAmount, setInvestmentAmount] = useState<number>(5000);
   const [expectedReturnRate, setExpectedReturnRate] = useState<number>(12); // 12% p.a.
   const [tenureYears, setTenureYears] = useState<number>(10); // 10 Years
 
@@ -174,9 +179,9 @@ export const SipCalculatorPage: React.FC<SipCalculatorPageProps> = ({ onNavigate
           {/* Input 1: Monthly/Lumpsum Amount */}
           <div className="space-y-3">
             <div className="flex justify-between items-center text-xs">
-              <label className="font-bold text-slate-700">{mode === 'sip' ? 'Monthly Investment (₹)' : 'One-Time Investment (₹)'}</label>
+              <label className="font-bold text-slate-700">{mode === 'sip' ? `Monthly Investment (${currencyLabel})` : `One-Time Investment (${currencyLabel})`}</label>
               <div className="flex items-center gap-1 bg-slate-50 border border-slate-300 rounded-xl px-3 py-1 text-slate-900 font-bold font-mono text-sm">
-                <span>₹</span>
+                <span>{currencySymbol}</span>
                 <input
                   type="number"
                   min="500"
@@ -199,9 +204,9 @@ export const SipCalculatorPage: React.FC<SipCalculatorPageProps> = ({ onNavigate
               className="w-full accent-emerald-600 cursor-pointer h-2 bg-slate-200 rounded-lg"
             />
             <div className="flex justify-between text-[10px] text-slate-400 font-mono">
-              <span>₹500</span>
-              <span>₹2.5 Lakh</span>
-              <span>₹5 Lakh+</span>
+              <span>{money(500)}</span>
+              <span>{money(250000)}</span>
+              <span>{money(500000)}+</span>
             </div>
           </div>
 
@@ -289,7 +294,7 @@ export const SipCalculatorPage: React.FC<SipCalculatorPageProps> = ({ onNavigate
             <div className="space-y-1 border-b border-slate-800 pb-4">
               <span className="text-xs font-bold uppercase text-slate-400 tracking-wider">Projected Portfolio Total Value</span>
               <div className="text-3xl sm:text-4xl font-black text-emerald-400 font-mono">
-                ₹{sipResults.totalValue.toLocaleString('en-IN')}
+                {money(sipResults.totalValue)}
               </div>
               <span className="text-[11px] text-slate-400">At {expectedReturnRate}% annualized return over {tenureYears} Years</span>
             </div>
@@ -297,12 +302,12 @@ export const SipCalculatorPage: React.FC<SipCalculatorPageProps> = ({ onNavigate
             <div className="space-y-3 text-xs">
               <div className="flex justify-between py-1.5 border-b border-slate-800/80">
                 <span className="text-slate-400">Total Invested Amount</span>
-                <span className="font-bold text-slate-300 font-mono">₹{sipResults.totalInvested.toLocaleString('en-IN')}</span>
+                <span className="font-bold text-slate-300 font-mono">{money(sipResults.totalInvested)}</span>
               </div>
 
               <div className="flex justify-between py-1.5 border-b border-slate-800/80">
                 <span className="text-slate-400">Estimated Compounded Returns</span>
-                <span className="font-bold text-emerald-400 font-mono">₹{sipResults.estimatedReturns.toLocaleString('en-IN')}</span>
+                <span className="font-bold text-emerald-400 font-mono">{money(sipResults.estimatedReturns)}</span>
               </div>
             </div>
 
@@ -331,6 +336,9 @@ export const SipCalculatorPage: React.FC<SipCalculatorPageProps> = ({ onNavigate
 
       </div>
 
+      {/* AD 2: Calculator companion ad */}
+      <AdSlot placement="calculator_sidebar" />
+
       {/* SIP Growth Chart Visualizer */}
       <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-sm space-y-6">
         <div className="border-b border-slate-100 pb-4">
@@ -346,7 +354,7 @@ export const SipCalculatorPage: React.FC<SipCalculatorPageProps> = ({ onNavigate
                 className="w-full bg-gradient-to-t from-emerald-600 to-emerald-400 rounded-t-lg group-hover:bg-emerald-500 transition-all duration-300 relative"
               >
                 <span className="opacity-0 group-hover:opacity-100 absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-[10px] font-mono px-2 py-0.5 rounded shadow whitespace-nowrap z-10">
-                  Yr {row.year}: ₹{row.totalValue.toLocaleString('en-IN')}
+                  Yr {row.year}: {money(row.totalValue)}
                 </span>
               </div>
               <span className="text-[10px] font-mono text-slate-400 font-bold">Y{row.year}</span>
@@ -355,7 +363,7 @@ export const SipCalculatorPage: React.FC<SipCalculatorPageProps> = ({ onNavigate
         </div>
       </div>
 
-      {/* AD 2: Middle In-Feed Ad Slot */}
+      {/* AD 3: Middle In-Feed Ad Slot */}
       <AdSlot placement="calculator_after_result" />
 
       {/* Yearly Breakdown Table */}
@@ -376,15 +384,18 @@ export const SipCalculatorPage: React.FC<SipCalculatorPageProps> = ({ onNavigate
               {yearlySchedule.map((row) => (
                 <tr key={row.year} className="hover:bg-slate-50 transition-colors">
                   <td className="p-3 font-bold text-slate-900">Year {row.year}</td>
-                  <td className="p-3 text-slate-600">₹{row.invested.toLocaleString('en-IN')}</td>
-                  <td className="p-3 text-emerald-600 font-bold">₹{row.returns.toLocaleString('en-IN')}</td>
-                  <td className="p-3 font-extrabold text-slate-900">₹{row.totalValue.toLocaleString('en-IN')}</td>
+                  <td className="p-3 text-slate-600">{money(row.invested)}</td>
+                  <td className="p-3 text-emerald-600 font-bold">{money(row.returns)}</td>
+                  <td className="p-3 font-extrabold text-slate-900">{money(row.totalValue)}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       </div>
+
+      {/* AD 4: Mid-page calculator ad */}
+      <AdSlot placement="calculator_mid" />
 
       {/* SEO FAQ Accordion */}
       <div className="bg-white p-6 sm:p-10 rounded-3xl border border-slate-200 shadow-sm space-y-6">
@@ -409,18 +420,7 @@ export const SipCalculatorPage: React.FC<SipCalculatorPageProps> = ({ onNavigate
         </div>
       </div>
 
-      {/* Important Disclaimer Banner */}
-      <div className="bg-amber-50 border border-amber-200 rounded-2xl p-6 text-xs text-amber-900 space-y-2">
-        <div className="flex items-center gap-2 font-bold text-amber-950">
-          <ShieldAlert className="w-4 h-4 text-amber-600 shrink-0" />
-          <span>Important Mutual Fund Return Disclaimer</span>
-        </div>
-        <p className="leading-relaxed text-amber-800">
-          Disclaimer: The results provided by this SIP calculator are for educational and illustrative purposes only. Mutual fund investments are subject to market risks, and actual returns may vary based on market volatility, fund performance, taxes, and expense ratios. Returns are estimated/illustrative, not guaranteed.
-        </p>
-      </div>
-
-      {/* AD 3: Bottom Banner Ad Slot */}
+      {/* AD 5: Bottom Banner Ad Slot */}
       <AdSlot placement="calculator_bottom" />
 
     </div>

@@ -1,14 +1,13 @@
 import React from 'react';
 import { StorageService } from '../services/storageService';
 import { AdSlot } from '../components/ads/AdSlot';
-import { ShieldCheck, BookOpen, Award, Users, CheckCircle2, TrendingUp, CheckCircle, Calculator, Info } from 'lucide-react';
+import { ShieldCheck, BookOpen, CheckCircle2, Calculator, Search, Newspaper, Lock } from 'lucide-react';
 
 interface AboutPageProps {
   onNavigate?: (route: string, param?: string) => void;
 }
 
 export const AboutPage: React.FC<AboutPageProps> = ({ onNavigate }) => {
-  const authors = StorageService.getAuthors();
   const dynamicAbout = StorageService.getLegalPageById('about');
 
   return (
@@ -22,13 +21,15 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onNavigate }) => {
         </div>
 
         <h1 className="text-3xl sm:text-5xl font-extrabold font-serif tracking-tight leading-tight">
-          {dynamicAbout?.title || 'About The Stoce Times'}
+          {dynamicAbout?.title || 'About The Stock Times'}
         </h1>
 
         <p className="text-sm sm:text-base text-slate-300 font-medium leading-relaxed max-w-2xl">
           Independent financial information and editorial platform focused on helping readers understand financial markets, investing, personal finance and important developments across the financial world.
         </p>
       </div>
+
+      <AdSlot placement="page_top" />
 
       {/* Main Narrative Dynamic Content */}
       <div className="bg-white rounded-3xl p-8 sm:p-10 border border-slate-200 shadow-sm space-y-6 text-sm text-slate-800 leading-relaxed font-sans">
@@ -70,6 +71,8 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onNavigate }) => {
         </div>
       </div>
 
+      <AdSlot placement="page_mid" />
+
       {/* Editorial Principles Grid */}
       <div className="bg-white rounded-3xl p-8 border border-slate-200 shadow-sm space-y-6">
         <h2 className="text-2xl font-extrabold text-[#0B1F33] font-serif border-b border-slate-100 pb-3">
@@ -103,47 +106,58 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onNavigate }) => {
         </div>
       </div>
 
-      {/* Research & Editorial Team */}
+      <AdSlot placement="page_sidebar" />
+
+      {/* Research & Editorial Desk */}
       <div className="space-y-6">
         <div className="flex items-center justify-between border-b border-slate-200 pb-4">
           <div>
             <span className="text-[10px] font-extrabold uppercase tracking-widest text-[#155EEF] block font-mono">EDITORIAL DESK</span>
-            <h2 className="text-2xl font-extrabold text-[#0B1F33] font-serif">Research & Editorial Team</h2>
+            <h2 className="text-2xl font-extrabold text-[#0B1F33] font-serif">Research & Editorial Process</h2>
           </div>
-          <span className="text-xs text-slate-500 font-mono">{authors.length} Financial Analysts</span>
+          <span className="text-xs text-slate-500 font-mono">The Stock Times</span>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-          {authors.map((author) => (
-            <div 
-              key={author.id} 
-              onClick={() => onNavigate?.('author', author.id)}
-              className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex gap-4 items-start cursor-pointer hover:border-[#155EEF] hover:shadow-md transition-all group"
-            >
-              <img
-                src={author.avatar}
-                alt={author.name}
-                className="w-16 h-16 rounded-2xl object-cover shrink-0 border border-slate-200 shadow-sm group-hover:scale-105 transition-transform"
-              />
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <h3 className="font-extrabold text-[#0B1F33] text-base group-hover:text-[#155EEF] transition-colors">{author.name}</h3>
-                  <span className="text-[10px] font-extrabold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                    {author.credentials}
-                  </span>
+          {[
+            {
+              icon: Newspaper,
+              title: 'Publication Byline',
+              text: 'Public articles show The Stock Times as the publication identity for a clean, consistent reader experience.'
+            },
+            {
+              icon: Lock,
+              title: 'Admin-Only Assignments',
+              text: 'Writer and analyst assignment remains available inside the admin panel for workflow, permissions, and review.'
+            },
+            {
+              icon: Search,
+              title: 'Source Review',
+              text: 'Editorial pages prioritize source quality, useful explanations, answer-ready structure, and reader-first clarity.'
+            },
+            {
+              icon: CheckCircle2,
+              title: 'Compliance Checks',
+              text: 'Finance content is positioned as educational information, with policy and disclaimer controls managed separately.'
+            }
+          ].map((item) => {
+            const Icon = item.icon;
+            return (
+              <div key={item.title} className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex gap-4 items-start">
+                <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-[#16A34A] flex items-center justify-center shrink-0">
+                  <Icon className="w-5 h-5" />
                 </div>
-                <p className="text-xs font-bold text-[#155EEF]">{author.role}</p>
-                <p className="text-xs text-slate-500 line-clamp-2">{author.bio}</p>
-                <span className="inline-block text-[11px] font-bold text-[#155EEF] pt-1 group-hover:underline">
-                  View Author Profile & Articles →
-                </span>
+                <div className="space-y-1">
+                  <h3 className="font-extrabold text-[#0B1F33] text-base">{item.title}</h3>
+                  <p className="text-xs text-slate-500 leading-relaxed">{item.text}</p>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 
-      <AdSlot placement="article_bottom" className="my-6" />
+      <AdSlot placement="page_bottom" className="my-6" />
 
     </div>
   );

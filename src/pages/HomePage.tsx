@@ -30,9 +30,11 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
       setArticles(StorageService.getArticles());
     };
     window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('article-views-updated', handleStorageChange as EventListener);
     return () => {
       isMounted = false;
       window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('article-views-updated', handleStorageChange as EventListener);
     };
   }, []);
 
@@ -47,6 +49,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
   const heroArticles = publishedArticles;
 
   const stockMarketArticles = publishedArticles.filter(a => a.categoryId === 'stock-market').slice(0, 3);
+  const ipoArticles = publishedArticles.filter(a => a.categoryId === 'ipo').slice(0, 3);
   const personalFinanceArticles = publishedArticles.filter(a => a.categoryId === 'personal-finance').slice(0, 3);
   const bankingArticles = publishedArticles.filter(a => a.categoryId === 'banking').slice(0, 3);
   const investmentArticles = publishedArticles.filter(a => a.categoryId === 'investment').slice(0, 3);
@@ -60,11 +63,17 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
       {/* Top Lead Hero Section (Newest Article strictly placed at the TOP) */}
       <FeaturedArticleHero articles={heroArticles} onNavigate={onNavigate} />
 
+      {/* Homepage Ad 1: Sponsored slot after lead hero */}
+      <AdSlot placement="homepage-top" />
+
       {/* Top Banner Ad Below Hero (global_top) */}
       <AdSlot placement="global_top" />
 
       {/* Market Snapshot & Mood Gauge Terminal */}
       <MarketSnapshotWidget />
+
+      {/* Homepage Ad 3: Below navigation / market module */}
+      <AdSlot placement="below-navigation" />
 
       {/* Main Content Layout (12-Column Editorial Grid: Left 8 Cols Main Content ~67%, Right 4 Cols Sidebar ~33%) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-start">
@@ -73,10 +82,13 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
         <div className="lg:col-span-8 space-y-14">
 
           {/* Section 0: Real-Time Latest News Stream with Load More */}
-          <LatestNewsFeed onNavigate={onNavigate} initialCount={5} step={4} />
+          <LatestNewsFeed onNavigate={onNavigate} initialCount={5} step={5} maxCount={5} className="bg-white border border-slate-200 rounded-2xl p-5 sm:p-6 shadow-sm" />
+
+          {/* Homepage Ad 4: Between latest feed and category sections */}
+          <AdSlot placement="homepage-between-articles" />
 
           {/* Section 1: Stock Market Updates */}
-          <section className="space-y-6">
+          <section className="space-y-6 bg-white border border-slate-200 rounded-2xl p-5 sm:p-6 shadow-sm">
             <div className="flex items-center justify-between pb-3 border-b border-slate-200">
               <div className="space-y-1">
                 <span className="text-[11px] font-extrabold uppercase tracking-widest text-[#155EEF] flex items-center gap-1.5 font-sans">
@@ -104,8 +116,37 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
             </div>
           </section>
 
+          {/* Section 1B: IPO Watchlist */}
+          <section className="space-y-6 bg-white border border-slate-200 rounded-2xl p-5 sm:p-6 shadow-sm">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200">
+              <div className="space-y-1">
+                <span className="text-[11px] font-extrabold uppercase tracking-widest text-cyan-700 flex items-center gap-1.5 font-sans">
+                  <Layers className="w-3.5 h-3.5 text-cyan-700" /> IPO WATCHLIST
+                </span>
+                <h2 className="text-2xl sm:text-3xl font-extrabold text-[#0B1F33] tracking-tight font-serif">
+                  Top 3 Upcoming IPOs
+                </h2>
+              </div>
+              <button
+                onClick={() => onNavigate('ipo')}
+                className="text-xs font-bold text-cyan-700 hover:text-[#0B1F33] flex items-center gap-1 group cursor-pointer"
+              >
+                <span>View All IPO Coverage</span>
+                <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5 items-stretch">
+              {ipoArticles.map((art) => (
+                <div key={art.id} className="h-full">
+                  <ArticleCard article={art} onNavigate={onNavigate} layout="standard" />
+                </div>
+              ))}
+            </div>
+          </section>
+
           {/* Section 2: Personal Finance Tactics */}
-          <section className="space-y-6">
+          <section className="space-y-6 bg-white border border-slate-200 rounded-2xl p-5 sm:p-6 shadow-sm">
             <div className="flex items-center justify-between pb-3 border-b border-slate-200">
               <div className="space-y-1">
                 <span className="text-[11px] font-extrabold uppercase tracking-widest text-[#16A34A] flex items-center gap-1.5 font-sans">
@@ -137,7 +178,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
           <AdSlot placement="homepage_mid" />
 
           {/* Section 3: Banking & Yield Rates */}
-          <section className="space-y-6">
+          <section className="space-y-6 bg-white border border-slate-200 rounded-2xl p-5 sm:p-6 shadow-sm">
             <div className="flex items-center justify-between pb-3 border-b border-slate-200">
               <div className="space-y-1">
                 <span className="text-[11px] font-extrabold uppercase tracking-widest text-purple-600 flex items-center gap-1.5 font-sans">
@@ -166,7 +207,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
           </section>
 
           {/* Section 4: Investment & SIP Strategies */}
-          <section className="space-y-6">
+          <section className="space-y-6 bg-white border border-slate-200 rounded-2xl p-5 sm:p-6 shadow-sm">
             <div className="flex items-center justify-between pb-3 border-b border-slate-200">
               <div className="space-y-1">
                 <span className="text-[11px] font-extrabold uppercase tracking-widest text-amber-600 flex items-center gap-1.5 font-sans">
@@ -195,7 +236,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
           </section>
 
           {/* Section 5: Macroeconomic News */}
-          <section className="space-y-6">
+          <section className="space-y-6 bg-white border border-slate-200 rounded-2xl p-5 sm:p-6 shadow-sm">
             <div className="flex items-center justify-between pb-3 border-b border-slate-200">
               <div className="space-y-1">
                 <span className="text-[11px] font-extrabold uppercase tracking-widest text-rose-600 flex items-center gap-1.5 font-sans">

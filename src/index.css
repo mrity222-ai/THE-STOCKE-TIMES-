@@ -4,8 +4,9 @@
 
 @layer base {
   :root {
-    --font-editorial: "Source Serif 4", Georgia, serif;
+    --font-editorial: "Merriweather", Georgia, serif;
     --font-interface: "Inter", system-ui, -apple-system, sans-serif;
+    --font-numeric: "Roboto Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
     --color-primary-navy: #0B1F33;
     --color-financial-blue: #155EEF;
     --color-market-green: #16A34A;
@@ -23,17 +24,26 @@
 
   body {
     font-family: var(--font-interface);
+    font-weight: 400;
     font-size: 16px;
     line-height: 1.65;
     background-color: #F8FAFC;
     color: #111827;
   }
 
-  h1, h2, h3, h4,
+  h1,
   .article-title,
-  .section-title,
   .site-logo {
     font-family: var(--font-editorial);
+    font-weight: 700;
+  }
+
+  h2, h3, h4,
+  .section-title,
+  nav,
+  header {
+    font-family: var(--font-interface);
+    font-weight: 600;
   }
 }
 
@@ -47,16 +57,30 @@
 
 .stock-price,
 .market-table {
+  font-family: var(--font-numeric);
+  font-weight: 500;
   font-variant-numeric: tabular-nums;
 }
 
 /* Global Font Utility Classes */
 .font-serif {
-  font-family: var(--font-editorial) !important;
+  font-family: var(--font-editorial);
+  font-weight: 700;
 }
 
 .font-sans {
-  font-family: var(--font-interface) !important;
+  font-family: var(--font-interface);
+}
+
+.font-mono {
+  font-family: var(--font-numeric) !important;
+  font-weight: 500;
+}
+
+h2.font-serif,
+.section-title {
+  font-family: var(--font-interface);
+  font-weight: 600;
 }
 
 /* Admin Dashboard — Strictly Inter Font Only */
@@ -113,33 +137,50 @@
 /* Article typography and editorial readability optimizations */
 .article-body {
   font-family: var(--font-interface);
+  font-weight: 400;
 }
 
 .article-body p {
-  @apply mb-6 text-slate-800 leading-relaxed text-lg font-normal;
+  @apply mb-5 text-slate-800 leading-relaxed text-[15px] sm:text-base font-normal;
+}
+
+.article-body h1,
+.article-body h2,
+.article-body h3,
+.article-body h4,
+.article-body h5,
+.article-body h6 {
+  color: #0B1F33;
 }
 
 .article-body h2 {
-  font-family: var(--font-editorial);
-  @apply text-2xl sm:text-3xl font-bold text-[#0B1F33] mt-12 mb-4 tracking-tight border-b border-slate-200 pb-3 scroll-mt-24;
+  font-family: var(--font-interface);
+  font-weight: 600;
+  @apply text-xl sm:text-2xl text-[#0B1F33] mt-10 mb-3 tracking-tight border-b border-slate-200 pb-2.5 scroll-mt-44;
 }
 
 .article-body h3 {
-  font-family: var(--font-editorial);
-  @apply text-xl sm:text-2xl font-bold text-[#0B1F33] mt-8 mb-3 scroll-mt-24;
+  font-family: var(--font-interface);
+  font-weight: 600;
+  @apply text-lg sm:text-xl text-[#0B1F33] mt-7 mb-2.5 scroll-mt-44;
 }
 
 .article-body ul {
-  @apply list-disc list-inside mb-6 space-y-2 text-slate-800 text-lg pl-2;
+  @apply list-disc list-inside mb-5 space-y-2 text-slate-800 text-[15px] sm:text-base pl-2;
 }
 
 .article-body ol {
-  @apply list-decimal list-inside mb-6 space-y-2 text-slate-800 text-lg pl-2;
+  @apply list-decimal list-inside mb-5 space-y-2 text-slate-800 text-[15px] sm:text-base pl-2;
 }
 
 .article-body blockquote {
   font-family: var(--font-editorial);
-  @apply border-l-4 border-[#16A34A] bg-[#F0FDF4] p-5 italic my-8 text-slate-900 rounded-r-xl text-xl leading-relaxed shadow-sm;
+  @apply border-l-4 border-[#16A34A] bg-[#F0FDF4] p-5 italic my-7 text-slate-900 rounded-r-xl text-base sm:text-lg leading-relaxed shadow-sm;
+}
+
+.article-body,
+.article-body * {
+  overflow-wrap: anywhere;
 }
 
 /* Horizontal Scroll Table Wrapper for Mobile */
@@ -153,6 +194,8 @@
 }
 
 .article-body table {
+  font-family: var(--font-numeric);
+  font-weight: 500;
   min-width: 520px;
   font-variant-numeric: tabular-nums;
   @apply w-full border-collapse text-left text-sm text-slate-800 rounded-xl shadow-sm border border-slate-200;

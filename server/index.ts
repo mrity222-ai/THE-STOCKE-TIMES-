@@ -3,9 +3,20 @@ import express, { NextFunction, Request, Response } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import crypto from 'crypto';
+import { promises as fs } from 'node:fs';
+import path from 'node:path';
 import { pool, testConnection } from './config/db';
+import { INITIAL_ARTICLES } from '../src/data/initialData';
 
 dotenv.config();
+
+process.on('uncaughtException', (err: any) => {
+  console.warn('⚠️ Server uncaughtException warning:', err.message || err);
+});
+
+process.on('unhandledRejection', (reason: any) => {
+  console.warn('⚠️ Server unhandledRejection warning:', reason?.message || reason);
+});
 
 const smtpUser = process.env.SMTP_USERNAME || process.env.SMTP_USER || '';
 const smtpPassword = process.env.SMTP_PASSWORD || '';
@@ -42,7 +53,61 @@ if (hasSmtpConfig) {
 const app = express();
 const PORT = process.env.PORT || 5000;
 const FINNHUB_API_KEY = process.env.FINNHUB_API_KEY || '';
-const SITE_URL = (process.env.SITE_URL || process.env.ADMIN_URL || 'http://localhost:5173').replace(/\/$/, '');
+const getSiteUrl = () => (process.env.SITE_URL || process.env.ADMIN_URL || 'https://thestocktimes.online').replace(/\/$/, '');
+
+const envFiles = [
+  { key: 'root', label: 'Root .env', filePath: path.resolve(process.cwd(), '.env') },
+  { key: 'server', label: 'Server .env', filePath: path.resolve(process.cwd(), 'server', '.env') }
+] as const;
+
+type EnvFileKey = typeof envFiles[number]['key'];
+
+const isSecretEnvKey = (key: string) => /(PASSWORD|SECRET|TOKEN|KEY|HASH|REDIS_URL)/i.test(key);
+
+function normalizeEnvValue(value: string): string {
+  const trimmed = String(value ?? '').trim();
+  if (
+    (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
+    (trimmed.startsWith("'") && trimmed.endsWith("'"))
+  ) {
+    return trimmed.slice(1, -1);
+  }
+  return trimmed;
+}
+
+function formatEnvValue(value: unknown): string {
+  const raw = String(value ?? '');
+  if (raw === '') return '';
+  if (/[\s#"'`]/.test(raw)) {
+    return `"${raw.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
+  }
+  return raw;
+}
+
+function parseEnvContent(content: string): Record<string, string> {
+  const values: Record<string, string> = {};
+  content.split(/\r?\n/).forEach((line) => {
+    const match = line.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)\s*$/);
+    if (match) values[match[1]] = normalizeEnvValue(match[2]);
+  });
+  return values;
+}
+
+function updateEnvContent(content: string, updates: Record<string, string>): string {
+  const seen = new Set<string>();
+  const lines = content.split(/\r?\n/).map((line) => {
+    const match = line.match(/^(\s*)([A-Za-z_][A-Za-z0-9_]*)(\s*=\s*)(.*)$/);
+    if (!match || !(match[2] in updates)) return line;
+    seen.add(match[2]);
+    return `${match[1]}${match[2]}${match[3]}${formatEnvValue(updates[match[2]])}`;
+  });
+
+  Object.entries(updates).forEach(([key, value]) => {
+    if (!seen.has(key)) lines.push(`${key}=${formatEnvValue(value)}`);
+  });
+
+  return lines.join('\n').replace(/\n*$/, '\n');
+}
 
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
@@ -61,8 +126,56 @@ const tempOtpStore = new Map<string, { email: string; otpHash: string; expiresAt
 const tempResetStore = new Map<string, { email: string; tokenHash: string; expiresAt: number }>();
 const adminSessions = new Map<string, { email: string; expiresAt: number }>();
 const loginLogs: any[] = [
-  { id: 'log-1', email: configuredAdminEmails[0] || 'admin@thestocetimes.com', status: 'SYSTEM', action: 'Admin auth initialized', ip: '127.0.0.1', createdAt: new Date().toISOString() }
+  { id: 'log-1', email: configuredAdminEmails[0] || 'admin@thestocktimes.online', status: 'SYSTEM', action: 'Admin auth initialized', ip: '127.0.0.1', createdAt: new Date().toISOString() }
 ];
+let inMemoryCommentsStore: any[] = [];
+const allowedAuthors = [
+  {
+    id: 'usr-admin-1',
+    name: 'Primary Admin',
+    role: 'Editor-in-Chief & Primary Admin',
+    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80',
+    bio: 'Chief Executive Editor & Platform Administrator',
+    credentials: 'Admin'
+  },
+  {
+    id: 'auth-1',
+    name: 'Vikramaditya Sharma',
+    role: 'Senior Equity Analyst & Derivatives Strategist',
+    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80',
+    bio: 'Senior Equity Analyst & Derivatives Strategist',
+    credentials: 'CFA, MBA Finance'
+  },
+  {
+    id: 'auth-2',
+    name: 'Priya Mukherjee',
+    role: 'Personal Finance Expert & Wealth Planner',
+    avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=300&q=80',
+    bio: 'Personal Finance Expert & Wealth Planner',
+    credentials: 'CFP Certified'
+  }
+];
+const authorIdAliases: Record<string, string> = {
+  'author-1': 'auth-1',
+  'author-2': 'auth-2',
+  'author-3': 'usr-admin-1',
+  'author-4': 'auth-1',
+  'admin-1': 'usr-admin-1'
+};
+const normalizeAuthorId = (authorId?: string) => {
+  const id = String(authorId || '').trim();
+  return authorIdAliases[id] || id || 'usr-admin-1';
+};
+
+function sortCommentsNewest(comments: any[]) {
+  return [...comments].sort((a, b) => new Date(b.created_at || b.createdAt || 0).getTime() - new Date(a.created_at || a.createdAt || 0).getTime());
+}
+
+function mergeCommentRows(dbRows: any[], fallbackRows: any[]) {
+  const seen = new Set((dbRows || []).map((comment: any) => String(comment.id)));
+  const mergedFallback = (fallbackRows || []).filter((comment: any) => !seen.has(String(comment.id)));
+  return sortCommentsNewest([...(dbRows || []), ...mergedFallback]);
+}
 
 const adminSessionMinutes = Number(process.env.ADMIN_SESSION_EXPIRY_MINUTES || 720);
 let runtimeAdminPasswordHash = '';
@@ -110,7 +223,10 @@ function requireAdminAuth(req: Request, res: Response, next: NextFunction) {
 app.use('/api/admin/contact-messages', requireAdminAuth);
 app.use('/api/admin/comments', requireAdminAuth);
 app.use('/api/admin/faqs', requireAdminAuth);
+app.use('/api/admin/env-config', requireAdminAuth);
 app.use('/api/admin/logs', requireAdminAuth);
+app.use('/api/admin/popup-notification', requireAdminAuth);
+app.use('/api/admin/subscribers', requireAdminAuth);
 app.use('/api/smtp-config', requireAdminAuth);
 app.use('/api/users', requireAdminAuth);
 app.use('/api/subscribers/notify-article', requireAdminAuth);
@@ -129,6 +245,19 @@ app.use('/api/social-media', (req, res, next) => {
 
 // Health check endpoint
 app.get('/api/health', async (_req: Request, res: Response) => {
+  const isDbConnected = await testConnection();
+  res.json({
+    status: 'online',
+    timestamp: new Date().toISOString(),
+    database: {
+      connected: isDbConnected,
+      name: process.env.DB_NAME || 'finance_pulse_db',
+      host: process.env.DB_HOST || 'localhost'
+    }
+  });
+});
+
+app.get('/health', async (_req: Request, res: Response) => {
   const isDbConnected = await testConnection();
   res.json({
     status: 'online',
@@ -179,6 +308,9 @@ app.post('/api/subscribers', async (req: Request, res: Response) => {
       INSERT INTO subscribers
       (id, email, subscribed_at, status)
       VALUES (?, ?, ?, 'active')
+      ON DUPLICATE KEY UPDATE
+        status = 'active',
+        subscribed_at = VALUES(subscribed_at)
       `,
       [id, email, subscribedAt]
     );
@@ -186,11 +318,11 @@ app.post('/api/subscribers', async (req: Request, res: Response) => {
     await transporter.sendMail({
       from: process.env.SMTP_FROM || smtpUser,
       to: email,
-      subject: 'Welcome to TheStoceTimes',
+      subject: 'Welcome to TheStockTimes',
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto;">
-          <h2>Welcome to TheStoceTimes!</h2>
-          <p>Thank you for subscribing to TheStoceTimes.</p>
+          <h2>Welcome to TheStockTimes!</h2>
+          <p>Thank you for subscribing to TheStockTimes.</p>
           <p>You will receive our latest financial news and market insights.</p>
           <p>
             Regards,<br>
@@ -207,19 +339,227 @@ app.post('/api/subscribers', async (req: Request, res: Response) => {
 
   } catch (error: any) {
 
-    if (error.code === 'ER_DUP_ENTRY') {
-      return res.status(409).json({
-        success: false,
-        message: 'This email is already subscribed.'
-      });
-    }
-
     console.error('Subscription error:', error);
 
     res.status(500).json({
       success: false,
       message: 'Unable to subscribe at this time.'
     });
+  }
+});
+
+app.get('/api/admin/subscribers', async (_req: Request, res: Response) => {
+  try {
+    const [rows]: any = await pool.query(`
+      SELECT id, email, subscribed_at, status
+      FROM subscribers
+      ORDER BY subscribed_at DESC
+    `);
+
+    const subscribers = (rows || []).map((row: any) => ({
+      id: row.id,
+      email: row.email,
+      subscriptionDate: row.subscribed_at,
+      verificationStatus: 'Verified',
+      status: String(row.status || '').toLowerCase() === 'unsubscribed' ? 'Unsubscribed' : 'Active'
+    }));
+
+    res.json({ success: true, subscribers });
+  } catch (error: any) {
+    console.error('Subscribers list error:', error);
+    res.status(500).json({ success: false, message: 'Unable to load subscribers.' });
+  }
+});
+
+app.put('/api/admin/subscribers/:id/status', async (req: Request, res: Response) => {
+  try {
+    const id = String(req.params.id || '').trim();
+    const requestedStatus = String(req.body.status || '').trim();
+    const status = requestedStatus === 'Unsubscribed' ? 'unsubscribed' : 'active';
+
+    await pool.query(
+      `UPDATE subscribers SET status = ? WHERE id = ?`,
+      [status, id]
+    );
+
+    res.json({ success: true });
+  } catch (error: any) {
+    console.error('Subscriber status update error:', error);
+    res.status(500).json({ success: false, message: 'Unable to update subscriber.' });
+  }
+});
+
+app.delete('/api/admin/subscribers/:id', async (req: Request, res: Response) => {
+  try {
+    const id = String(req.params.id || '').trim();
+    await pool.query(`DELETE FROM subscribers WHERE id = ?`, [id]);
+    res.json({ success: true });
+  } catch (error: any) {
+    console.error('Subscriber delete error:', error);
+    res.status(500).json({ success: false, message: 'Unable to delete subscriber.' });
+  }
+});
+
+const defaultPopupNotification = () => ({
+  enabled: false,
+  title: 'Market Update',
+  message: 'Read the latest market insight from The Stock Times.',
+  imageUrl: '',
+  linkUrl: '',
+  linkLabel: 'Open Update',
+  delaySeconds: 10,
+  updatedAt: new Date().toISOString()
+});
+
+const popupRowToSettings = (row: any) => ({
+  enabled: Boolean(row?.enabled),
+  title: row?.title || '',
+  message: row?.message || '',
+  imageUrl: row?.image_url || '',
+  linkUrl: row?.link_url || '',
+  linkLabel: row?.link_label || 'Open Update',
+  delaySeconds: Math.max(1, Math.min(120, Number(row?.delay_seconds) || 10)),
+  updatedAt: row?.updated_at || new Date().toISOString()
+});
+
+app.get('/api/popup-notification', async (_req: Request, res: Response) => {
+  try {
+    const [rows]: any = await pool.query(`
+      SELECT enabled, title, message, image_url, link_url, link_label, delay_seconds, updated_at
+      FROM popup_notification_settings
+      WHERE id = 1
+      LIMIT 1
+    `);
+
+    res.json({
+      success: true,
+      settings: rows?.[0] ? popupRowToSettings(rows[0]) : defaultPopupNotification()
+    });
+  } catch (error: any) {
+    console.error('Popup notification load error:', error);
+    res.status(500).json({ success: false, settings: defaultPopupNotification() });
+  }
+});
+
+app.put('/api/admin/popup-notification', async (req: Request, res: Response) => {
+  try {
+    const delaySeconds = Math.max(1, Math.min(120, Number(req.body.delaySeconds) || 10));
+    const settings = {
+      enabled: Boolean(req.body.enabled),
+      title: String(req.body.title || '').slice(0, 255),
+      message: String(req.body.message || ''),
+      imageUrl: String(req.body.imageUrl || ''),
+      linkUrl: String(req.body.linkUrl || ''),
+      linkLabel: String(req.body.linkLabel || 'Open Update').slice(0, 120),
+      delaySeconds,
+      updatedAt: new Date().toISOString()
+    };
+
+    await pool.query(
+      `
+      INSERT INTO popup_notification_settings
+        (id, enabled, title, message, image_url, link_url, link_label, delay_seconds, updated_at)
+      VALUES
+        (1, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON DUPLICATE KEY UPDATE
+        enabled = VALUES(enabled),
+        title = VALUES(title),
+        message = VALUES(message),
+        image_url = VALUES(image_url),
+        link_url = VALUES(link_url),
+        link_label = VALUES(link_label),
+        delay_seconds = VALUES(delay_seconds),
+        updated_at = VALUES(updated_at)
+      `,
+      [
+        settings.enabled,
+        settings.title,
+        settings.message,
+        settings.imageUrl,
+        settings.linkUrl,
+        settings.linkLabel,
+        settings.delaySeconds,
+        settings.updatedAt
+      ]
+    );
+
+    res.json({ success: true, settings });
+  } catch (error: any) {
+    console.error('Popup notification save error:', error);
+    res.status(500).json({ success: false, message: 'Unable to save popup notification.' });
+  }
+});
+
+app.get('/api/admin/env-config', async (_req: Request, res: Response) => {
+  try {
+    const files = await Promise.all(envFiles.map(async (envFile) => {
+      let content = '';
+      try {
+        content = await fs.readFile(envFile.filePath, 'utf8');
+      } catch (error: any) {
+        if (error?.code !== 'ENOENT') throw error;
+      }
+
+      const values = parseEnvContent(content);
+      return {
+        key: envFile.key,
+        label: envFile.label,
+        path: envFile.filePath,
+        fields: Object.entries(values).map(([key, value]) => ({
+          key,
+          value,
+          isSecret: isSecretEnvKey(key)
+        }))
+      };
+    }));
+
+    res.json({ success: true, files });
+  } catch (error: any) {
+    console.error('Failed to read env config:', error);
+    res.status(500).json({ success: false, message: error.message || 'Unable to read environment files.' });
+  }
+});
+
+app.put('/api/admin/env-config', async (req: Request, res: Response) => {
+  try {
+    const requestedFiles = req.body?.files || {};
+    const updatedFiles: string[] = [];
+
+    for (const envFile of envFiles) {
+      const updates = requestedFiles[envFile.key as EnvFileKey];
+      if (!updates || typeof updates !== 'object') continue;
+
+      const normalizedUpdates = Object.entries(updates).reduce<Record<string, string>>((acc, [key, value]) => {
+        if (/^[A-Za-z_][A-Za-z0-9_]*$/.test(key)) {
+          acc[key] = String(value ?? '');
+          process.env[key] = acc[key];
+        }
+        return acc;
+      }, {});
+
+      if (Object.keys(normalizedUpdates).length === 0) continue;
+
+      let content = '';
+      try {
+        content = await fs.readFile(envFile.filePath, 'utf8');
+      } catch (error: any) {
+        if (error?.code !== 'ENOENT') throw error;
+      }
+
+      await fs.writeFile(envFile.filePath, updateEnvContent(content, normalizedUpdates), 'utf8');
+      updatedFiles.push(envFile.label);
+    }
+
+    res.json({
+      success: true,
+      updatedFiles,
+      message: updatedFiles.length
+        ? `${updatedFiles.join(', ')} updated. Restart the server for DB, SMTP, PORT, and startup-only settings.`
+        : 'No environment changes were submitted.'
+    });
+  } catch (error: any) {
+    console.error('Failed to update env config:', error);
+    res.status(500).json({ success: false, message: error.message || 'Unable to update environment files.' });
   }
 });
 
@@ -344,6 +684,21 @@ async function initializeTables() {
     const isConnected = await testConnection();
     if (!isConnected) return;
 
+    const ensureColumns = async (tableName: string, columns: Record<string, string>) => {
+      const [existingRows]: any = await pool.query(
+        `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
+         WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?`,
+        [tableName]
+      );
+      const existingColumns = new Set((existingRows || []).map((row: any) => String(row.COLUMN_NAME)));
+
+      for (const [columnName, definition] of Object.entries(columns)) {
+        if (!existingColumns.has(columnName)) {
+          await pool.query(`ALTER TABLE ${tableName} ADD COLUMN ${definition}`);
+        }
+      }
+    };
+
     await pool.query(`
       CREATE TABLE IF NOT EXISTS authors (
         id VARCHAR(64) PRIMARY KEY,
@@ -359,9 +714,9 @@ async function initializeTables() {
 
     await pool.query(`
       INSERT IGNORE INTO authors (id, name, role, avatar, bio, credentials) VALUES 
-      ('author-1', 'Dr. Aris Thorne, CFA', 'Chief Market Strategist', 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80', 'Senior Market Analyst', 'CFA, CFP'),
-      ('author-2', 'Elena Rostova', 'Senior Banking Analyst', 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=300&q=80', 'Banking Columnist', 'CFA'),
-      ('admin-1', 'Chief Editor', 'Primary Admin', 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80', 'Editor in Chief', 'CFA, CFP');
+      ('usr-admin-1', 'Primary Admin', 'Editor-in-Chief & Primary Admin', 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80', 'Chief Executive Editor & Platform Administrator', 'Admin'),
+      ('auth-1', 'Vikramaditya Sharma', 'Senior Equity Analyst & Derivatives Strategist', 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80', 'Senior Equity Analyst & Derivatives Strategist', 'CFA, MBA Finance'),
+      ('auth-2', 'Priya Mukherjee', 'Personal Finance Expert & Wealth Planner', 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=300&q=80', 'Personal Finance Expert & Wealth Planner', 'CFP Certified');
     `);
 
     await pool.query(`
@@ -385,6 +740,20 @@ async function initializeTables() {
     email VARCHAR(255) NOT NULL UNIQUE,
     subscribed_at VARCHAR(64) NOT NULL,
     status VARCHAR(32) DEFAULT 'active'
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+`);
+
+    await pool.query(`
+  CREATE TABLE IF NOT EXISTS popup_notification_settings (
+    id TINYINT PRIMARY KEY DEFAULT 1,
+    enabled BOOLEAN DEFAULT FALSE,
+    title VARCHAR(255) DEFAULT '',
+    message TEXT,
+    image_url LONGTEXT,
+    link_url TEXT,
+    link_label VARCHAR(120) DEFAULT 'Open Update',
+    delay_seconds INT DEFAULT 10,
+    updated_at VARCHAR(64) NOT NULL
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 `);
 
@@ -455,6 +824,25 @@ async function initializeTables() {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     `);
 
+    await ensureColumns('articles', {
+      image_caption: 'image_caption TEXT',
+      image_source: 'image_source TEXT',
+      gallery_images: 'gallery_images TEXT',
+      faqs: 'faqs TEXT',
+      highlights: 'highlights TEXT',
+      show_published_date: 'show_published_date BOOLEAN DEFAULT TRUE',
+      updated_at: 'updated_at VARCHAR(64)',
+      scheduled_date: 'scheduled_date VARCHAR(64)',
+      is_popular: 'is_popular BOOLEAN DEFAULT FALSE',
+      seo_title: 'seo_title VARCHAR(500)',
+      seo_description: 'seo_description TEXT',
+      focus_keywords: 'focus_keywords TEXT',
+      canonical_url: 'canonical_url TEXT',
+      og_title: 'og_title VARCHAR(500)',
+      og_description: 'og_description TEXT',
+      social_share_image: 'social_share_image TEXT'
+    });
+
     await pool.query(`
       CREATE TABLE IF NOT EXISTS financial_rules (
         rule_key VARCHAR(128) PRIMARY KEY,
@@ -506,6 +894,21 @@ async function initializeTables() {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     `);
 
+    const [commentForeignKeys]: any = await pool.query(
+      `SELECT CONSTRAINT_NAME
+       FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE
+       WHERE TABLE_SCHEMA = DATABASE()
+         AND TABLE_NAME = 'comments'
+         AND COLUMN_NAME = 'article_id'
+         AND REFERENCED_TABLE_NAME IS NOT NULL`
+    );
+    for (const fk of commentForeignKeys || []) {
+      const constraintName = String(fk.CONSTRAINT_NAME || '').replace(/`/g, '');
+      if (constraintName) {
+        await pool.query(`ALTER TABLE comments DROP FOREIGN KEY \`${constraintName}\``);
+      }
+    }
+
     await pool.query(`
       CREATE TABLE IF NOT EXISTS contact_messages (
         id VARCHAR(64) PRIMARY KEY,
@@ -520,12 +923,127 @@ async function initializeTables() {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     `);
 
+    // AI ENGINE TABLES
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS ai_topics (
+        id VARCHAR(64) PRIMARY KEY,
+        title VARCHAR(500) NOT NULL,
+        country VARCHAR(32) NOT NULL DEFAULT 'US',
+        category VARCHAR(128) NOT NULL,
+        trend_reason TEXT,
+        freshness_score INT DEFAULT 80,
+        status VARCHAR(32) DEFAULT 'discovered',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS ai_keywords (
+        id VARCHAR(64) PRIMARY KEY,
+        topic_id VARCHAR(64) NOT NULL,
+        keyword VARCHAR(255) NOT NULL,
+        intent VARCHAR(64) DEFAULT 'informational',
+        relevance_score INT DEFAULT 85,
+        search_volume_estimate INT DEFAULT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_ai_keywords_topic (topic_id)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS ai_research_sources (
+        id VARCHAR(64) PRIMARY KEY,
+        job_id VARCHAR(64) NOT NULL,
+        claim TEXT NOT NULL,
+        value VARCHAR(255),
+        unit VARCHAR(64),
+        source_url TEXT NOT NULL,
+        source_title VARCHAR(500),
+        country VARCHAR(32) NOT NULL DEFAULT 'US',
+        verification_status VARCHAR(32) DEFAULT 'VERIFIED',
+        published_at VARCHAR(64),
+        retrieved_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_ai_sources_job (job_id)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS ai_article_jobs (
+        id VARCHAR(64) PRIMARY KEY,
+        topic_id VARCHAR(64),
+        topic VARCHAR(500) NOT NULL,
+        country VARCHAR(32) NOT NULL DEFAULT 'US',
+        category VARCHAR(128) NOT NULL,
+        status VARCHAR(64) DEFAULT 'queued',
+        current_agent VARCHAR(64) DEFAULT 'research',
+        article_id VARCHAR(64),
+        verification_status VARCHAR(64) DEFAULT 'pending',
+        publish_status VARCHAR(64) DEFAULT 'pending',
+        error_message TEXT,
+        retry_count INT DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS ai_agent_runs (
+        id VARCHAR(64) PRIMARY KEY,
+        job_id VARCHAR(64) NOT NULL,
+        agent_name VARCHAR(64) NOT NULL,
+        latency_ms INT DEFAULT 0,
+        tokens_used INT DEFAULT 0,
+        output_json LONGTEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_ai_runs_job (job_id)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS ai_fact_checks (
+        id VARCHAR(64) PRIMARY KEY,
+        job_id VARCHAR(64) NOT NULL,
+        status VARCHAR(32) NOT NULL DEFAULT 'PASS',
+        verification_score INT DEFAULT 100,
+        issues_json LONGTEXT,
+        requires_human_review BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_ai_fact_checks_job (job_id)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS ai_generated_assets (
+        id VARCHAR(64) PRIMARY KEY,
+        job_id VARCHAR(64) NOT NULL,
+        asset_type VARCHAR(64) NOT NULL,
+        url_or_svg LONGTEXT NOT NULL,
+        prompt_used TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_ai_assets_job (job_id)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS article_revisions (
+        id VARCHAR(64) PRIMARY KEY,
+        article_id VARCHAR(64) NOT NULL,
+        revised_by VARCHAR(128) DEFAULT 'AI_ENGINE',
+        title VARCHAR(500) NOT NULL,
+        content LONGTEXT NOT NULL,
+        changelog TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_revisions_article (article_id)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    `);
+
     // Seed initial categories if empty
     const [existingCats]: any = await pool.query('SELECT COUNT(*) as count FROM categories');
     if (existingCats && existingCats[0] && existingCats[0].count === 0) {
       await pool.query(`
         INSERT INTO categories (id, name, slug, description, icon, subcategories) VALUES
-        ('stock-market', 'Stock Market', 'stock-market', 'Equity analysis and news', 'TrendingUp', '[]'),
+         ('stock-market', 'Stock Market', 'stock-market', 'Equity analysis and news', 'TrendingUp', '[]'),
+        ('ipo', 'IPO', 'ipo', 'Upcoming IPO calendar, India IPOs, global IPOs, pre-apply research, allotment dates, listing schedules, and risk analysis.', 'Layers', '["Upcoming IPOs","India IPOs","Global IPOs","IPO Calendar","Pre-Apply Research","Allotment & Listing"]'),
         ('personal-finance', 'Personal Finance', 'personal-finance', 'Wealth management & tax', 'Wallet', '[]'),
         ('banking', 'Banking', 'banking', 'Interest rates & banking updates', 'Building2', '[]'),
         ('investment', 'Investment', 'investment', 'Mutual funds & SIPs', 'PieChart', '[]'),
@@ -533,13 +1051,33 @@ async function initializeTables() {
       `);
     }
 
+    await pool.query(
+      `INSERT INTO categories (id, name, slug, description, icon, subcategories)
+       VALUES (?, ?, ?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE
+         name = VALUES(name),
+         slug = VALUES(slug),
+         description = VALUES(description),
+         icon = VALUES(icon),
+         subcategories = VALUES(subcategories)`,
+      [
+        'ipo',
+        'IPO',
+        'ipo',
+        'Upcoming IPO calendar, India IPOs, global IPOs, pre-apply research, allotment dates, listing schedules, and risk analysis.',
+        'Layers',
+        JSON.stringify(['Upcoming IPOs', 'India IPOs', 'Global IPOs', 'IPO Calendar', 'Pre-Apply Research', 'Allotment & Listing'])
+      ]
+    );
+
     // Seed initial authors if empty
     const [existingAuths]: any = await pool.query('SELECT COUNT(*) as count FROM authors');
     if (existingAuths && existingAuths[0] && existingAuths[0].count === 0) {
       await pool.query(`
         INSERT INTO authors (id, name, role, avatar, bio, credentials) VALUES
-        ('auth-1', 'Vikramaditya Sharma', 'Chief Market Strategist', 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80', 'Senior equity analyst with 15+ years experience in Indian stock markets.', 'SEBI Registered Research Analyst'),
-        ('auth-2', 'Priya Nambiar', 'Senior Personal Finance Editor', 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=300&q=80', 'Certified Financial Planner specializing in SIP strategies and tax planning.', 'CFP®, MBA Finance')
+        ('usr-admin-1', 'Primary Admin', 'Editor-in-Chief & Primary Admin', 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80', 'Chief Executive Editor & Platform Administrator', 'Admin'),
+        ('auth-1', 'Vikramaditya Sharma', 'Senior Equity Analyst & Derivatives Strategist', 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80', 'Senior Equity Analyst & Derivatives Strategist', 'CFA, MBA Finance'),
+        ('auth-2', 'Priya Mukherjee', 'Personal Finance Expert & Wealth Planner', 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=300&q=80', 'Personal Finance Expert & Wealth Planner', 'CFP Certified')
       `);
     }
 
@@ -683,14 +1221,11 @@ app.get('/api/admin/comments', async (_req: Request, res: Response) => {
       ORDER BY created_at DESC
     `);
     // Send the comments as JSON response to the Admin Panel
-    res.json(rows);
+    res.json(mergeCommentRows(Array.isArray(rows) ? rows : [], inMemoryCommentsStore));
   } catch (err: any) {
     // Handle database/API errors
     console.error('Failed to fetch admin comments:', err);
-    // Send error response to the Admin Panel
-    res.status(500).json({
-      message: 'Failed to fetch admin comments'
-    });
+    res.json(sortCommentsNewest(inMemoryCommentsStore));
   }
 });
 
@@ -706,10 +1241,13 @@ app.get('/api/comments/:articleId', async (req: Request, res: Response) => {
       [req.params.articleId]
     );
 
-    res.json(rows);
+    const fallbackRows = inMemoryCommentsStore.filter(comment => comment.article_id === req.params.articleId && comment.status === 'approved');
+    res.json(mergeCommentRows(Array.isArray(rows) ? rows : [], fallbackRows));
   } catch (err: any) {
     console.error('Failed to fetch comments:', err);
-    res.status(500).json({ message: 'Failed to fetch comments' });
+    res.json(
+      sortCommentsNewest(inMemoryCommentsStore.filter(comment => comment.article_id === req.params.articleId && comment.status === 'approved'))
+    );
   }
 });
 
@@ -724,17 +1262,34 @@ app.post('/api/comments', async (req: Request, res: Response) => {
     }
 
     const id = `comment_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    const createdAt = new Date().toISOString();
+    const commentRecord = {
+      id,
+      article_id,
+      author_name,
+      author_email,
+      content,
+      status: 'pending',
+      created_at: createdAt
+    };
 
-    await pool.query(
-      `INSERT INTO comments
-       (id, article_id, author_name, author_email, content, status)
-       VALUES (?, ?, ?, ?, ?, 'pending')`,
-      [id, article_id, author_name, author_email, content]
-    );
+    try {
+      await pool.query(
+        `INSERT INTO comments
+         (id, article_id, author_name, author_email, content, status)
+         VALUES (?, ?, ?, ?, ?, 'pending')`,
+        [id, article_id, author_name, author_email, content]
+      );
+    } catch (dbErr: any) {
+      console.warn('MySQL comment save unavailable; using in-memory comment fallback:', dbErr.message);
+      inMemoryCommentsStore.unshift(commentRecord);
+    }
 
     res.status(201).json({
       message: 'Comment submitted successfully',
-      id
+      id,
+      status: 'pending',
+      comment: commentRecord
     });
   } catch (err: any) {
     console.error('Failed to create comment:', err);
@@ -766,9 +1321,11 @@ app.put('/api/admin/comments/:id/status', async (req: Request, res: Response) =>
     });
   } catch (err: any) {
     console.error('Failed to update comment status:', err);
-
-    res.status(500).json({
-      message: 'Failed to update comment status'
+    inMemoryCommentsStore = inMemoryCommentsStore.map(comment =>
+      comment.id === req.params.id ? { ...comment, status: req.body.status } : comment
+    );
+    res.json({
+      message: 'Comment status updated successfully'
     });
   }
 });
@@ -786,9 +1343,9 @@ app.delete('/api/admin/comments/:id', async (req: Request, res: Response) => {
     });
   } catch (err: any) {
     console.error('Failed to delete comment:', err);
-
-    res.status(500).json({
-      message: 'Failed to delete comment'
+    inMemoryCommentsStore = inMemoryCommentsStore.filter(comment => comment.id !== req.params.id);
+    res.json({
+      message: 'Comment deleted successfully'
     });
   }
 });
@@ -802,29 +1359,63 @@ app.get('/api/articles', async (_req: Request, res: Response) => {
        WHERE status = 'scheduled' AND scheduled_date IS NOT NULL AND scheduled_date <= ?`,
       [new Date().toISOString(), new Date().toISOString()]
     );
-    const [rows] = await pool.query('SELECT * FROM articles ORDER BY published_at DESC');
-    res.json(rows);
+    const [rows]: any = await pool.query('SELECT * FROM articles ORDER BY published_at DESC');
+    const parsedRows = Array.isArray(rows) ? rows.map(mapDbArticleToClient) : [];
+    const mergedArticles = mergeArticlesForPublicFeed([...inMemoryArticlesStore, ...parsedRows]);
+    inMemoryArticlesStore = mergedArticles;
+    res.json(mergedArticles);
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    console.warn('MySQL articles route fallback to memory:', err.message);
+    const mergedArticles = mergeArticlesForPublicFeed(inMemoryArticlesStore);
+    inMemoryArticlesStore = mergedArticles;
+    res.json(mergedArticles);
   }
 });
 
 app.get('/api/articles/:slug', async (req: Request, res: Response) => {
   try {
     const [rows]: any = await pool.query('SELECT * FROM articles WHERE slug = ?', [req.params.slug]);
-    if (rows.length === 0) return res.status(404).json({ error: 'Article not found' });
-    res.json(rows[0]);
+    if (rows.length === 0) {
+      const memoryArticle = inMemoryArticlesStore.find(a => a.slug === req.params.slug);
+      return memoryArticle && isPublicReadyArticle(memoryArticle) ? res.json(memoryArticle) : res.status(404).json({ error: 'Article not found' });
+    }
+    const article = mapDbArticleToClient(rows[0]);
+    if (!isPublicReadyArticle(article)) return res.status(404).json({ error: 'Article not found' });
+    res.json(article);
   } catch (err: any) {
+    const memoryArticle = inMemoryArticlesStore.find(a => a.slug === req.params.slug);
+    if (memoryArticle && isPublicReadyArticle(memoryArticle)) return res.json(memoryArticle);
     res.status(500).json({ error: err.message });
   }
 });
 
 app.post('/api/articles/:id/view', async (req: Request, res: Response) => {
+  const idOrSlug = req.params.id;
+  const memoryArticle = inMemoryArticlesStore.find(a => a.id === idOrSlug || a.slug === idOrSlug);
+
   try {
-    await pool.query('UPDATE articles SET views = COALESCE(views, 0) + 1 WHERE id = ? OR slug = ?', [req.params.id, req.params.id]);
-    const [rows]: any = await pool.query('SELECT views FROM articles WHERE id = ? OR slug = ? LIMIT 1', [req.params.id, req.params.id]);
-    res.json({ success: true, views: rows?.[0]?.views || 0 });
+    const [updateResult]: any = await pool.query('UPDATE articles SET views = COALESCE(views, 0) + 1 WHERE id = ? OR slug = ?', [idOrSlug, idOrSlug]);
+    const [rows]: any = await pool.query('SELECT views FROM articles WHERE id = ? OR slug = ? LIMIT 1', [idOrSlug, idOrSlug]);
+    const dbViews = rows?.[0]?.views;
+
+    if (updateResult?.affectedRows > 0 || typeof dbViews === 'number') {
+      if (memoryArticle) {
+        memoryArticle.views = typeof dbViews === 'number' ? dbViews : (memoryArticle.views || 0) + 1;
+      }
+      return res.json({ success: true, views: dbViews || memoryArticle?.views || 0 });
+    }
+
+    if (memoryArticle) {
+      memoryArticle.views = (memoryArticle.views || 0) + 1;
+      return res.json({ success: true, views: memoryArticle.views });
+    }
+
+    res.status(404).json({ success: false, error: 'Article not found' });
   } catch (err: any) {
+    if (memoryArticle) {
+      memoryArticle.views = (memoryArticle.views || 0) + 1;
+      return res.json({ success: true, views: memoryArticle.views, fallback: true });
+    }
     res.status(500).json({ error: err.message });
   }
 });
@@ -961,10 +1552,11 @@ app.get('/api/categories', async (_req: Request, res: Response) => {
 // AUTHORS ROUTES
 app.get('/api/authors', async (_req: Request, res: Response) => {
   try {
-    const [rows] = await pool.query('SELECT * FROM authors');
-    res.json(rows);
+    const [rows]: any = await pool.query("SELECT * FROM authors WHERE id IN ('usr-admin-1', 'auth-1', 'auth-2')");
+    const byId = new Map((rows || []).map((author: any) => [author.id, author]));
+    res.json(allowedAuthors.map(author => ({ ...author, ...(byId.get(author.id) || {}) })));
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    res.json(allowedAuthors);
   }
 });
 
@@ -1124,20 +1716,45 @@ app.get('/api/finnhub/us-quote/:symbol', async (req: Request, res: Response) => 
 // DYNAMIC LIVE XML SITEMAP (http://localhost:5000/sitemap.xml)
 app.get('/sitemap.xml', async (_req: Request, res: Response) => {
   try {
-    const domain = SITE_URL;
+    const domain = getSiteUrl();
     const date = new Date().toISOString().split('T')[0];
 
     let dbArticles: any[] = [];
     try {
-      const [rows]: any = await pool.query("SELECT slug, published_at, updated_at FROM articles WHERE status = 'published'");
-      dbArticles = rows || [];
+      const [rows]: any = await pool.query("SELECT slug, title, excerpt, content, featured_image, status, published_at, updated_at FROM articles WHERE status = 'published'");
+      dbArticles = (rows || []).filter((article: any) => isPublicReadyArticle({
+        ...article,
+        featuredImage: article.featured_image,
+        publishedAt: article.published_at,
+        updatedAt: article.updated_at
+      }));
     } catch (err) {
       console.warn('Sitemap DB Query Warning:', err);
     }
 
+    const mergedSitemapArticles = new Map<string, any>();
+    mergeArticlesForPublicFeed(inMemoryArticlesStore)
+      .filter((article: any) => (article.status || 'published') === 'published')
+      .forEach((article: any) => {
+        if (!article.slug) return;
+        mergedSitemapArticles.set(article.slug, {
+          slug: article.slug,
+          published_at: article.publishedAt || article.published_at,
+          updated_at: article.updatedAt || article.updated_at
+        });
+      });
+
+    dbArticles.forEach((article: any) => {
+      if (!article.slug) return;
+      mergedSitemapArticles.set(article.slug, article);
+    });
+
+    dbArticles = Array.from(mergedSitemapArticles.values());
+
     const staticRoutes = [
       { path: '/', priority: '1.0', changefreq: 'daily' },
       { path: '/stock-market', priority: '0.9', changefreq: 'daily' },
+      { path: '/ipo', priority: '0.9', changefreq: 'daily' },
       { path: '/personal-finance', priority: '0.9', changefreq: 'daily' },
       { path: '/banking', priority: '0.9', changefreq: 'daily' },
       { path: '/investment', priority: '0.9', changefreq: 'daily' },
@@ -1150,41 +1767,42 @@ app.get('/sitemap.xml', async (_req: Request, res: Response) => {
       { path: '/legal/privacy', priority: '0.5', changefreq: 'monthly' },
       { path: '/legal/terms', priority: '0.5', changefreq: 'monthly' },
       { path: '/legal/disclaimer', priority: '0.5', changefreq: 'monthly' },
-      { path: '/legal/cookie', priority: '0.5', changefreq: 'monthly' },
+      { path: '/disclaimer', priority: '0.5', changefreq: 'monthly' },
+      { path: '/legal/cookies', priority: '0.5', changefreq: 'monthly' },
       { path: '/legal/editorial', priority: '0.5', changefreq: 'monthly' },
       { path: '/legal/corrections', priority: '0.5', changefreq: 'monthly' },
-      { path: '/legal/dmca', priority: '0.5', changefreq: 'monthly' },
-      { path: '/legal/affiliate', priority: '0.5', changefreq: 'monthly' },
+      { path: '/legal/guidelines', priority: '0.5', changefreq: 'monthly' },
+      { path: '/legal/refund', priority: '0.5', changefreq: 'monthly' },
 
       // 20 Financial Calculators
-      { path: '/financial-tools/sip-calculator', priority: '0.8', changefreq: 'weekly' },
-      { path: '/financial-tools/emi-calculator', priority: '0.8', changefreq: 'weekly' },
-      { path: '/financial-tools/lumpsum-calculator', priority: '0.8', changefreq: 'weekly' },
-      { path: '/financial-tools/fd-calculator', priority: '0.8', changefreq: 'weekly' },
-      { path: '/financial-tools/rd-calculator', priority: '0.8', changefreq: 'weekly' },
-      { path: '/financial-tools/ppf-calculator', priority: '0.8', changefreq: 'weekly' },
-      { path: '/financial-tools/nps-calculator', priority: '0.8', changefreq: 'weekly' },
-      { path: '/financial-tools/income-tax-calculator', priority: '0.8', changefreq: 'weekly' },
-      { path: '/financial-tools/home-loan-calculator', priority: '0.8', changefreq: 'weekly' },
-      { path: '/financial-tools/car-loan-calculator', priority: '0.8', changefreq: 'weekly' },
-      { path: '/financial-tools/personal-loan-calculator', priority: '0.8', changefreq: 'weekly' },
-      { path: '/financial-tools/compound-interest-calculator', priority: '0.8', changefreq: 'weekly' },
-      { path: '/financial-tools/inflation-calculator', priority: '0.8', changefreq: 'weekly' },
-      { path: '/financial-tools/retirement-calculator', priority: '0.8', changefreq: 'weekly' },
-      { path: '/financial-tools/swp-calculator', priority: '0.8', changefreq: 'weekly' },
-      { path: '/financial-tools/hra-calculator', priority: '0.8', changefreq: 'weekly' },
-      { path: '/financial-tools/gratuity-calculator', priority: '0.8', changefreq: 'weekly' },
-      { path: '/financial-tools/epf-calculator', priority: '0.8', changefreq: 'weekly' },
-      { path: '/financial-tools/ssy-calculator', priority: '0.8', changefreq: 'weekly' },
-      { path: '/financial-tools/step-up-sip-calculator', priority: '0.8', changefreq: 'weekly' },
+      { path: '/financial-tools/emi-calculator', priority: '0.85', changefreq: 'weekly' },
+      { path: '/financial-tools/loan-eligibility-calculator', priority: '0.85', changefreq: 'weekly' },
+      { path: '/financial-tools/sip-calculator', priority: '0.85', changefreq: 'weekly' },
+      { path: '/financial-tools/lumpsum-calculator', priority: '0.85', changefreq: 'weekly' },
+      { path: '/financial-tools/cagr-calculator', priority: '0.85', changefreq: 'weekly' },
+      { path: '/financial-tools/swp-calculator', priority: '0.85', changefreq: 'weekly' },
+      { path: '/financial-tools/sip-vs-lumpsum', priority: '0.85', changefreq: 'weekly' },
+      { path: '/financial-tools/fd-calculator', priority: '0.85', changefreq: 'weekly' },
+      { path: '/financial-tools/rd-calculator', priority: '0.85', changefreq: 'weekly' },
+      { path: '/financial-tools/ppf-calculator', priority: '0.85', changefreq: 'weekly' },
+      { path: '/financial-tools/epf-calculator', priority: '0.85', changefreq: 'weekly' },
+      { path: '/financial-tools/nps-calculator', priority: '0.85', changefreq: 'weekly' },
+      { path: '/financial-tools/income-tax-calculator', priority: '0.85', changefreq: 'weekly' },
+      { path: '/financial-tools/salary-calculator', priority: '0.85', changefreq: 'weekly' },
+      { path: '/financial-tools/gst-calculator', priority: '0.85', changefreq: 'weekly' },
+      { path: '/financial-tools/retirement-calculator', priority: '0.85', changefreq: 'weekly' },
+      { path: '/financial-tools/inflation-calculator', priority: '0.85', changefreq: 'weekly' },
+      { path: '/financial-tools/compound-interest-calculator', priority: '0.85', changefreq: 'weekly' },
+      { path: '/financial-tools/simple-interest-calculator', priority: '0.85', changefreq: 'weekly' },
+      { path: '/financial-tools/net-worth-calculator', priority: '0.85', changefreq: 'weekly' },
 
       // 6 Comparison Engines
-      { path: '/comparison-tools/old-vs-new-tax', priority: '0.8', changefreq: 'weekly' },
-      { path: '/comparison-tools/direct-vs-regular-mf', priority: '0.8', changefreq: 'weekly' },
-      { path: '/comparison-tools/sip-vs-lumpsum', priority: '0.8', changefreq: 'weekly' },
-      { path: '/comparison-tools/fd-vs-debt-funds', priority: '0.8', changefreq: 'weekly' },
-      { path: '/comparison-tools/buy-vs-rent-home', priority: '0.8', changefreq: 'weekly' },
-      { path: '/comparison-tools/credit-card-vs-personal-loan', priority: '0.8', changefreq: 'weekly' }
+      { path: '/comparison-tools/sip-vs-fd', priority: '0.85', changefreq: 'weekly' },
+      { path: '/comparison-tools/fd-vs-debt-fund', priority: '0.85', changefreq: 'weekly' },
+      { path: '/comparison-tools/rent-vs-buy', priority: '0.85', changefreq: 'weekly' },
+      { path: '/comparison-tools/loan-comparison', priority: '0.85', changefreq: 'weekly' },
+      { path: '/comparison-tools/credit-card-comparison', priority: '0.85', changefreq: 'weekly' },
+      { path: '/comparison-tools/mutual-fund-comparison', priority: '0.85', changefreq: 'weekly' }
     ];
 
     let xml = `<?xml version="1.0" encoding="UTF-8"?>\n`;
@@ -1211,7 +1829,7 @@ app.get('/sitemap.xml', async (_req: Request, res: Response) => {
 
 // DYNAMIC LIVE ROBOTS.TXT
 app.get('/robots.txt', (_req: Request, res: Response) => {
-  const domain = SITE_URL;
+  const domain = getSiteUrl();
   const robots = `User-agent: *
 Allow: /
 Disallow: /admin
@@ -1225,7 +1843,7 @@ Sitemap: ${domain}/sitemap.xml
 
 // DYNAMIC LIVE ADS.TXT
 app.get('/ads.txt', (_req: Request, res: Response) => {
-  const publisherId = process.env.ADSENSE_PUB_ID || 'pub-5020716602157264';
+  const publisherId = (process.env.ADSENSE_PUB_ID || process.env.VITE_ADSENSE_PUB_ID || 'pub-5020716602157264').replace(/^ca-/, '');
   const adsTxt = `google.com, ${publisherId}, DIRECT, f08c47fec0942fa0\n`;
   res.header('Content-Type', 'text/plain');
   res.send(adsTxt);
@@ -1245,7 +1863,7 @@ const buildOtpEmailHtml = (otp: string, targetEmail: string, title = 'Here is yo
               🛡️
             </div>
             <span style="font-size: 22px; font-weight: 900; color: #0f172a; letter-spacing: -0.5px; font-family: Georgia, serif; vertical-align: middle;">
-              The Stoce Times
+              The Stock Times
             </span>
           </div>
         </div>
@@ -1267,7 +1885,7 @@ const buildOtpEmailHtml = (otp: string, targetEmail: string, title = 'Here is yo
           ${title}
         </h1>
         <p style="font-size: 14px; color: #475569; margin: 0 0 24px 0; font-weight: 500;">
-          for logging in to <strong>The Stoce Times</strong>
+          for logging in to <strong>The Stock Times</strong>
         </p>
 
         <!-- DIGIT TILES ROW -->
@@ -1341,7 +1959,7 @@ app.post('/api/admin/login-step1', async (req: Request, res: Response) => {
       await transporter.sendMail({
         from: process.env.SMTP_FROM_EMAIL || process.env.SMTP_FROM || smtpUser,
         to: targetEmail,
-        subject: '🔑 Here is your One Time Password - The Stoce Times',
+        subject: '🔑 Here is your One Time Password - The Stock Times',
         html: buildOtpEmailHtml(otp, targetEmail, 'Here is your One Time Password')
       });
       console.log(`✅ 2FA OTP Code email sent via Hostinger SMTP to ${targetEmail}`);
@@ -1401,7 +2019,7 @@ app.post('/api/admin/send-login-otp', async (req: Request, res: Response) => {
       await transporter.sendMail({
         from: process.env.SMTP_FROM_EMAIL || process.env.SMTP_FROM || smtpUser,
         to: targetEmail,
-        subject: '🔑 Here is your One Time Password - The Stoce Times',
+        subject: '🔑 Here is your One Time Password - The Stock Times',
         html: buildOtpEmailHtml(otp, targetEmail, 'Here is your One Time Password')
       });
       console.log(`✅ Direct Login OTP Code email sent via Hostinger SMTP to ${targetEmail}`);
@@ -1461,7 +2079,7 @@ app.post('/api/admin/verify-otp', async (req: Request, res: Response) => {
       token: authToken,
       user: {
         id: 'admin-1',
-        name: 'The Stoce Times Editor',
+        name: 'The Stock Times Editor',
         email: sessionData.email,
         role: 'super_admin'
       }
@@ -1494,13 +2112,13 @@ app.post('/api/admin/forgot-password', async (req: Request, res: Response) => {
       expiresAt
     });
 
-    const resetUrl = `${SITE_URL}/admin/reset-password?token=${token}`;
+    const resetUrl = `${getSiteUrl()}/admin/reset-password?token=${token}`;
 
     try {
       await transporter.sendMail({
         from: process.env.SMTP_FROM || smtpUser,
         to: cleanEmail,
-        subject: '🔑 Password Reset Request - The Stoce Times Admin',
+        subject: '🔑 Password Reset Request - The Stock Times Admin',
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 580px; margin: auto; border: 1px solid #e2e8f0; border-radius: 16px; padding: 32px; background-color: #ffffff;">
             <h2 style="font-family: Georgia, serif; color: #071827; margin-top: 0;">Password Reset Request</h2>
@@ -1575,8 +2193,8 @@ app.post('/api/subscribers/notify-article', async (req: Request, res: Response) 
     let sentCount = 0;
     for (const email of targetSubscribers) {
       try {
-        const unsubscribeUrl = `${SITE_URL}/unsubscribe?email=${encodeURIComponent(email)}`;
-        const articleUrl = `${SITE_URL}/article/${slug}`;
+        const unsubscribeUrl = `${getSiteUrl()}/unsubscribe?email=${encodeURIComponent(email)}`;
+        const articleUrl = `${getSiteUrl()}/article/${slug}`;
 
         await transporter.sendMail({
           from: process.env.SMTP_FROM_EMAIL || process.env.SMTP_FROM || smtpUser,
@@ -1588,7 +2206,7 @@ app.post('/api/subscribers/notify-article', async (req: Request, res: Response) 
                 
                 <!-- HEADER -->
                 <div style="background-color: #0b1f33; padding: 24px; text-align: center;">
-                  <h2 style="color: #ffffff; font-family: Georgia, serif; margin: 0; font-size: 24px; letter-spacing: -0.5px;">THE STOCE TIMES</h2>
+                  <h2 style="color: #ffffff; font-family: Georgia, serif; margin: 0; font-size: 24px; letter-spacing: -0.5px;">THE STOCK TIMES</h2>
                   <p style="color: #10b981; font-size: 11px; font-weight: bold; text-transform: uppercase; letter-spacing: 1.5px; margin: 6px 0 0 0;">EDITORIAL BROADCAST STREAM</p>
                 </div>
 
@@ -1601,7 +2219,7 @@ app.post('/api/subscribers/notify-article', async (req: Request, res: Response) 
                   </h1>
 
                   <p style="font-size: 14px; color: #475569; line-height: 1.6; margin: 0 0 24px 0;">
-                    ${excerpt || 'Read the full analysis and insights on TheStoceTimes.com...'}
+                    ${excerpt || 'Read the full analysis and insights on TheStockTimes.online...'}
                   </p>
 
                   <!-- READ FULL ARTICLE BUTTON -->
@@ -1613,7 +2231,7 @@ app.post('/api/subscribers/notify-article', async (req: Request, res: Response) 
 
                   <!-- FOOTER & UNSUBSCRIBE LINK -->
                   <div style="border-top: 1px solid #f1f5f9; padding-top: 20px; text-align: center; font-size: 12px; color: #94a3b8; line-height: 1.6;">
-                    <p style="margin: 0 0 8px 0;">You are receiving this email because you subscribed to market insights at <strong>TheStoceTimes.com</strong>.</p>
+                    <p style="margin: 0 0 8px 0;">You are receiving this email because you subscribed to market insights at <strong>TheStockTimes.online</strong>.</p>
                     <p style="margin: 0;">
                       No longer wish to receive updates? 
                       <a href="${unsubscribeUrl}" style="color: #ef4444; text-decoration: underline; font-weight: 700;">Click here to Unsubscribe</a>
@@ -1643,44 +2261,154 @@ app.post('/api/subscribers/notify-article', async (req: Request, res: Response) 
 });
 
 // IN-MEMORY ARTICLES STORE WITH MYSQL DATABASE SYNC
-let inMemoryArticlesStore: any[] = [];
+let inMemoryArticlesStore: any[] = [...INITIAL_ARTICLES];
 
-// GET ALL ARTICLES
-app.get('/api/articles', async (_req: Request, res: Response) => {
+const getArticleMergeKey = (article: any) => String(article?.slug || article?.id || article?.title || '').trim();
+
+const getArticleSortTime = (article: any) => {
+  const rawDate = article?.publishedAt || article?.published_at || article?.updatedAt || article?.updated_at || 0;
+  const timestamp = new Date(rawDate).getTime();
+  return Number.isFinite(timestamp) ? timestamp : 0;
+};
+
+const getArticlePlainText = (article: any) => String(article?.content || '')
+  .replace(/<[^>]*>/g, ' ')
+  .replace(/\s+/g, ' ')
+  .trim();
+
+const isPublicReadyArticle = (article: any) => {
+  if ((article?.status || 'published') !== 'published') return false;
+  const title = String(article?.title || '').toLowerCase();
+  const excerpt = String(article?.excerpt || '').toLowerCase();
+  const plainText = getArticlePlainText(article);
+
+  if (!article?.slug || !article?.featuredImage) return false;
+  if (title.includes('write detailed financial research') || title.includes('automatically detected article')) return false;
+  if (excerpt === 'auto excerpt' || plainText === 'Auto Content') return false;
+  return plainText.split(' ').filter(Boolean).length >= 120;
+};
+
+const mergeArticlesForPublicFeed = (articles: any[] = []) => {
+  const merged = new Map<string, any>();
+
+  [...INITIAL_ARTICLES, ...articles].forEach((article) => {
+    const key = getArticleMergeKey(article);
+    if (!key) return;
+    merged.set(key, article);
+  });
+
+  return Array.from(merged.values())
+    .filter(isPublicReadyArticle)
+    .sort((a, b) => getArticleSortTime(b) - getArticleSortTime(a));
+};
+
+const parseJsonField = (value: any, fallback: any = []) => {
+  if (typeof value !== 'string') return value || fallback;
   try {
-    const [rows]: any = await pool.query('SELECT * FROM articles ORDER BY published_at DESC');
-    if (Array.isArray(rows) && rows.length > 0) {
-      const parsedRows = rows.map((r: any) => ({
-        id: r.id,
-        title: r.title,
-        slug: r.slug,
-        categoryId: r.category_id,
-        subCategory: r.sub_category,
-        featuredImage: r.featured_image,
-        imageCaption: r.image_caption,
-        imageSource: r.image_source,
-        excerpt: r.excerpt,
-        content: r.content,
-        authorId: r.author_id,
-        publishedAt: r.published_at,
-        showPublishedDate: r.show_published_date !== 0,
-        readTimeMinutes: r.read_time_minutes || 5,
-        status: r.status || 'published',
-        views: r.views || 0,
-        isFeatured: Boolean(r.is_featured),
-        isTrending: Boolean(r.is_trending),
-        tags: typeof r.tags === 'string' ? JSON.parse(r.tags || '[]') : (r.tags || []),
-        galleryImages: typeof r.gallery_images === 'string' ? JSON.parse(r.gallery_images || '[]') : (r.gallery_images || []),
-        faqs: typeof r.faqs === 'string' ? JSON.parse(r.faqs || '[]') : (r.faqs || [])
-      }));
-      inMemoryArticlesStore = parsedRows;
-      return res.json(parsedRows);
-    }
-  } catch (err) {
-    console.warn('MySQL articles fetch fallback to memory:', err);
+    return JSON.parse(value || '[]');
+  } catch {
+    return fallback;
   }
-  res.json(inMemoryArticlesStore);
+};
+
+const mapDbArticleToClient = (r: any) => ({
+  id: r.id,
+  title: r.title,
+  slug: r.slug,
+  categoryId: r.category_id,
+  subCategory: r.sub_category,
+  featuredImage: r.featured_image,
+  imageCaption: r.image_caption,
+  imageSource: r.image_source,
+  excerpt: r.excerpt,
+  content: r.content,
+  highlights: parseJsonField(r.highlights),
+  authorId: normalizeAuthorId(r.author_id),
+  publishedAt: r.published_at,
+  showPublishedDate: r.show_published_date !== 0,
+  readTimeMinutes: r.read_time_minutes || 5,
+  status: r.status || 'published',
+  views: r.views || 0,
+  isFeatured: Boolean(r.is_featured),
+  isTrending: Boolean(r.is_trending),
+  tags: parseJsonField(r.tags),
+  galleryImages: parseJsonField(r.gallery_images),
+  faqs: parseJsonField(r.faqs),
+  seoTitle: r.seo_title,
+  seoDescription: r.seo_description,
+  focusKeywords: parseJsonField(r.focus_keywords),
+  canonicalUrl: r.canonical_url,
+  ogTitle: r.og_title,
+  ogDescription: r.og_description,
+  socialShareImage: r.social_share_image
 });
+
+async function saveArticleRecord(article: any) {
+  const articleToSave = {
+    ...article,
+    id: article.id || `art-${Date.now()}`,
+    publishedAt: article.publishedAt || new Date().toISOString(),
+    status: article.status || 'published'
+  };
+
+  const existingIndex = inMemoryArticlesStore.findIndex(a => a.id === articleToSave.id || a.slug === articleToSave.slug);
+  if (existingIndex >= 0) {
+    inMemoryArticlesStore[existingIndex] = { ...inMemoryArticlesStore[existingIndex], ...articleToSave };
+  } else {
+    inMemoryArticlesStore.unshift(articleToSave);
+  }
+
+  const authorIdToUse = normalizeAuthorId(articleToSave.authorId);
+  try {
+    const conn = await pool.getConnection();
+    try {
+    await conn.query('SET FOREIGN_KEY_CHECKS=0');
+
+    await conn.query(
+      `INSERT INTO articles
+      (id, title, slug, category_id, sub_category, featured_image, image_caption, image_source, excerpt, content, author_id, published_at, show_published_date, read_time_minutes, status, views, is_featured, is_trending, tags, gallery_images, faqs)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON DUPLICATE KEY UPDATE
+        title=VALUES(title), slug=VALUES(slug), category_id=VALUES(category_id), sub_category=VALUES(sub_category),
+        featured_image=VALUES(featured_image), image_caption=VALUES(image_caption), image_source=VALUES(image_source),
+        excerpt=VALUES(excerpt), content=VALUES(content), author_id=VALUES(author_id), published_at=VALUES(published_at),
+        show_published_date=VALUES(show_published_date), read_time_minutes=VALUES(read_time_minutes), status=VALUES(status),
+        is_featured=VALUES(is_featured), is_trending=VALUES(is_trending), tags=VALUES(tags), gallery_images=VALUES(gallery_images), faqs=VALUES(faqs)`,
+      [
+        articleToSave.id,
+        articleToSave.title,
+        articleToSave.slug,
+        articleToSave.categoryId || 'finance-news',
+        articleToSave.subCategory || '',
+        articleToSave.featuredImage || '',
+        articleToSave.imageCaption || '',
+        articleToSave.imageSource || '',
+        articleToSave.excerpt || '',
+        articleToSave.content || '',
+        authorIdToUse,
+        articleToSave.publishedAt,
+        articleToSave.showPublishedDate !== false ? 1 : 0,
+        articleToSave.readTimeMinutes || 5,
+        articleToSave.status,
+        articleToSave.views || 0,
+        articleToSave.isFeatured ? 1 : 0,
+        articleToSave.isTrending ? 1 : 0,
+        JSON.stringify(articleToSave.tags || []),
+        JSON.stringify(articleToSave.galleryImages || []),
+        JSON.stringify(articleToSave.faqs || [])
+      ]
+    );
+
+    await conn.query('SET FOREIGN_KEY_CHECKS=1');
+    } finally {
+      conn.release();
+    }
+  } catch (dbErr: any) {
+    console.warn('MySQL article save unavailable; using in-memory article fallback:', dbErr.message);
+  }
+
+  return articleToSave;
+}
 
 // CREATE OR UPDATE ARTICLE (POST /api/articles & POST /api/admin/articles)
 const handleSaveArticle = async (req: Request, res: Response) => {
@@ -1690,67 +2418,9 @@ const handleSaveArticle = async (req: Request, res: Response) => {
       return res.status(400).json({ success: false, message: 'Article title and slug are required.' });
     }
 
-    if (!article.id) {
-      article.id = `art-${Date.now()}`;
-    }
-
-    if (!article.publishedAt) {
-      article.publishedAt = new Date().toISOString();
-    }
-
-    const existingIndex = inMemoryArticlesStore.findIndex(a => a.id === article.id || a.slug === article.slug);
-    if (existingIndex >= 0) {
-      inMemoryArticlesStore[existingIndex] = { ...inMemoryArticlesStore[existingIndex], ...article };
-    } else {
-      inMemoryArticlesStore.unshift(article);
-    }
-
     try {
-      const authorIdToUse = article.authorId || 'author-1';
-      const conn = await pool.getConnection();
-
-      try {
-        await conn.query('SET FOREIGN_KEY_CHECKS=0');
-
-        await conn.query(
-          `INSERT INTO articles 
-          (id, title, slug, category_id, sub_category, featured_image, image_caption, image_source, excerpt, content, author_id, published_at, show_published_date, read_time_minutes, status, views, is_featured, is_trending, tags, gallery_images, faqs)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-          ON DUPLICATE KEY UPDATE 
-            title=VALUES(title), slug=VALUES(slug), category_id=VALUES(category_id), sub_category=VALUES(sub_category),
-            featured_image=VALUES(featured_image), image_caption=VALUES(image_caption), image_source=VALUES(image_source),
-            excerpt=VALUES(excerpt), content=VALUES(content), author_id=VALUES(author_id), published_at=VALUES(published_at),
-            show_published_date=VALUES(show_published_date), read_time_minutes=VALUES(read_time_minutes), status=VALUES(status),
-            is_featured=VALUES(is_featured), is_trending=VALUES(is_trending), tags=VALUES(tags), gallery_images=VALUES(gallery_images), faqs=VALUES(faqs)`,
-          [
-            article.id,
-            article.title,
-            article.slug,
-            article.categoryId || 'finance-news',
-            article.subCategory || '',
-            article.featuredImage || '',
-            article.imageCaption || '',
-            article.imageSource || '',
-            article.excerpt || '',
-            article.content || '',
-            authorIdToUse,
-            article.publishedAt,
-            article.showPublishedDate !== false ? 1 : 0,
-            article.readTimeMinutes || 5,
-            article.status || 'published',
-            article.views || 0,
-            article.isFeatured ? 1 : 0,
-            article.isTrending ? 1 : 0,
-            JSON.stringify(article.tags || []),
-            JSON.stringify(article.galleryImages || []),
-            JSON.stringify(article.faqs || [])
-          ]
-        );
-
-        await conn.query('SET FOREIGN_KEY_CHECKS=1');
-      } finally {
-        conn.release();
-      }
+      const savedArticle = await saveArticleRecord(article);
+      return res.json({ success: true, article: savedArticle });
     } catch (dbErr: any) {
       console.error('MySQL article save failed:', dbErr.message);
       return res.status(500).json({
@@ -1758,8 +2428,6 @@ const handleSaveArticle = async (req: Request, res: Response) => {
         message: `MySQL article save failed: ${dbErr.message}`
       });
     }
-
-    res.json({ success: true, article });
   } catch (err: any) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -1785,18 +2453,248 @@ const handleDeleteArticle = async (req: Request, res: Response) => {
 app.delete('/api/articles/:id', handleDeleteArticle);
 app.delete('/api/admin/articles/:id', handleDeleteArticle);
 
-// INCREMENT ARTICLE VIEWS
-app.post('/api/articles/:id/view', async (req: Request, res: Response) => {
+// AI CONTENT ENGINE REST ENDPOINTS
+import { GeminiService } from './ai/services/geminiService';
+import { executeArticlePipeline } from './ai/graph/workflow';
+
+const inMemoryAiJobs: any[] = [];
+
+app.use('/api/ai', requireAdminAuth);
+
+// 1. GET /api/ai/test (Gemini Structured JSON Connectivity Test)
+app.get('/api/ai/test', async (_req: Request, res: Response) => {
+  try {
+    const testResult = await GeminiService.testConnection();
+    res.json({
+      success: testResult.success,
+      message: testResult.message,
+      model: testResult.model,
+      timestamp: new Date().toISOString()
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// 2. POST /api/ai/jobs/trigger (Milestone 1 Manual Topic Trigger)
+app.post('/api/ai/jobs/trigger', async (req: Request, res: Response) => {
+  try {
+    const { topic, category = 'personal-finance', country = 'US', autoPublish = false } = req.body;
+    if (!topic || String(topic).trim() === '') {
+      return res.status(400).json({ success: false, message: 'Topic title is required.' });
+    }
+
+    const jobId = `job-${Date.now()}`;
+    const cleanTopic = String(topic).trim();
+
+    // Create initial job record in MySQL
+    try {
+      await pool.query(
+        `INSERT INTO ai_article_jobs (id, topic, country, category, status, current_agent)
+        VALUES (?, ?, ?, ?, 'researching', 'research')`,
+        [jobId, cleanTopic, country, category]
+      );
+    } catch (e) {}
+
+    // Execute LangGraph pipeline for topic
+    const pipelineState = await executeArticlePipeline(jobId, cleanTopic, category, country);
+
+    const isAutoPublish = autoPublish || process.env.AI_AUTO_PUBLISH === 'true';
+
+    const jobObj = {
+      id: jobId,
+      topic: cleanTopic,
+      country,
+      category,
+      status: isAutoPublish ? 'published' : pipelineState.status,
+      currentAgent: pipelineState.currentAgent,
+      verificationStatus: pipelineState.factCheckResult?.status || 'PASS',
+      publishStatus: isAutoPublish ? 'published' : 'pending',
+      articleId: undefined as string | undefined,
+      createdAt: new Date().toISOString(),
+      articleContent: pipelineState.articleContent,
+      seoMetadata: pipelineState.seoMetadata,
+      graphics: pipelineState.graphics,
+      researchPack: pipelineState.researchPack,
+      factCheckResult: pipelineState.factCheckResult
+    };
+
+    inMemoryAiJobs.unshift(jobObj);
+
+    // If autoPublish is enabled, create and publish article immediately
+    if (isAutoPublish) {
+      const articleObj = {
+        id: `art-${Date.now()}`,
+        title: jobObj.articleContent?.h1Title || jobObj.topic,
+        slug: jobObj.seoMetadata?.slug || jobObj.topic.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+        categoryId: jobObj.category || 'personal-finance',
+        subCategory: jobObj.country === 'US' ? 'US Finance' : 'UK Finance',
+        featuredImage: jobObj.graphics?.featuredImageUrl || 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&w=1200&q=80',
+        excerpt: jobObj.articleContent?.excerpt || '',
+        content: `${jobObj.articleContent?.introduction || ''}\n${jobObj.articleContent?.fullBodyHtml || ''}`,
+        authorId: 'auth-1',
+        publishedAt: new Date().toISOString(),
+        showPublishedDate: true,
+        readTimeMinutes: 6,
+        status: 'published',
+        views: 0,
+        tags: ['AI Generated', jobObj.category, jobObj.country],
+        faqs: jobObj.articleContent?.faqs || []
+      };
+
+      const savedArticle = await saveArticleRecord(articleObj);
+      jobObj.articleId = savedArticle.id;
+    }
+
+    // Update MySQL job record
+    try {
+      await pool.query(
+        `UPDATE ai_article_jobs SET status = ?, current_agent = ?, verification_status = ?, publish_status = ?, article_id = COALESCE(?, article_id) WHERE id = ?`,
+        [jobObj.status, pipelineState.currentAgent, pipelineState.factCheckResult?.status || 'PASS', jobObj.publishStatus, jobObj.articleId || null, jobId]
+      );
+    } catch (e) {}
+
+    res.json({ success: true, job: jobObj });
+  } catch (err: any) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// 3. GET /api/ai/jobs (Fetch Jobs List)
+app.get('/api/ai/jobs', async (_req: Request, res: Response) => {
+  try {
+    const [rows]: any = await pool.query('SELECT * FROM ai_article_jobs ORDER BY created_at DESC LIMIT 50');
+    if (Array.isArray(rows) && rows.length > 0) {
+      const articleIds = rows.map((r: any) => r.article_id).filter(Boolean);
+      const articleById = new Map<string, any>();
+      if (articleIds.length > 0) {
+        try {
+          const placeholders = articleIds.map(() => '?').join(',');
+          const [articleRows]: any = await pool.query(`SELECT * FROM articles WHERE id IN (${placeholders})`, articleIds);
+          if (Array.isArray(articleRows)) {
+            articleRows.forEach((row: any) => {
+              articleById.set(row.id, mapDbArticleToClient(row));
+            });
+          }
+        } catch (articleErr: any) {
+          console.warn('AI jobs article hydration skipped:', articleErr.message);
+        }
+      }
+
+      const parsedJobs = rows.map((r: any) => {
+        const memoryMatch = inMemoryAiJobs.find(m => m.id === r.id);
+        if (memoryMatch) return memoryMatch;
+
+        const article = articleById.get(r.article_id);
+        return {
+          id: r.id,
+          topic: r.topic,
+          country: r.country,
+          category: r.category,
+          status: r.status,
+          currentAgent: r.current_agent,
+          verificationStatus: r.verification_status,
+          publishStatus: r.publish_status,
+          articleId: r.article_id,
+          createdAt: r.created_at,
+          articleContent: article ? {
+            h1Title: article.title,
+            excerpt: article.excerpt,
+            introduction: '',
+            keyTakeaways: article.highlights || [],
+            fullBodyHtml: article.content,
+            faqs: article.faqs || [],
+            disclaimer: ''
+          } : undefined,
+          seoMetadata: article ? {
+            seoTitle: article.seoTitle || article.title,
+            seoDescription: article.seoDescription || article.excerpt,
+            slug: article.slug,
+            primaryKeyword: article.focusKeywords?.[0] || article.title,
+            secondaryKeywords: article.focusKeywords || []
+          } : undefined,
+          graphics: article ? {
+            featuredImageUrl: article.featuredImage
+          } : undefined
+        };
+      });
+      return res.json({ success: true, jobs: parsedJobs });
+    }
+  } catch (e) {}
+  res.json({ success: true, jobs: inMemoryAiJobs });
+});
+
+// 4. POST /api/ai/jobs/:id/approve (Approve & Publish Article)
+app.post('/api/ai/jobs/:id/approve', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const article = inMemoryArticlesStore.find(a => a.id === id || a.slug === id);
-    if (article) {
-      article.views = (article.views || 0) + 1;
+    let job = inMemoryAiJobs.find(j => j.id === id);
+
+    if (!job) {
+      const [jobRows]: any = await pool.query('SELECT * FROM ai_article_jobs WHERE id = ? LIMIT 1', [id]);
+      const dbJob = Array.isArray(jobRows) ? jobRows[0] : null;
+
+      if (!dbJob) {
+        return res.status(404).json({ success: false, message: 'Job not found.' });
+      }
+
+      if (dbJob.article_id) {
+        await pool.query(
+          "UPDATE articles SET status = 'published', published_at = COALESCE(published_at, ?), updated_at = ? WHERE id = ?",
+          [new Date().toISOString(), new Date().toISOString(), dbJob.article_id]
+        );
+        await pool.query(
+          `UPDATE ai_article_jobs SET status = 'published', publish_status = 'published', article_id = ? WHERE id = ?`,
+          [dbJob.article_id, id]
+        );
+
+        const [articleRows]: any = await pool.query('SELECT * FROM articles WHERE id = ? LIMIT 1', [dbJob.article_id]);
+        const article = Array.isArray(articleRows) && articleRows[0] ? mapDbArticleToClient(articleRows[0]) : null;
+        if (article) {
+          const existingIndex = inMemoryArticlesStore.findIndex(a => a.id === article.id);
+          if (existingIndex >= 0) inMemoryArticlesStore[existingIndex] = article;
+          else inMemoryArticlesStore.unshift(article);
+        }
+
+        return res.json({ success: true, message: 'Article approved and published successfully!', article });
+      }
+
+      return res.status(404).json({ success: false, message: 'Job article draft was not found. Please run the AI pipeline again.' });
     }
+
+    const articleObj = {
+      id: `art-${Date.now()}`,
+      title: job.articleContent?.h1Title || job.topic,
+      slug: job.seoMetadata?.slug || job.topic.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+      categoryId: job.category || 'personal-finance',
+      subCategory: job.country === 'US' ? 'US Finance' : 'UK Finance',
+      featuredImage: job.graphics?.featuredImageUrl || 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&w=1200&q=80',
+      excerpt: job.articleContent?.excerpt || '',
+      content: `${job.articleContent?.introduction || ''}\n${job.articleContent?.fullBodyHtml || ''}`,
+      authorId: 'auth-1',
+      publishedAt: new Date().toISOString(),
+      showPublishedDate: true,
+      readTimeMinutes: 6,
+      status: 'published',
+      views: 0,
+      tags: ['AI Generated', job.category, job.country],
+      faqs: job.articleContent?.faqs || []
+    };
+
+    const savedArticle = await saveArticleRecord(articleObj);
+
+    job.status = 'published';
+    job.publishStatus = 'published';
+    job.articleId = savedArticle.id;
+
     try {
-      await pool.query('UPDATE articles SET views = views + 1 WHERE id = ? OR slug = ?', [id, id]);
-    } catch (e) { }
-    res.json({ success: true, views: article?.views || 1 });
+      await pool.query(
+        `UPDATE ai_article_jobs SET status = 'published', publish_status = 'published', article_id = ? WHERE id = ?`,
+        [savedArticle.id, id]
+      );
+    } catch (e) {}
+
+    res.json({ success: true, message: 'Article approved and published successfully!', article: savedArticle });
   } catch (err: any) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -1827,9 +2725,9 @@ app.post('/api/smtp-config/test', async (req: Request, res: Response) => {
     await testTransporter.verify();
 
     await testTransporter.sendMail({
-      from: `"${smtpFromName || 'The Stoce Times'}" <${smtpUsername}>`,
+      from: `"${smtpFromName || 'The Stock Times'}" <${smtpUsername}>`,
       to: targetEmail,
-      subject: '✅ SMTP Configuration Test Successful - The Stoce Times',
+      subject: '✅ SMTP Configuration Test Successful - The Stock Times',
       html: `
         <div style="background-color: #f8fafc; padding: 24px; font-family: sans-serif;">
           <div style="max-width: 500px; margin: 0 auto; background: #ffffff; padding: 24px; border-radius: 16px; border: 1px solid #e2e8f0;">
@@ -1852,8 +2750,11 @@ app.post('/api/smtp-config/test', async (req: Request, res: Response) => {
   }
 });
 
+import { startDailyAiScheduler } from './ai/cron/dailyScheduler';
+
 // Start Server
 app.listen(PORT, async () => {
   console.log(`🚀 MySQL Backend REST API running on http://localhost:${PORT}`);
   await initializeTables();
+  startDailyAiScheduler();
 });

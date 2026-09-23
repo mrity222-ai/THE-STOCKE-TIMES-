@@ -194,7 +194,7 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({ onSuccess, onC
 
           <div>
             <span className="text-[10px] font-extrabold uppercase tracking-widest text-emerald-400 font-mono block">
-              THE STOCE TIMES — PUBLISHING SYSTEM
+              THE STOCK TIMES — PUBLISHING SYSTEM
             </span>
             <h1 className="text-2xl font-extrabold text-white tracking-tight font-serif mt-1">
               {viewMode === 'login' && (loginType === 'otp_only' ? 'Login with OTP' : 'Admin Password Login')}
@@ -484,7 +484,7 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({ onSuccess, onC
 
         {/* Footer info inside card */}
         <div className="bg-slate-950/60 p-4 border-t border-slate-800/80 text-center text-[10px] font-mono text-slate-500">
-          The Stoce Times Security System v1.0 • Authorized Personnel Only
+          The Stock Times Security System v1.0 • Authorized Personnel Only
         </div>
 
       </div>

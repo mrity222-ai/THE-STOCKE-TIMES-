@@ -1,5 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { AdSlot } from '../components/ads/AdSlot';
+import { formatCurrency, getCurrencyLabel, getCurrencySymbol } from '../utils/currency';
+import { useCurrencyPreference } from '../hooks/useCurrencyPreference';
 import { 
   Calculator, 
   DollarSign, 
@@ -10,7 +12,6 @@ import {
   Table as TableIcon, 
   ArrowRight, 
   HelpCircle, 
-  ShieldAlert,
   Sliders,
   CheckCircle2,
   ChevronDown,
@@ -22,8 +23,13 @@ interface EmiCalculatorPageProps {
 }
 
 export const EmiCalculatorPage: React.FC<EmiCalculatorPageProps> = ({ onNavigate }) => {
+  useCurrencyPreference();
+  const currencyLabel = getCurrencyLabel();
+  const currencySymbol = getCurrencySymbol();
+  const money = (value: number) => formatCurrency(value);
+
   // Inputs State
-  const [loanAmount, setLoanAmount] = useState<number>(1000000); // ₹10 Lakhs default
+  const [loanAmount, setLoanAmount] = useState<number>(1000000);
   const [interestRate, setInterestRate] = useState<number>(8.5); // 8.5% p.a.
   const [tenureValue, setTenureValue] = useState<number>(5); // 5
   const [tenureType, setTenureType] = useState<'years' | 'months'>('years');
@@ -183,7 +189,7 @@ export const EmiCalculatorPage: React.FC<EmiCalculatorPageProps> = ({ onNavigate
       </div>
 
       {/* AD 1: Top Ad Slot */}
-      <AdSlot placement="global_top" />
+      <AdSlot placement="calculator_top" />
 
       {/* Main Two-Column Calculator Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
@@ -213,9 +219,9 @@ export const EmiCalculatorPage: React.FC<EmiCalculatorPageProps> = ({ onNavigate
           {/* Input 1: Loan Amount */}
           <div className="space-y-3">
             <div className="flex justify-between items-center text-xs">
-              <label className="font-bold text-slate-700">Loan Amount (₹)</label>
+              <label className="font-bold text-slate-700">Loan Amount ({currencyLabel})</label>
               <div className="flex items-center gap-1 bg-slate-50 border border-slate-300 rounded-xl px-3 py-1 text-slate-900 font-bold font-mono text-sm">
-                <span>₹</span>
+                <span>{currencySymbol}</span>
                 <input
                   type="number"
                   min="50000"
@@ -238,9 +244,9 @@ export const EmiCalculatorPage: React.FC<EmiCalculatorPageProps> = ({ onNavigate
               className="w-full accent-emerald-600 cursor-pointer h-2 bg-slate-200 rounded-lg"
             />
             <div className="flex justify-between text-[10px] text-slate-400 font-mono">
-              <span>₹50,000</span>
-              <span>₹2.5 Crore</span>
-              <span>₹5 Crore</span>
+              <span>{money(50000)}</span>
+              <span>{money(25000000)}</span>
+              <span>{money(50000000)}</span>
             </div>
           </div>
 
@@ -349,7 +355,7 @@ export const EmiCalculatorPage: React.FC<EmiCalculatorPageProps> = ({ onNavigate
             <div className="space-y-1 border-b border-slate-800 pb-4">
               <span className="text-xs font-bold uppercase text-slate-400 tracking-wider">Calculated Monthly EMI</span>
               <div className="text-3xl sm:text-4xl font-black text-emerald-400 font-mono">
-                ₹{emiResults.monthlyEmi.toLocaleString('en-IN')}
+                {money(emiResults.monthlyEmi)}
               </div>
               <span className="text-[11px] text-slate-400">For {loanType} at {interestRate}% p.a.</span>
             </div>
@@ -357,17 +363,17 @@ export const EmiCalculatorPage: React.FC<EmiCalculatorPageProps> = ({ onNavigate
             <div className="space-y-3 text-xs">
               <div className="flex justify-between py-1.5 border-b border-slate-800/80">
                 <span className="text-slate-400">Principal Loan Amount</span>
-                <span className="font-bold text-white font-mono">₹{emiResults.principalAmount.toLocaleString('en-IN')}</span>
+                <span className="font-bold text-white font-mono">{money(emiResults.principalAmount)}</span>
               </div>
 
               <div className="flex justify-between py-1.5 border-b border-slate-800/80">
                 <span className="text-slate-400">Total Interest Payable</span>
-                <span className="font-bold text-amber-400 font-mono">₹{emiResults.totalInterest.toLocaleString('en-IN')}</span>
+                <span className="font-bold text-amber-400 font-mono">{money(emiResults.totalInterest)}</span>
               </div>
 
               <div className="flex justify-between py-1.5">
                 <span className="text-slate-300 font-bold">Total Amount Payable</span>
-                <span className="font-extrabold text-emerald-400 text-sm font-mono">₹{emiResults.totalRepayment.toLocaleString('en-IN')}</span>
+                <span className="font-extrabold text-emerald-400 text-sm font-mono">{money(emiResults.totalRepayment)}</span>
               </div>
             </div>
 
@@ -397,6 +403,9 @@ export const EmiCalculatorPage: React.FC<EmiCalculatorPageProps> = ({ onNavigate
         </div>
 
       </div>
+
+      {/* AD 2: Calculator companion ad */}
+      <AdSlot placement="calculator_sidebar" />
 
       {/* Loan Comparison Section */}
       <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-sm space-y-6">
@@ -442,8 +451,8 @@ export const EmiCalculatorPage: React.FC<EmiCalculatorPageProps> = ({ onNavigate
             </div>
 
             <div className="pt-3 border-t border-slate-200 space-y-1.5 text-xs font-mono">
-              <div className="flex justify-between"><span className="text-slate-500">Monthly EMI:</span><strong className="text-slate-900">₹{scenarioA.emi.toLocaleString('en-IN')}</strong></div>
-              <div className="flex justify-between"><span className="text-slate-500">Total Interest:</span><strong className="text-amber-700">₹{scenarioA.totalInterest.toLocaleString('en-IN')}</strong></div>
+              <div className="flex justify-between"><span className="text-slate-500">Monthly EMI:</span><strong className="text-slate-900">{money(scenarioA.emi)}</strong></div>
+              <div className="flex justify-between"><span className="text-slate-500">Total Interest:</span><strong className="text-amber-700">{money(scenarioA.totalInterest)}</strong></div>
             </div>
           </div>
 
@@ -482,13 +491,16 @@ export const EmiCalculatorPage: React.FC<EmiCalculatorPageProps> = ({ onNavigate
             </div>
 
             <div className="pt-3 border-t border-slate-200 space-y-1.5 text-xs font-mono">
-              <div className="flex justify-between"><span className="text-slate-500">Monthly EMI:</span><strong className="text-slate-900">₹{scenarioB.emi.toLocaleString('en-IN')}</strong></div>
-              <div className="flex justify-between"><span className="text-slate-500">Total Interest:</span><strong className="text-amber-700">₹{scenarioB.totalInterest.toLocaleString('en-IN')}</strong></div>
+              <div className="flex justify-between"><span className="text-slate-500">Monthly EMI:</span><strong className="text-slate-900">{money(scenarioB.emi)}</strong></div>
+              <div className="flex justify-between"><span className="text-slate-500">Total Interest:</span><strong className="text-amber-700">{money(scenarioB.totalInterest)}</strong></div>
             </div>
           </div>
 
         </div>
       </div>
+
+      {/* AD 3: Mid-page calculator ad */}
+      <AdSlot placement="calculator_mid" />
 
       {/* EMI Amortization Schedule Table */}
       <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-sm space-y-6">
@@ -531,11 +543,11 @@ export const EmiCalculatorPage: React.FC<EmiCalculatorPageProps> = ({ onNavigate
               {(scheduleView === 'yearly' ? amortizationSchedule.yearlyList : amortizationSchedule.monthlyList.slice((monthlyPage - 1) * 12, monthlyPage * 12)).map((row, idx) => (
                 <tr key={idx} className="hover:bg-slate-50 transition-colors">
                   <td className="p-3 font-bold text-slate-900">{scheduleView === 'yearly' ? `Year ${row.year}` : `Month ${(row as any).month}`}</td>
-                  <td className="p-3">₹{row.opening.toLocaleString('en-IN')}</td>
-                  <td className="p-3 text-emerald-600 font-bold">₹{row.principal.toLocaleString('en-IN')}</td>
-                  <td className="p-3 text-amber-600">₹{row.interest.toLocaleString('en-IN')}</td>
-                  <td className="p-3 font-bold">₹{row.payment.toLocaleString('en-IN')}</td>
-                  <td className="p-3 text-slate-500">₹{row.closing.toLocaleString('en-IN')}</td>
+                  <td className="p-3">{money(row.opening)}</td>
+                  <td className="p-3 text-emerald-600 font-bold">{money(row.principal)}</td>
+                  <td className="p-3 text-amber-600">{money(row.interest)}</td>
+                  <td className="p-3 font-bold">{money(row.payment)}</td>
+                  <td className="p-3 text-slate-500">{money(row.closing)}</td>
                 </tr>
               ))}
             </tbody>
@@ -573,7 +585,7 @@ export const EmiCalculatorPage: React.FC<EmiCalculatorPageProps> = ({ onNavigate
           <p className="text-slate-600 text-sm leading-relaxed">
             Equated Monthly Installments (EMIs) are structured repayment schedules that allow borrowers to spread large purchases or capital borrowings over extended timeframes.
           </p>
-          {/* AD 2: Middle In-Feed Ad Slot */}
+          {/* AD 4: Middle In-Feed Ad Slot */}
           <AdSlot placement="calculator_after_result" />
         </div>
 
@@ -599,18 +611,7 @@ export const EmiCalculatorPage: React.FC<EmiCalculatorPageProps> = ({ onNavigate
         </div>
       </div>
 
-      {/* Legal & Educational Disclaimer */}
-      <div className="bg-amber-50 border border-amber-200 rounded-2xl p-6 text-xs text-amber-900 space-y-2">
-        <div className="flex items-center gap-2 font-bold text-amber-950">
-          <ShieldAlert className="w-4 h-4 text-amber-600 shrink-0" />
-          <span>Important Financial Calculator Disclaimer</span>
-        </div>
-        <p className="leading-relaxed text-amber-800">
-          Disclaimer: The results provided by this calculator are for educational and illustrative purposes only. Actual loan costs, processing fees, or repayment schedules may vary based on market conditions.
-        </p>
-      </div>
-
-      {/* AD 3: Bottom Banner Ad Slot */}
+      {/* AD 5: Bottom Banner Ad Slot */}
       <AdSlot placement="calculator_bottom" />
 
     </div>

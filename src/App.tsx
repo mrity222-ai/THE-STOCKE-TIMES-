@@ -19,6 +19,7 @@ import { ComparisonToolsLandingPage } from './pages/ComparisonToolsLandingPage';
 import { GenericComparisonView } from './components/comparisons/GenericComparisonView';
 import { UnsubscribePage } from './pages/UnsubscribePage';
 import { CookieConsentBanner } from './components/ads/CookieConsentBanner';
+import { PopupNotificationAd } from './components/ads/PopupNotificationAd';
 import { CALCULATORS_REGISTRY, getCalculatorMetaById } from './data/calculatorsMeta';
 import { COMPARISONS_REGISTRY, getComparisonMetaById } from './data/comparisonsMeta';
 import { CalculatorId } from './types/calculators';
@@ -42,7 +43,7 @@ export function App() {
         setCurrentRoute('home');
         setRouteParam(undefined);
       } else if (
-        ['stock-market', 'personal-finance', 'banking', 'investment', 'finance-news'].includes(parts[0]) &&
+        ['stock-market', 'ipo', 'personal-finance', 'banking', 'investment', 'finance-news'].includes(parts[0]) &&
         parts[1]
       ) {
         setCurrentRoute('article');
@@ -56,7 +57,7 @@ export function App() {
       } else if (parts[0] === 'search') {
         setCurrentRoute('search');
         setRouteParam(parts[1] ? decodeURIComponent(parts[1]) : undefined);
-      } else if (['stock-market', 'personal-finance', 'banking', 'investment', 'finance-news'].includes(parts[0])) {
+      } else if (['stock-market', 'ipo', 'personal-finance', 'banking', 'investment', 'finance-news'].includes(parts[0])) {
         setCurrentRoute(parts[0]);
         setRouteParam(undefined);
       } else if (parts[0] === 'about') {
@@ -68,6 +69,9 @@ export function App() {
       } else if (parts[0] === 'legal') {
         setCurrentRoute('legal');
         setRouteParam(parts[1] || 'disclaimer');
+      } else if (parts[0] === 'disclaimer') {
+        setCurrentRoute('legal');
+        setRouteParam('disclaimer');
       } else if (parts[0] === 'unsubscribe') {
         setCurrentRoute('unsubscribe');
         setRouteParam(undefined);
@@ -114,13 +118,23 @@ export function App() {
 
     if (calcMeta) {
       SeoService.updateMetaTags(
-        `${calcMeta.name} — Free Financial Calculator | The Stoce Times`,
+        `${calcMeta.name} — Free Financial Calculator | The Stock Times`,
         calcMeta.description,
         'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&w=1200&q=80',
         `${domain}/financial-tools/${calcMeta.id}`
       );
       SeoService.injectJsonLd([
         SeoService.generateWebApplicationSchema(calcMeta.name, calcMeta.description, `${domain}/financial-tools/${calcMeta.id}`),
+        SeoService.generateFaqSchema([
+          {
+            question: `What is the ${calcMeta.name}?`,
+            answer: `${calcMeta.name} is a free finance tool from The Stock Times that helps users estimate ${calcMeta.description.toLowerCase()}`
+          },
+          {
+            question: `Is the ${calcMeta.name} free to use?`,
+            answer: `Yes. The ${calcMeta.name} is free, browser-based, and designed for educational financial planning.`
+          }
+        ])!,
         SeoService.generateBreadcrumbSchema([
           { name: 'Financial Tools', url: '/financial-tools' },
           { name: calcMeta.name, url: `/financial-tools/${calcMeta.id}` }
@@ -131,13 +145,23 @@ export function App() {
 
     if (compMeta) {
       SeoService.updateMetaTags(
-        `${compMeta.name} — Comparison Tool | The Stoce Times`,
+        `${compMeta.name} — Comparison Tool | The Stock Times`,
         compMeta.shortDescription,
         'https://images.unsplash.com/photo-1590283603385-17ffb3a7f29f?auto=format&fit=crop&w=1200&q=80',
         `${domain}/comparison-tools/${compMeta.id}`
       );
       SeoService.injectJsonLd([
         SeoService.generateWebApplicationSchema(compMeta.name, compMeta.shortDescription, `${domain}/comparison-tools/${compMeta.id}`),
+        SeoService.generateFaqSchema([
+          {
+            question: `What does ${compMeta.name} compare?`,
+            answer: `${compMeta.name} compares finance options side by side using transparent inputs, assumptions, and decision-focused outputs.`
+          },
+          {
+            question: `Who should use ${compMeta.name}?`,
+            answer: `Use ${compMeta.name} when you want a quick educational comparison before checking provider terms or speaking with a qualified financial professional.`
+          }
+        ])!,
         SeoService.generateBreadcrumbSchema([
           { name: 'Comparison Tools', url: '/comparison-tools' },
           { name: compMeta.name, url: `/comparison-tools/${compMeta.id}` }
@@ -149,8 +173,8 @@ export function App() {
     switch (currentRoute) {
       case 'home':
         SeoService.updateMetaTags(
-          'The Stoce Times — Global Market News, Equity Analysis & Financial Tools',
-          'The Stoce Times provides real-time stock market news, equity analysis, banking updates, personal finance guides, 20 financial calculators, and 6 comparison tools.',
+          'The Stock Times — Global Market News, Equity Analysis & Financial Tools',
+          'The Stock Times provides real-time stock market news, equity analysis, banking updates, personal finance guides, 20 financial calculators, and 6 comparison tools.',
           'https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?auto=format&fit=crop&w=1200&q=80',
           domain
         );
@@ -159,7 +183,7 @@ export function App() {
 
       case 'stock-market':
         SeoService.updateMetaTags(
-          'Stock Market News, Equity Analysis & Nifty 50 | The Stoce Times',
+          'Stock Market News, Equity Analysis & Nifty 50 | The Stock Times',
           'Latest stock market news, Nifty 50 updates, Sensex trends, IPO analysis, and equity research.',
           'https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?auto=format&fit=crop&w=1200&q=80',
           `${domain}/stock-market`
@@ -169,9 +193,21 @@ export function App() {
         ]));
         break;
 
+      case 'ipo':
+        SeoService.updateMetaTags(
+          'Upcoming IPO Calendar, India IPOs & Global IPO Watchlist | The Stock Times',
+          'Track upcoming IPOs, India IPO dates, pre-apply research, allotment schedules, listing dates, and global IPO watchlists.',
+          'https://images.unsplash.com/photo-1642790106117-e829e14a795f?auto=format&fit=crop&w=1200&q=80',
+          `${domain}/ipo`
+        );
+        SeoService.injectJsonLd(SeoService.generateBreadcrumbSchema([
+          { name: 'IPO', url: '/ipo' }
+        ]));
+        break;
+
       case 'personal-finance':
         SeoService.updateMetaTags(
-          'Personal Finance Guides & Money Planning | The Stoce Times',
+          'Personal Finance Guides & Money Planning | The Stock Times',
           'Expert personal finance advice, SIP planning, tax strategies, budgeting frameworks, and wealth creation.',
           'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&w=1200&q=80',
           `${domain}/personal-finance`
@@ -183,7 +219,7 @@ export function App() {
 
       case 'banking':
         SeoService.updateMetaTags(
-          'Banking News, FD Rates & Interest Rates | The Stoce Times',
+          'Banking News, FD Rates & Interest Rates | The Stock Times',
           'FD interest rates, RBI monetary policy, home loan interest rates, and banking updates.',
           'https://images.unsplash.com/photo-1565514020179-026b92b84bb6?auto=format&fit=crop&w=1200&q=80',
           `${domain}/banking`
@@ -195,7 +231,7 @@ export function App() {
 
       case 'investment':
         SeoService.updateMetaTags(
-          'Investment Strategies & Mutual Funds | The Stoce Times',
+          'Investment Strategies & Mutual Funds | The Stock Times',
           'Mutual fund analysis, equity investments, gold, real estate, and long-term asset allocation.',
           'https://images.unsplash.com/photo-1590283603385-17ffb3a7f29f?auto=format&fit=crop&w=1200&q=80',
           `${domain}/investment`
@@ -207,7 +243,7 @@ export function App() {
 
       case 'finance-news':
         SeoService.updateMetaTags(
-          'Breaking Finance News & Global Market Updates | The Stoce Times',
+          'Breaking Finance News & Global Market Updates | The Stock Times',
           'Real-time financial breaking news, economic policy updates, global market reports.',
           'https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?auto=format&fit=crop&w=1200&q=80',
           `${domain}/finance-news`
@@ -219,32 +255,72 @@ export function App() {
 
       case 'financial-tools':
         SeoService.updateMetaTags(
-          '20 Free Financial Calculators | The Stoce Times',
-          'Calculate SIP returns, Loan EMIs, Income Tax, FD interest, Compound interest, Inflation and retirement targets.',
+          '20 Free Financial Calculators for India | SIP, EMI, FD, Tax & Retirement',
+          'Use 20 free financial calculators for SIP, EMI, FD, RD, PPF, EPF, NPS, income tax, GST, salary, retirement, inflation, CAGR, SWP, and net worth planning.',
           'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&w=1200&q=80',
           `${domain}/financial-tools`
         );
-        SeoService.injectJsonLd(SeoService.generateBreadcrumbSchema([
-          { name: 'Financial Tools', url: '/financial-tools' }
-        ]));
+        SeoService.injectJsonLd([
+          SeoService.generateItemListSchema(
+            'The Stock Times Financial Calculators',
+            CALCULATORS_REGISTRY.map(calc => ({
+              name: calc.name,
+              description: calc.description,
+              url: `${domain}${calc.url}`
+            }))
+          ),
+          SeoService.generateFaqSchema([
+            {
+              question: 'Which financial calculators are available on The Stock Times?',
+              answer: 'The Stock Times offers calculators for EMI, loan eligibility, SIP, lumpsum, CAGR, SWP, FD, RD, PPF, EPF, NPS, income tax, salary, GST, retirement, inflation, compound interest, simple interest, and net worth.'
+            },
+            {
+              question: 'Are these finance calculators useful for Indian users?',
+              answer: 'Yes. The calculators use India-first finance terms such as SIP, EMI, FD, PPF, EPF, NPS, GST, salary, and tax planning.'
+            }
+          ])!,
+          SeoService.generateBreadcrumbSchema([
+            { name: 'Financial Tools', url: '/financial-tools' }
+          ])
+        ]);
         break;
 
       case 'comparison-tools':
         SeoService.updateMetaTags(
-          '6 Financial Comparison Tools | The Stoce Times',
-          'Compare Old vs New Tax Regime, Direct vs Regular Mutual Funds, SIP vs Lumpsum, FD vs Debt Funds, Buy vs Rent.',
+          '6 Financial Comparison Tools for India | SIP, FD, Loans, Cards & Funds',
+          'Compare SIP vs FD, FD vs debt funds, rent vs buy property, loan options, credit cards, and mutual funds with free financial comparison tools.',
           'https://images.unsplash.com/photo-1590283603385-17ffb3a7f29f?auto=format&fit=crop&w=1200&q=80',
           `${domain}/comparison-tools`
         );
-        SeoService.injectJsonLd(SeoService.generateBreadcrumbSchema([
-          { name: 'Comparison Tools', url: '/comparison-tools' }
-        ]));
+        SeoService.injectJsonLd([
+          SeoService.generateItemListSchema(
+            'The Stock Times Financial Comparison Tools',
+            COMPARISONS_REGISTRY.map(comp => ({
+              name: comp.name,
+              description: comp.shortDescription,
+              url: `${domain}${comp.url}`
+            }))
+          ),
+          SeoService.generateFaqSchema([
+            {
+              question: 'Which financial comparison tools are available?',
+              answer: 'The Stock Times offers comparison tools for SIP vs FD, FD vs debt funds, rent vs buy property, loan comparison, credit card comparison, and mutual fund comparison.'
+            },
+            {
+              question: 'Do comparison tools give personalized financial advice?',
+              answer: 'No. The tools are educational and help compare assumptions. Users should verify provider terms and consult a qualified advisor for personal decisions.'
+            }
+          ])!,
+          SeoService.generateBreadcrumbSchema([
+            { name: 'Comparison Tools', url: '/comparison-tools' }
+          ])
+        ]);
         break;
 
       case 'about':
         SeoService.updateMetaTags(
-          'About Us | The Stoce Times Independent Financial Publication',
-          'Learn about The Stoce Times editorial principles, independent financial journalism, research team and mission.',
+          'About Us | The Stock Times Independent Financial Publication',
+          'Learn about The Stock Times editorial principles, independent financial journalism, research team and mission.',
           'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=1200&q=80',
           `${domain}/about`
         );
@@ -255,8 +331,8 @@ export function App() {
 
       case 'contact':
         SeoService.updateMetaTags(
-          'Contact Us | The Stoce Times Editorial Room',
-          'Get in touch with The Stoce Times editorial room, press team and support.',
+          'Contact Us | The Stock Times Editorial Room',
+          'Get in touch with The Stock Times editorial room, press team and support.',
           'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=1200&q=80',
           `${domain}/contact`
         );
@@ -267,8 +343,8 @@ export function App() {
 
       case 'legal':
         SeoService.updateMetaTags(
-          'Legal Policies, Terms & Disclaimer | The Stoce Times',
-          'Privacy Policy, Terms & Conditions, Editorial Disclaimer and Cookie Policy.',
+          'Legal Policies | The Stock Times',
+          'Privacy Policy, Terms & Conditions, Cookie Policy, editorial standards, and legal information.',
           'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=1200&q=80',
           `${domain}/legal/${routeParam || 'disclaimer'}`
         );
@@ -279,7 +355,7 @@ export function App() {
 
       case 'admin':
         SeoService.updateMetaTags(
-          'CMS Admin Panel | The Stoce Times',
+          'CMS Admin Panel | The Stock Times',
           'Admin publishing portal',
           undefined,
           `${domain}/admin`,
@@ -301,7 +377,7 @@ export function App() {
     let pathStr = '/';
 
     if (
-      ['stock-market', 'personal-finance', 'banking', 'investment', 'finance-news'].includes(route) &&
+      ['stock-market', 'ipo', 'personal-finance', 'banking', 'investment', 'finance-news'].includes(route) &&
       param
     ) {
       pathStr = `/${route}/${param}`;
@@ -313,6 +389,8 @@ export function App() {
       pathStr = param ? `/search/${encodeURIComponent(param)}` : '/search';
     } else if (route === 'legal') {
       pathStr = `/legal/${param || 'disclaimer'}`;
+    } else if (route === 'disclaimer') {
+      pathStr = '/disclaimer';
     } else if (route === 'login' || route === 'admin-login') {
       pathStr = '/admin/login';
     } else if (route === 'financial-tools') {
@@ -329,7 +407,7 @@ export function App() {
 
     window.history.pushState({}, '', pathStr);
     setCurrentRoute(
-      ['stock-market', 'personal-finance', 'banking', 'investment', 'finance-news'].includes(route) && param
+      ['stock-market', 'ipo', 'personal-finance', 'banking', 'investment', 'finance-news'].includes(route) && param
         ? 'article'
         : (route === 'login' || route === 'admin-login') ? 'admin' : route
     );
@@ -355,6 +433,7 @@ export function App() {
         return <HomePage onNavigate={navigateTo} />;
 
       case 'stock-market':
+      case 'ipo':
       case 'personal-finance':
       case 'banking':
       case 'investment':
@@ -413,6 +492,7 @@ export function App() {
       )}
 
       <CookieConsentBanner />
+      {!isFullWidthPage && <PopupNotificationAd />}
 
       {/* Admin SEO Manager Inspector Modal */}
       <SeoModal isOpen={seoModalOpen} onClose={() => setSeoModalOpen(false)} />

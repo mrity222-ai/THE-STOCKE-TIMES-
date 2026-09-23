@@ -1,27 +1,40 @@
-import { Article, Author, Category, MediaItem, TagItem, MarketIndex, CommentItem, SiteSettings, AnalyticsSummary, UserAccount, Subscriber, LegalPageItem } from '../types';
+import { Article, Author, Category, TagItem, MarketIndex, CommentItem, SiteSettings, AnalyticsSummary, UserAccount, Subscriber, LegalPageItem, PopupNotificationSettings } from '../types';
 import { INITIAL_ARTICLES, INITIAL_AUTHORS, INITIAL_CATEGORIES, INITIAL_MARKET_INDICES } from '../data/initialData';
 import { adminApiFetch, apiFetch } from './apiConfig';
 
 const ARTICLES_STORAGE_KEY = 'finance_pulse_articles_v3';
 const AUTHORS_STORAGE_KEY = 'finance_pulse_authors_v3';
 const CATEGORIES_STORAGE_KEY = 'finance_pulse_categories_v3';
-const MEDIA_STORAGE_KEY = 'finance_pulse_media_v3';
 const TAGS_STORAGE_KEY = 'finance_pulse_tags_v3';
 const COMMENTS_STORAGE_KEY = 'finance_pulse_comments_v3';
 const SETTINGS_STORAGE_KEY = 'finance_pulse_settings_v3';
 const SUBSCRIBERS_STORAGE_KEY = 'finance_pulse_subscribers_v4';
+const POPUP_NOTIFICATION_STORAGE_KEY = 'finance_pulse_popup_notification_v1';
 const USERS_STORAGE_KEY = 'finance_pulse_users_v4';
 const CURRENT_USER_KEY = 'finance_pulse_current_user_v1';
 const ADMIN_AUTH_KEY = 'finance_pulse_admin_auth_v1';
 
-const INITIAL_MEDIA_ITEMS: MediaItem[] = [
-  { id: 'med-1', name: 'Stock Market Chart Bull Run', url: 'https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?auto=format&fit=crop&w=1200&q=80', size: '1.2 MB', uploadedAt: '2026-08-01', dimensions: '1200x800', altText: 'Equity chart graph', type: 'image' },
-  { id: 'med-2', name: 'Personal Finance & Calculator', url: 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&w=1200&q=80', size: '850 KB', uploadedAt: '2026-08-02', dimensions: '1200x800', altText: 'Financial planning desk', type: 'image' },
-  { id: 'med-3', name: 'Mutual Funds & Compounding', url: 'https://images.unsplash.com/photo-1590283603385-17ffb3a7f29f?auto=format&fit=crop&w=1200&q=80', size: '1.4 MB', uploadedAt: '2026-08-03', dimensions: '1200x800', altText: 'Wealth growth graph', type: 'image' },
-  { id: 'med-4', name: 'Commercial Banking Building', url: 'https://images.unsplash.com/photo-1565514020179-026b92b84bb6?auto=format&fit=crop&w=1200&q=80', size: '980 KB', uploadedAt: '2026-08-04', dimensions: '1200x800', altText: 'Bank architecture', type: 'image' },
-  { id: 'med-5', name: 'Reserve Bank & Money Policy', url: 'https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?auto=format&fit=crop&w=1200&q=80', size: '1.1 MB', uploadedAt: '2026-08-05', dimensions: '1200x800', altText: 'Central bank building', type: 'image' },
-  { id: 'med-6', name: 'Credit Health & Cards', url: 'https://images.unsplash.com/photo-1559526324-4b87b5e36e44?auto=format&fit=crop&w=1200&q=80', size: '920 KB', uploadedAt: '2026-08-06', dimensions: '1200x800', altText: 'Credit Card and statement', type: 'image' }
-];
+const LEGACY_AUTHOR_ID_MAP: Record<string, string> = {
+  'author-1': 'auth-1',
+  'author-2': 'auth-2',
+  'author-3': 'usr-admin-1',
+  'author-4': 'auth-1',
+  'admin-1': 'usr-admin-1'
+};
+
+const normalizeArticleAuthorId = (authorId?: string): string => {
+  const id = String(authorId || '').trim();
+  return LEGACY_AUTHOR_ID_MAP[id] || id || 'usr-admin-1';
+};
+
+const userToAuthor = (user: UserAccount): Author => ({
+  id: user.id,
+  name: user.name,
+  role: user.role === 'admin' ? 'Editor-in-Chief & Primary Admin' : user.bio || 'Senior Author',
+  avatar: user.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=250&q=80',
+  bio: user.bio || (user.role === 'admin' ? 'Chief Executive Editor & Platform Administrator' : 'Staff Writer & Financial Analyst'),
+  credentials: user.credentials || (user.role === 'admin' ? 'Admin' : 'Author')
+});
 
 const INITIAL_TAGS: TagItem[] = [
   { id: 'tag-1', name: 'Stock Market', slug: 'stock-market', articleCount: 4 },
@@ -43,30 +56,41 @@ const INITIAL_COMMENTS: CommentItem[] = [
 ];
 
 const INITIAL_SETTINGS: SiteSettings = {
-  websiteName: 'TheStoceTimes.com',
+  websiteName: 'TheStockTimes.online',
   logoUrl: '',
   faviconUrl: '',
-  description: 'TheStoceTimes.com provides stock market news, equity analysis, banking updates, personal finance guides, 20 financial calculators and 6 comparison tools.',
-  contactEmail: 'editor@thestocetimes.com',
+  description: 'TheStockTimes.online provides stock market news, equity analysis, banking updates, personal finance guides, 20 financial calculators and 6 comparison tools.',
+  contactEmail: 'editor@thestocktimes.online',
   timezone: 'UTC+05:30 (India Standard Time)',
-  defaultMetaTitle: 'TheStoceTimes.com — Smarter Market Insights & Financial Tools',
-  defaultMetaDescription: 'TheStoceTimes.com provides stock market news, equity analysis, banking updates, personal finance guides, 20 financial calculators and 6 comparison tools.',
-  googleAnalyticsId: 'G-RX15ZXY6JE',
-  googleSearchConsole: 'sc-domain:thestocetimes.com',
+  defaultMetaTitle: 'TheStockTimes.online — Smarter Market Insights & Financial Tools',
+  defaultMetaDescription: 'TheStockTimes.online provides stock market news, equity analysis, banking updates, personal finance guides, 20 financial calculators and 6 comparison tools.',
+  googleAnalyticsId: 'G-S7YVPD4ZW1',
+  googleSearchConsole: 'sc-domain:thestocktimes.online',
   enableComments: true,
   notifyOnNewComment: true,
-  twitterHandle: '@TheStoceTimes',
-  linkedinUrl: 'https://linkedin.com/company/thestocetimes',
-  facebookUrl: 'https://facebook.com/thestocetimes',
-  youtubeUrl: 'https://youtube.com/c/thestocetimes',
+  twitterHandle: '@TheStockTimes',
+  linkedinUrl: 'https://linkedin.com/company/thestocktimes',
+  facebookUrl: 'https://facebook.com/thestocktimes',
+  youtubeUrl: 'https://youtube.com/c/thestocktimes',
   enableYahooFinanceApi: true,
   smtpHost: '',
   smtpPort: 465,
   smtpUsername: '',
   smtpPassword: '',
   smtpFromEmail: '',
-  smtpFromName: 'The Stoce Times Editors',
+  smtpFromName: 'The Stock Times Editors',
   smtpSecure: true
+};
+
+const INITIAL_POPUP_NOTIFICATION: PopupNotificationSettings = {
+  enabled: false,
+  title: 'Market Update',
+  message: 'Read the latest market insight from The Stock Times.',
+  imageUrl: '',
+  linkUrl: '',
+  linkLabel: 'Open Update',
+  delaySeconds: 10,
+  updatedAt: new Date().toISOString()
 };
 
 export class StorageService {
@@ -93,7 +117,7 @@ export class StorageService {
         if (parsed.isLoggedIn) {
           return {
             name: parsed.username || 'Chief Editor',
-            email: parsed.email || 'admin@thestocetimes.com',
+            email: parsed.email || 'admin@thestocktimes.online',
             role: 'Super Admin',
             avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80'
           };
@@ -131,7 +155,7 @@ export class StorageService {
     const session = {
       isLoggedIn: true,
       username: user.name || 'Chief Editor',
-      email: user.email || 'admin@thestocetimes.com',
+      email: user.email || 'admin@thestocktimes.online',
       role: user.role || 'admin',
       token,
       loginTime: new Date().toISOString()
@@ -157,17 +181,24 @@ export class StorageService {
     try {
       const data = localStorage.getItem(ARTICLES_STORAGE_KEY);
       if (!data) {
-        localStorage.setItem(ARTICLES_STORAGE_KEY, JSON.stringify(INITIAL_ARTICLES));
-        return INITIAL_ARTICLES;
+        const initialArticles = INITIAL_ARTICLES.map(article => ({
+          ...article,
+          authorId: normalizeArticleAuthorId(article.authorId)
+        }));
+        localStorage.setItem(ARTICLES_STORAGE_KEY, JSON.stringify(initialArticles));
+        return initialArticles;
       }
       let changed = false;
       const now = Date.now();
       const articles = JSON.parse(data).map((article: Article) => {
+        const normalizedAuthorId = normalizeArticleAuthorId(article.authorId);
+        if (normalizedAuthorId !== article.authorId) changed = true;
         const scheduledTime = article.scheduledDate ? new Date(article.scheduledDate).getTime() : NaN;
         if (article.status === 'scheduled' && Number.isFinite(scheduledTime) && scheduledTime <= now) {
           changed = true;
           return {
             ...article,
+            authorId: normalizedAuthorId,
             status: 'published',
             publishedAt: article.scheduledDate || article.publishedAt || new Date().toISOString(),
             updatedAt: new Date().toISOString(),
@@ -176,6 +207,7 @@ export class StorageService {
         }
         return {
           ...article,
+          authorId: normalizedAuthorId,
           showPublishedDate: article.showPublishedDate ?? true
         };
       });
@@ -184,13 +216,20 @@ export class StorageService {
       }
       return articles;
     } catch (e) {
-      return INITIAL_ARTICLES;
+      return INITIAL_ARTICLES.map(article => ({
+        ...article,
+        authorId: normalizeArticleAuthorId(article.authorId)
+      }));
     }
   }
 
   static setArticles(articles: Article[]): void {
     try {
-      localStorage.setItem(ARTICLES_STORAGE_KEY, JSON.stringify(articles));
+      const normalizedArticles = articles.map(article => ({
+        ...article,
+        authorId: normalizeArticleAuthorId(article.authorId)
+      }));
+      localStorage.setItem(ARTICLES_STORAGE_KEY, JSON.stringify(normalizedArticles));
       window.dispatchEvent(new Event('storage'));
     } catch (error) {
       console.warn('Unable to cache articles locally:', error);
@@ -203,6 +242,7 @@ export class StorageService {
 
     let updatedArticle = {
       ...article,
+      authorId: normalizeArticleAuthorId(article.authorId),
       publishedAt: article.status === 'published' && (!article.publishedAt || article.publishedAt.trim() === '')
         ? new Date().toISOString()
         : (article.publishedAt || new Date().toISOString())
@@ -299,7 +339,23 @@ export class StorageService {
         }
 
         try {
-          apiFetch(`/articles/${target.id}/view`, { method: 'POST' }).catch(() => { });
+          apiFetch(`/articles/${target.id}/view`, { method: 'POST' })
+            .then(async (response) => {
+              if (!response.ok) return;
+              const data = await response.json();
+              if (typeof data?.views !== 'number') return;
+
+              const syncedArticles = this.getArticles();
+              const syncedTarget = syncedArticles.find(a => a.id === target.id || a.slug === target.slug);
+              if (!syncedTarget) return;
+              syncedTarget.views = data.views;
+              localStorage.setItem(ARTICLES_STORAGE_KEY, JSON.stringify(syncedArticles));
+
+              if (typeof window !== 'undefined') {
+                window.dispatchEvent(new CustomEvent('article-views-updated', { detail: { id: syncedTarget.id, views: syncedTarget.views } }));
+              }
+            })
+            .catch(() => { });
         } catch (e) { }
 
         return target.views;
@@ -310,16 +366,15 @@ export class StorageService {
 
   // AUTHORS
   static getAuthors(): Author[] {
+    const users = this.getUsers()
+      .filter(user => user.status === 'active' && (user.role === 'admin' || user.role === 'author'))
+      .map(userToAuthor);
+
+    const authors = users.length > 0 ? users : INITIAL_AUTHORS;
     try {
-      const data = localStorage.getItem(AUTHORS_STORAGE_KEY);
-      if (!data) {
-        localStorage.setItem(AUTHORS_STORAGE_KEY, JSON.stringify(INITIAL_AUTHORS));
-        return INITIAL_AUTHORS;
-      }
-      return JSON.parse(data);
-    } catch (e) {
-      return INITIAL_AUTHORS;
-    }
+      localStorage.setItem(AUTHORS_STORAGE_KEY, JSON.stringify(authors));
+    } catch (e) { }
+    return authors;
   }
 
   static saveAuthor(author: Author): Author {
@@ -337,11 +392,14 @@ export class StorageService {
   }
 
   static getAuthorById(id: string): Author | undefined {
+    const normalizedId = normalizeArticleAuthorId(id);
     const currentUser = this.getCurrentUser();
     const authors = this.getAuthors();
-    const found = authors.find(a => a.id === id);
+    const found = authors.find(a => a.id === normalizedId);
 
-    if ((currentUser.role === 'admin' && (id === currentUser.id || id === 'usr-admin-1' || id === 'author-1')) || !found) {
+    if (found) return found;
+
+    if (currentUser.role === 'admin' && (normalizedId === currentUser.id || normalizedId === 'usr-admin-1')) {
       return {
         id: currentUser.id,
         name: currentUser.name || 'Primary Admin',
@@ -352,7 +410,7 @@ export class StorageService {
       };
     }
 
-    return found;
+    return authors[0];
   }
 
   // CATEGORIES
@@ -363,7 +421,14 @@ export class StorageService {
         localStorage.setItem(CATEGORIES_STORAGE_KEY, JSON.stringify(INITIAL_CATEGORIES));
         return INITIAL_CATEGORIES;
       }
-      return JSON.parse(data);
+      const categories = JSON.parse(data) as Category[];
+      const missingCategories = INITIAL_CATEGORIES.filter(initial => !categories.some(category => category.id === initial.id));
+      if (missingCategories.length > 0) {
+        const mergedCategories = [...categories, ...missingCategories];
+        localStorage.setItem(CATEGORIES_STORAGE_KEY, JSON.stringify(mergedCategories));
+        return mergedCategories;
+      }
+      return categories;
     } catch (e) {
       return INITIAL_CATEGORIES;
     }
@@ -385,37 +450,6 @@ export class StorageService {
 
   static getCategoryBySlug(slug: string): Category | undefined {
     return this.getCategories().find(c => c.slug === slug || c.id === slug);
-  }
-
-  // MEDIA
-  static getMediaItems(): MediaItem[] {
-    try {
-      const data = localStorage.getItem(MEDIA_STORAGE_KEY);
-      if (!data) {
-        localStorage.setItem(MEDIA_STORAGE_KEY, JSON.stringify(INITIAL_MEDIA_ITEMS));
-        return INITIAL_MEDIA_ITEMS;
-      }
-      return JSON.parse(data);
-    } catch (e) {
-      return INITIAL_MEDIA_ITEMS;
-    }
-  }
-
-  static addMediaItem(item: Omit<MediaItem, 'id' | 'uploadedAt'>): MediaItem {
-    const items = this.getMediaItems();
-    const newItem: MediaItem = {
-      ...item,
-      id: `med-${Date.now()}`,
-      uploadedAt: new Date().toISOString().split('T')[0]
-    };
-    items.unshift(newItem);
-    localStorage.setItem(MEDIA_STORAGE_KEY, JSON.stringify(items));
-    return newItem;
-  }
-
-  static deleteMediaItem(id: string): void {
-    const items = this.getMediaItems().filter(m => m.id !== id);
-    localStorage.setItem(MEDIA_STORAGE_KEY, JSON.stringify(items));
   }
 
   // TAGS
@@ -534,7 +568,7 @@ export class StorageService {
           {
             id: 'usr-admin-1',
             name: 'Primary Admin',
-            email: import.meta.env.VITE_ADMIN_EMAIL || 'admin@thestocetimes.com',
+            email: import.meta.env.VITE_ADMIN_EMAIL || 'admin@thestocktimes.online',
             password: '',
             avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
             role: 'admin',
@@ -546,7 +580,7 @@ export class StorageService {
           {
             id: 'auth-1',
             name: 'Vikramaditya Sharma',
-            email: 'vikramaditya@thestocetimes.com',
+            email: 'vikramaditya@thestocktimes.online',
             password: 'author@123',
             avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
             role: 'author',
@@ -558,7 +592,7 @@ export class StorageService {
           {
             id: 'auth-2',
             name: 'Priya Mukherjee',
-            email: 'priya@thestocetimes.com',
+            email: 'priya@thestocktimes.online',
             password: 'author@123',
             avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=200&q=80',
             role: 'author',
@@ -653,7 +687,7 @@ export class StorageService {
     return {
       id: 'usr-admin-1',
       name: 'Primary Admin',
-      email: import.meta.env.VITE_ADMIN_EMAIL || 'admin@thestocetimes.com',
+      email: import.meta.env.VITE_ADMIN_EMAIL || 'admin@thestocktimes.online',
       role: 'admin',
       status: 'active',
       createdAt: new Date().toISOString()
@@ -667,6 +701,65 @@ export class StorageService {
     }
   }
 
+  // POPUP NOTIFICATION / BANNER MANAGEMENT
+  static getPopupNotificationSettings(): PopupNotificationSettings {
+    try {
+      const data = localStorage.getItem(POPUP_NOTIFICATION_STORAGE_KEY);
+      if (!data) {
+        localStorage.setItem(POPUP_NOTIFICATION_STORAGE_KEY, JSON.stringify(INITIAL_POPUP_NOTIFICATION));
+        return INITIAL_POPUP_NOTIFICATION;
+      }
+      return {
+        ...INITIAL_POPUP_NOTIFICATION,
+        ...JSON.parse(data)
+      };
+    } catch (e) {
+      return INITIAL_POPUP_NOTIFICATION;
+    }
+  }
+
+  static setPopupNotificationSettings(settings: PopupNotificationSettings, syncToApi = true): PopupNotificationSettings {
+    const sanitized: PopupNotificationSettings = {
+      ...INITIAL_POPUP_NOTIFICATION,
+      ...settings,
+      delaySeconds: Math.max(1, Math.min(120, Number(settings.delaySeconds) || 10)),
+      updatedAt: new Date().toISOString()
+    };
+
+    localStorage.setItem(POPUP_NOTIFICATION_STORAGE_KEY, JSON.stringify(sanitized));
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('popup-notification-updated', { detail: sanitized }));
+    }
+
+    if (syncToApi) {
+      try {
+        adminApiFetch('/admin/popup-notification', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(sanitized)
+        }).catch(() => { });
+      } catch (e) { }
+    }
+
+    return sanitized;
+  }
+
+  static async fetchPopupNotificationSettings(): Promise<PopupNotificationSettings> {
+    try {
+      const response = await apiFetch('/popup-notification');
+      if (!response.ok) throw new Error('Popup notification API failed');
+      const payload = await response.json();
+      const settings = {
+        ...INITIAL_POPUP_NOTIFICATION,
+        ...(payload.settings || payload)
+      };
+      return this.setPopupNotificationSettings(settings, false);
+    } catch (e) {
+      return this.getPopupNotificationSettings();
+    }
+  }
+
   // NEWSLETTER SUBSCRIBERS MANAGEMENT
   static getSubscribers(): Subscriber[] {
     try {
@@ -675,7 +768,7 @@ export class StorageService {
         const initialSubs: Subscriber[] = [
           {
             id: 'sub-1001',
-            email: import.meta.env.VITE_ADMIN_EMAIL || 'admin@thestocetimes.com',
+            email: import.meta.env.VITE_ADMIN_EMAIL || 'admin@thestocktimes.online',
             subscriptionDate: '2026-08-10T10:00:00Z',
             verificationStatus: 'Verified',
             status: 'Active',
@@ -715,6 +808,9 @@ export class StorageService {
       if (existing.status === 'Unsubscribed') {
         existing.status = 'Active';
         localStorage.setItem(SUBSCRIBERS_STORAGE_KEY, JSON.stringify(subscribers));
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('subscribers-updated', { detail: subscribers }));
+        }
       }
       return existing;
     }
@@ -729,6 +825,9 @@ export class StorageService {
 
     subscribers.unshift(newSub);
     localStorage.setItem(SUBSCRIBERS_STORAGE_KEY, JSON.stringify(subscribers));
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('subscribers-updated', { detail: subscribers }));
+    }
 
     try {
       apiFetch('/subscribers', {
@@ -741,10 +840,34 @@ export class StorageService {
     return newSub;
   }
 
+  static async fetchSubscribersFromServer(): Promise<Subscriber[]> {
+    try {
+      const response = await adminApiFetch('/admin/subscribers');
+      if (!response.ok) throw new Error('Subscribers API failed');
+      const payload = await response.json();
+      const remoteSubscribers: Subscriber[] = Array.isArray(payload.subscribers) ? payload.subscribers : [];
+      localStorage.setItem(SUBSCRIBERS_STORAGE_KEY, JSON.stringify(remoteSubscribers));
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('subscribers-updated', { detail: remoteSubscribers }));
+      }
+      return remoteSubscribers;
+    } catch (e) {
+      return this.getSubscribers();
+    }
+  }
+
   static updateSubscriberStatus(id: string, status: 'Active' | 'Unsubscribed'): boolean {
     try {
       const subs = this.getSubscribers().map(s => s.id === id ? { ...s, status } : s);
       localStorage.setItem(SUBSCRIBERS_STORAGE_KEY, JSON.stringify(subs));
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('subscribers-updated', { detail: subs }));
+      }
+      adminApiFetch(`/admin/subscribers/${encodeURIComponent(id)}/status`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status })
+      }).catch(() => { });
       return true;
     } catch (e) {
       return false;
@@ -755,6 +878,12 @@ export class StorageService {
     try {
       const subs = this.getSubscribers().filter(s => s.id !== id);
       localStorage.setItem(SUBSCRIBERS_STORAGE_KEY, JSON.stringify(subs));
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('subscribers-updated', { detail: subs }));
+      }
+      adminApiFetch(`/admin/subscribers/${encodeURIComponent(id)}`, {
+        method: 'DELETE'
+      }).catch(() => { });
       return true;
     } catch (e) {
       return false;
@@ -773,9 +902,9 @@ export class StorageService {
         id: 'privacy',
         slug: 'privacy',
         title: 'Privacy Policy',
-        content: '<h2>Privacy Policy for The Stoce Times</h2><p>Your privacy is important to us. This Privacy Policy document contains types of information that is collected and recorded by The Stoce Times and how we use it.</p>',
-        seoTitle: 'Privacy Policy | The Stoce Times',
-        seoDescription: 'Read the official Privacy Policy of The Stoce Times.',
+        content: '<h2>Privacy Policy for The Stock Times</h2><p>Your privacy is important to us. The Stock Times publishes financial news, market commentary, calculators, comparison tools, newsletters, and reader comment features. This policy explains what information we collect, how we use it, and how advertising partners may process data when you visit our website.</p><h3>Information We Collect</h3><p>We may collect information you voluntarily submit, such as your name, email address, newsletter subscription preferences, contact form messages, and public comments. We also collect standard technical information such as browser type, device type, approximate region, pages visited, referring URLs, and usage events to protect the site and improve content quality.</p><h3>Cookies, Analytics, and Advertising</h3><p>We use cookies and similar technologies for essential site functions, analytics, ad measurement, frequency controls, and personalization. Third-party advertising partners, including Google AdSense, may use cookies or device identifiers to serve and measure ads based on your visits to this and other websites. You can manage cookies in your browser settings and review Google ad personalization options in your Google account.</p><h3>How We Use Information</h3><p>We use collected information to operate the website, publish comments, respond to inquiries, send opted-in newsletters, improve financial tools, detect spam or abuse, comply with legal obligations, and provide relevant advertising where permitted.</p><h3>Data Sharing</h3><p>We do not sell personal information. We may share limited data with service providers that support hosting, analytics, email delivery, security, or advertising, and only as needed to operate the website. We may disclose information if required by law or to protect readers, our website, or our rights.</p><h3>Financial Content Notice</h3><p>Our content is educational and informational only. We do not collect information to provide individualized investment, tax, legal, or financial advice.</p><h3>Contact</h3><p>For privacy questions or data requests, contact us through the Contact page or email editor@thestocktimes.online.</p>',
+        seoTitle: 'Privacy Policy | The Stock Times',
+        seoDescription: 'Read the official Privacy Policy of The Stock Times.',
         status: 'published',
         updatedAt: new Date().toISOString(),
         revisions: []
@@ -784,9 +913,9 @@ export class StorageService {
         id: 'terms',
         slug: 'terms',
         title: 'Terms and Conditions',
-        content: '<h2>Terms & Conditions</h2><p>By accessing and using The Stoce Times website, you accept and agree to be bound by the terms and provision of this agreement.</p>',
-        seoTitle: 'Terms & Conditions | The Stoce Times',
-        seoDescription: 'Read the Terms and Conditions for accessing The Stoce Times.',
+        content: '<h2>Terms & Conditions</h2><p>By accessing The Stock Times, you agree to use this website lawfully and responsibly. The website provides financial news, market education, calculators, comparison tools, and editorial research for general information only.</p><h3>No Personalized Advice</h3><p>Nothing on this website is personal investment, financial, tax, legal, or accounting advice. You should verify information independently and consult a qualified professional before making financial decisions.</p><h3>Acceptable Use</h3><p>You may not misuse the website, attempt unauthorized access, scrape content at scale, post spam or fraudulent comments, impersonate others, or use the website to promote scams or unlawful activity.</p><h3>Intellectual Property</h3><p>Articles, designs, logos, graphics, calculators, and original research are protected by copyright and other intellectual property laws. You may link to our articles, but copying or republishing substantial content without permission is not allowed.</p><h3>Advertising and Sponsored Content</h3><p>The website may display advertising, sponsored placements, affiliate references, or house promotions. Advertising labels are provided to help readers distinguish ads from editorial content.</p><h3>Changes</h3><p>We may update these terms from time to time. Continued use of the website after changes means you accept the updated terms.</p>',
+        seoTitle: 'Terms & Conditions | The Stock Times',
+        seoDescription: 'Read the Terms and Conditions for accessing The Stock Times.',
         status: 'published',
         updatedAt: new Date().toISOString(),
         revisions: []
@@ -795,9 +924,9 @@ export class StorageService {
         id: 'disclaimer',
         slug: 'disclaimer',
         title: 'Financial & Investment Disclaimer',
-        content: '<h2>Financial Disclaimer</h2><p>All information provided on The Stoce Times is strictly for educational and informational purposes only. It should not be considered as personal financial advice.</p>',
-        seoTitle: 'Financial Disclaimer | The Stoce Times',
-        seoDescription: 'Financial and investment disclaimer for readers of The Stoce Times.',
+        content: '<h2>Financial & Investment Disclaimer</h2><p>All information published on The Stock Times is for educational, informational, and news reporting purposes only. It is not personal financial advice, investment advice, tax advice, accounting advice, legal advice, or a recommendation to buy, sell, hold, borrow, lend, or invest in any product.</p><h3>Market Risk</h3><p>Financial markets involve risk. Stock prices, interest rates, yields, tax rules, loan terms, and regulatory requirements can change quickly. Past performance does not guarantee future returns.</p><h3>Accuracy and Sources</h3><p>We aim to use reliable public sources, official disclosures, and transparent methodology. However, errors, delays, or omissions may occur. Readers should verify rates, fees, eligibility, product terms, and regulatory information directly with official providers before acting.</p><h3>Editorial Independence</h3><p>Advertising does not determine our editorial conclusions. Sponsored or promoted content, when present, is labeled separately from editorial coverage.</p><h3>Professional Advice</h3><p>Always consult a qualified financial planner, tax advisor, legal professional, or regulated advisor for decisions based on your personal situation.</p>',
+        seoTitle: 'Financial Disclaimer | The Stock Times',
+        seoDescription: 'Financial and investment disclaimer for readers of The Stock Times.',
         status: 'published',
         updatedAt: new Date().toISOString(),
         revisions: []
@@ -806,8 +935,8 @@ export class StorageService {
         id: 'cookies',
         slug: 'cookies',
         title: 'Cookie Policy',
-        content: '<h2>Cookie Policy</h2><p>This Cookie Policy explains how The Stoce Times uses cookies and similar technologies to recognize you when you visit our website.</p>',
-        seoTitle: 'Cookie Policy | The Stoce Times',
+        content: '<h2>Cookie Policy</h2><p>This Cookie Policy explains how The Stock Times uses cookies and similar technologies. Cookies help us keep the site functional, remember consent choices, measure traffic, protect forms from abuse, and support advertising.</p><h3>Types of Cookies</h3><p>Essential cookies support basic website functions. Analytics cookies help us understand site performance and reader behavior. Advertising cookies may be used by ad partners such as Google AdSense to deliver, limit, and measure ads.</p><h3>Managing Cookies</h3><p>You can control or delete cookies through your browser settings. Blocking some cookies may affect features such as comments, newsletter preferences, personalization, or ad frequency controls.</p><h3>Third-Party Partners</h3><p>Third-party services may set cookies according to their own privacy policies. These partners may process data such as device information, page views, approximate location, and ad interaction signals.</p>',
+        seoTitle: 'Cookie Policy | The Stock Times',
         seoDescription: 'Cookie policy and consent usage guidelines.',
         status: 'published',
         updatedAt: new Date().toISOString(),
@@ -817,8 +946,8 @@ export class StorageService {
         id: 'editorial',
         slug: 'editorial',
         title: 'Editorial Policy',
-        content: '<h2>Editorial Guidelines & Independence</h2><p>The Stoce Times adheres to strict journalistic standards of integrity, transparency, and accuracy across all financial news reports.</p>',
-        seoTitle: 'Editorial Policy | The Stoce Times',
+        content: '<h2>Editorial Guidelines & Independence</h2><p>The Stock Times aims to publish useful, original, and reader-first financial content. Our editorial process prioritizes clarity, source transparency, timely updates, and separation between advertising and editorial judgment.</p><h3>Originality</h3><p>Articles should be independently written, fact-checked where practical, and provide context beyond copied headlines or scraped summaries. We avoid publishing thin, automatically generated, or duplicate pages that do not help readers.</p><h3>Sources and Updates</h3><p>Where rates, rules, market figures, or policies are mentioned, writers should use official sources or reputable financial data providers where possible and update outdated information promptly.</p><h3>Advertising Independence</h3><p>Ad placement, sponsorship, or affiliate relationships must not control article conclusions. Sponsored material should be identified clearly.</p>',
+        seoTitle: 'Editorial Policy | The Stock Times',
         seoDescription: 'Editorial independence and publishing standards.',
         status: 'published',
         updatedAt: new Date().toISOString(),
@@ -828,8 +957,8 @@ export class StorageService {
         id: 'corrections',
         slug: 'corrections',
         title: 'Corrections Policy',
-        content: '<h2>Corrections & Fact-Checking Policy</h2><p>We are committed to correcting errors promptly and transparently. If you notice a factual error, please contact our editorial room.</p>',
-        seoTitle: 'Corrections Policy | The Stoce Times',
+        content: '<h2>Corrections & Fact-Checking Policy</h2><p>We are committed to correcting errors promptly and transparently. If you notice a factual error, outdated rate, broken link, incorrect calculation, or unclear financial explanation, please contact our editorial room.</p><h3>Review Process</h3><p>Correction requests are reviewed against available sources. If a correction is needed, we update the article and, when appropriate, clarify the change in the article body or metadata.</p><h3>Contact</h3><p>Send correction requests through the Contact page with the article URL, the disputed statement, and the source or explanation supporting the correction.</p>',
+        seoTitle: 'Corrections Policy | The Stock Times',
         seoDescription: 'Fact checking and error correction policies.',
         status: 'published',
         updatedAt: new Date().toISOString(),
@@ -840,7 +969,7 @@ export class StorageService {
         slug: 'refund',
         title: 'Refund Policy',
         content: '<h2>Refund Policy</h2><p>Details regarding premium subscriptions, digital product purchases, and refund request processing terms.</p>',
-        seoTitle: 'Refund Policy | The Stoce Times',
+        seoTitle: 'Refund Policy | The Stock Times',
         seoDescription: 'Refund policy for paid services and digital subscriptions.',
         status: 'published',
         updatedAt: new Date().toISOString(),
@@ -850,8 +979,8 @@ export class StorageService {
         id: 'guidelines',
         slug: 'guidelines',
         title: 'Community Guidelines',
-        content: '<h2>Community Guidelines</h2><p>We encourage respectful discourse in our comments and reader forums. Harassment, spam, and financial scams are strictly prohibited.</p>',
-        seoTitle: 'Community Guidelines | The Stoce Times',
+        content: '<h2>Community Guidelines</h2><p>We encourage respectful discussion in comments and reader submissions. Comments may be moderated before publication to protect readers and maintain compliance with advertising and publisher policies.</p><h3>Not Allowed</h3><p>Harassment, hate speech, threats, adult content, spam, misleading financial promotions, pump-and-dump schemes, impersonation, malware links, and requests for personal financial data are not allowed.</p><h3>Moderation</h3><p>We may edit, reject, hide, or remove comments that violate these guidelines or create legal, security, or policy risk.</p>',
+        seoTitle: 'Community Guidelines | The Stock Times',
         seoDescription: 'Rules of conduct for comments and reader participation.',
         status: 'published',
         updatedAt: new Date().toISOString(),
@@ -861,9 +990,9 @@ export class StorageService {
         id: 'about',
         slug: 'about',
         title: 'About Us',
-        content: '<h2>About The Stoce Times</h2><p>The Stoce Times is a leading independent financial news publication dedicated to delivering institutional market breakdowns, personal finance strategies, and financial tools.</p>',
-        seoTitle: 'About Us | The Stoce Times Editorial Room',
-        seoDescription: 'Learn about The Stoce Times mission, editorial team, and values.',
+        content: '<h2>About The Stock Times</h2><p>The Stock Times is a leading independent financial news publication dedicated to delivering institutional market breakdowns, personal finance strategies, and financial tools.</p>',
+        seoTitle: 'About Us | The Stock Times Editorial Room',
+        seoDescription: 'Learn about The Stock Times mission, editorial team, and values.',
         status: 'published',
         updatedAt: new Date().toISOString(),
         revisions: []
@@ -872,8 +1001,8 @@ export class StorageService {
         id: 'contact',
         slug: 'contact',
         title: 'Contact Us',
-        content: '<h2>Get In Touch</h2><p>Have news tips, editorial inquiries, or support requests? Contact our newsroom team at editor@thestocetimes.com.</p>',
-        seoTitle: 'Contact Us | The Stoce Times Desk',
+        content: '<h2>Get In Touch</h2><p>Have news tips, editorial inquiries, correction requests, privacy questions, advertising questions, or support requests? Contact our newsroom team at editor@thestocktimes.online or use the Contact page form.</p><h3>Editorial and Corrections</h3><p>For corrections, include the article URL, the sentence or data point in question, and any official source that supports the update.</p><h3>Advertising</h3><p>For advertising or sponsored placement inquiries, contact us with campaign details. Sponsored content must be clearly identified and must comply with our editorial and advertising standards.</p>',
+        seoTitle: 'Contact Us | The Stock Times Desk',
         seoDescription: 'Contact info for editorial and support inquiries.',
         status: 'published',
         updatedAt: new Date().toISOString(),
@@ -952,7 +1081,6 @@ export class StorageService {
     localStorage.setItem(ARTICLES_STORAGE_KEY, JSON.stringify(INITIAL_ARTICLES));
     localStorage.setItem(AUTHORS_STORAGE_KEY, JSON.stringify(INITIAL_AUTHORS));
     localStorage.setItem(CATEGORIES_STORAGE_KEY, JSON.stringify(INITIAL_CATEGORIES));
-    localStorage.setItem(MEDIA_STORAGE_KEY, JSON.stringify(INITIAL_MEDIA_ITEMS));
     localStorage.setItem(TAGS_STORAGE_KEY, JSON.stringify(INITIAL_TAGS));
     localStorage.setItem(COMMENTS_STORAGE_KEY, JSON.stringify(INITIAL_COMMENTS));
     localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(INITIAL_SETTINGS));

@@ -22,8 +22,9 @@ export default {
         }
       },
       fontFamily: {
-        sans: ['"Plus Jakarta Sans"', 'Inter', 'sans-serif'],
-        serif: ['Georgia', 'serif']
+        sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+        serif: ['Merriweather', 'Georgia', 'serif'],
+        mono: ['"Roboto Mono"', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', 'monospace']
       }
     },
   },

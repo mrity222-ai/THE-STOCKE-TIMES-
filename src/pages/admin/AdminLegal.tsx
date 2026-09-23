@@ -73,7 +73,7 @@ export const AdminLegal: React.FC = () => {
             <span>Legal & Policy Pages Management</span>
           </h2>
           <p className="text-xs text-slate-500 mt-0.5">
-            Manage Privacy Policy, Terms & Conditions, Disclaimer, Editorial Rules, About Us, and Contact pages.
+            Manage Privacy Policy, Terms & Conditions, legal notice, Editorial Rules, About Us, and Contact pages.
           </p>
         </div>
 

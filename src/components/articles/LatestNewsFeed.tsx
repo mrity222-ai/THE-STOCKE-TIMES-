@@ -1,13 +1,14 @@
 import React, { useState, useMemo } from 'react';
 import { StorageService } from '../../services/storageService';
 import { ApiService } from '../../services/apiService';
-import { Article, Author } from '../../types';
-import { Newspaper, Calendar, Clock, ArrowRight, ChevronDown, Flame, Sparkles } from 'lucide-react';
+import { Article } from '../../types';
+import { Newspaper, Calendar, Clock, ChevronDown, Flame, User, Eye } from 'lucide-react';
 
 interface LatestNewsFeedProps {
   onNavigate: (route: string, param?: string) => void;
   initialCount?: number;
   step?: number;
+  maxCount?: number;
   className?: string;
 }
 
@@ -15,6 +16,7 @@ export const LatestNewsFeed: React.FC<LatestNewsFeedProps> = ({
   onNavigate,
   initialCount = 6,
   step = 4,
+  maxCount,
   className = ''
 }) => {
   const [displayCount, setDisplayCount] = useState<number>(initialCount);
@@ -33,9 +35,11 @@ export const LatestNewsFeed: React.FC<LatestNewsFeedProps> = ({
       setArticlesList(StorageService.getArticles());
     };
     window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('article-views-updated', handleStorageChange as EventListener);
     return () => {
       isMounted = false;
       window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('article-views-updated', handleStorageChange as EventListener);
     };
   }, []);
 
@@ -47,17 +51,18 @@ export const LatestNewsFeed: React.FC<LatestNewsFeedProps> = ({
   }, [articlesList]);
 
   const visibleArticles = useMemo(() => {
-    return allArticles.slice(0, displayCount);
-  }, [allArticles, displayCount]);
+    return allArticles.slice(0, maxCount ? Math.min(displayCount, maxCount) : displayCount);
+  }, [allArticles, displayCount, maxCount]);
 
-  const hasMore = displayCount < allArticles.length;
+  const hasMore = maxCount ? visibleArticles.length < Math.min(allArticles.length, maxCount) : displayCount < allArticles.length;
 
   const handleLoadMore = () => {
-    setDisplayCount(prev => prev + step);
+    setDisplayCount(prev => maxCount ? Math.min(prev + step, maxCount) : prev + step);
   };
 
   const categoryNameMap: Record<string, string> = {
     'stock-market': 'Stock Market',
+    'ipo': 'IPO',
     'personal-finance': 'Personal Finance',
     'banking': 'Banking',
     'investment': 'Investment',
@@ -66,6 +71,7 @@ export const LatestNewsFeed: React.FC<LatestNewsFeedProps> = ({
 
   const categoryBadgeColors: Record<string, string> = {
     'stock-market': 'bg-blue-50 text-[#155EEF] border-blue-200',
+    'ipo': 'bg-cyan-50 text-cyan-700 border-cyan-200',
     'personal-finance': 'bg-emerald-50 text-[#16A34A] border-emerald-200',
     'banking': 'bg-purple-50 text-purple-700 border-purple-200',
     'investment': 'bg-amber-50 text-amber-700 border-amber-200',
@@ -94,7 +100,6 @@ export const LatestNewsFeed: React.FC<LatestNewsFeedProps> = ({
       {/* Feed Cards List (Horizontal Row Layouts) */}
       <div className="space-y-4">
         {visibleArticles.map((art) => {
-          const author: Author | undefined = StorageService.getAuthorById(art.authorId);
           const publishedDate = new Date(art.publishedAt).toLocaleDateString('en-US', {
             month: 'short',
             day: 'numeric',
@@ -144,17 +149,16 @@ export const LatestNewsFeed: React.FC<LatestNewsFeedProps> = ({
                 {/* Metadata Footer Row */}
                 <div className="pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500">
                   <div className="flex items-center gap-2">
-                    {author && (
-                      <img
-                        src={author.avatar}
-                        alt={author.name}
-                        className="w-5 h-5 rounded-full object-cover border border-slate-200"
-                      />
-                    )}
-                    <span className="font-semibold text-slate-700">{author?.name.split(',')[0] || 'Editorial Desk'}</span>
+                    <User className="w-3.5 h-3.5 text-[#16A34A]" />
+                    <span className="font-semibold text-slate-700">The Stock Times</span>
                   </div>
 
                   <div className="flex items-center gap-3 font-mono text-xs text-slate-400">
+                    <span className="flex items-center gap-1">
+                      <Eye className="w-3.5 h-3.5" />
+                      {(art.views || 0).toLocaleString()} views
+                    </span>
+                    <span>•</span>
                     <span className="flex items-center gap-1">
                       <Calendar className="w-3.5 h-3.5" />
                       {publishedDate}
