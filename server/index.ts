@@ -7,6 +7,7 @@ import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { pool, testConnection } from './config/db';
 import { INITIAL_ARTICLES } from '../src/data/initialData';
+import { EXTRA_DATABASE_ARTICLES } from './seeds/extraDatabaseArticles';
 
 dotenv.config();
 
@@ -2260,8 +2261,10 @@ app.post('/api/subscribers/notify-article', async (req: Request, res: Response) 
   }
 });
 
+const CODE_ARTICLE_SEEDS = [...INITIAL_ARTICLES, ...EXTRA_DATABASE_ARTICLES];
+
 // IN-MEMORY ARTICLES STORE WITH MYSQL DATABASE SYNC
-let inMemoryArticlesStore: any[] = [...INITIAL_ARTICLES];
+let inMemoryArticlesStore: any[] = [...CODE_ARTICLE_SEEDS];
 
 const getArticleMergeKey = (article: any) => String(article?.slug || article?.id || article?.title || '').trim();
 
@@ -2291,7 +2294,7 @@ const isPublicReadyArticle = (article: any) => {
 const mergeArticlesForPublicFeed = (articles: any[] = []) => {
   const merged = new Map<string, any>();
 
-  [...INITIAL_ARTICLES, ...articles].forEach((article) => {
+  [...CODE_ARTICLE_SEEDS, ...articles].forEach((article) => {
     const key = getArticleMergeKey(article);
     if (!key) return;
     merged.set(key, article);
