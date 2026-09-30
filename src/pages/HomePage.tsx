@@ -9,6 +9,7 @@ import { MarketSnapshotWidget } from '../components/widgets/MarketSnapshotWidget
 import { SipCalculatorWidget } from '../components/widgets/SipCalculatorWidget';
 import { NewsletterBox } from '../components/widgets/NewsletterBox';
 import { AdSlot } from '../components/ads/AdSlot';
+import { ResponsiveAdContainer } from '../components/ads/ResponsiveAdContainer';
 import { TrendingUp, Wallet, Building2, PieChart, Newspaper, ArrowRight, Flame, Calculator, Sparkles, Clock, Layers } from 'lucide-react';
 
 interface HomePageProps {
@@ -63,17 +64,17 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
       {/* Top Lead Hero Section (Newest Article strictly placed at the TOP) */}
       <FeaturedArticleHero articles={heroArticles} onNavigate={onNavigate} />
 
-      {/* Homepage Ad 1: Sponsored slot after lead hero */}
-      <AdSlot placement="homepage-top" />
+      {/* Homepage Ad 1: Responsive Leaderboard Unit in Fixed-Height Wrapper (Prevents CLS) */}
+      <ResponsiveAdContainer placement="homepage-top" format="leaderboard" label="SPONSORED FINANCIAL SPOTLIGHT" />
 
-      {/* Top Banner Ad Below Hero (global_top) */}
-      <AdSlot placement="global_top" />
+      {/* Top Banner Ad Below Hero (global_top): Responsive Unit in Fixed-Height Wrapper */}
+      <ResponsiveAdContainer placement="global_top" format="leaderboard" label="ADVERTISEMENT" />
 
       {/* Market Snapshot & Mood Gauge Terminal */}
       <MarketSnapshotWidget />
 
-      {/* Homepage Ad 3: Below navigation / market module */}
-      <AdSlot placement="below-navigation" />
+      {/* Homepage Ad 3: Below Navigation Responsive Strip in Fixed-Height Wrapper */}
+      <ResponsiveAdContainer placement="below-navigation" format="banner" label="ADVERTISEMENT" />
 
       {/* Main Content Layout (12-Column Editorial Grid: Left 8 Cols Main Content ~67%, Right 4 Cols Sidebar ~33%) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-start">
@@ -84,8 +85,8 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
           {/* Section 0: Real-Time Latest News Stream with Load More */}
           <LatestNewsFeed onNavigate={onNavigate} initialCount={5} step={5} maxCount={5} className="bg-white border border-slate-200 rounded-2xl p-5 sm:p-6 shadow-sm" />
 
-          {/* Homepage Ad 4: Between latest feed and category sections */}
-          <AdSlot placement="homepage-between-articles" />
+          {/* Homepage Ad 4: In-Feed Responsive Unit in Fixed-Height Wrapper Between Feed & Sections */}
+          <ResponsiveAdContainer placement="homepage-between-articles" format="in-feed" label="ADVERTISEMENT" />
 
           {/* Section 1: Stock Market Updates */}
           <section className="space-y-6 bg-white border border-slate-200 rounded-2xl p-5 sm:p-6 shadow-sm">
@@ -174,8 +175,8 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
             </div>
           </section>
 
-          {/* Homepage In-Feed Mid Ad (homepage_mid) */}
-          <AdSlot placement="homepage_mid" />
+          {/* Homepage In-Feed Mid Ad: Responsive Rectangle Unit in Fixed-Height Wrapper */}
+          <ResponsiveAdContainer placement="homepage_mid" format="rectangle" label="ADVERTISEMENT" />
 
           {/* Section 3: Banking & Yield Rates */}
           <section className="space-y-6 bg-white border border-slate-200 rounded-2xl p-5 sm:p-6 shadow-sm">
@@ -303,15 +304,15 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
                     />
                   </div>
 
-                  {/* Title & Views Info */}
+                  {/* Title & Date Info */}
                   <div className="space-y-1 flex-1 min-w-0">
                     <h4 className="text-sm sm:text-[15px] font-extrabold text-[#0B1F33] group-hover:text-[#155EEF] transition-colors line-clamp-2 leading-[1.5] font-serif">
                       {art.title}
                     </h4>
-                    <div className="flex items-center gap-2 text-xs text-slate-400 font-mono pt-0.5">
-                      <span>{(art.views ?? 0).toLocaleString()} readers</span>
+                    <div className="flex items-center gap-1.5 text-xs text-slate-400 font-mono pt-0.5">
+                      <span className="text-[#16A34A] font-sans font-bold capitalize">{art.categoryId.replace('-', ' ')}</span>
                       <span>•</span>
-                      <span>{art.readTimeMinutes}m read</span>
+                      <span>{new Date(art.publishedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
                     </div>
                   </div>
                 </div>
@@ -322,8 +323,8 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
           {/* Module 2: FINANCIAL CALCULATOR SIDEBAR CARD */}
           <SipCalculatorWidget />
 
-          {/* Module 3: HOMEPAGE SIDEBAR AD */}
-          <AdSlot placement="homepage-sidebar" />
+          {/* Module 3: HOMEPAGE SIDEBAR AD (Responsive Unit in Fixed-Height Wrapper) */}
+          <ResponsiveAdContainer placement="homepage-sidebar" format="sidebar" label="ADVERTISEMENT" />
 
           {/* Module 4: NEWSLETTER CARD */}
           <NewsletterBox />
@@ -332,8 +333,8 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
 
       </div>
 
-      {/* Pre-Footer Global Ad Slot (footer_global) */}
-      <AdSlot placement="footer_global" />
+      {/* Pre-Footer Global Responsive Billboard in Fixed-Height Wrapper */}
+      <ResponsiveAdContainer placement="footer_global" format="billboard" label="ADVERTISEMENT" />
 
     </div>
   );

@@ -71,6 +71,9 @@ export const AiArticleAnnotation = Annotation.Root({
   articleContent: Annotation<{
     h1Title: string;
     excerpt: string;
+    shorts?: string;
+    shortsBullets?: string[];
+    tags?: string[];
     introduction: string;
     keyTakeaways: string[];
     comparisonTableHtml?: string;

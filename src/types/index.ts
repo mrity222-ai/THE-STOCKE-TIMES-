@@ -37,6 +37,8 @@ export interface Article {
   imageCaption?: string;
   imageSource?: string;
   excerpt: string;
+  shorts?: string; // 60-second bite-sized summary
+  shortsBullets?: string[]; // Quick-read bullet points
   content: string; // HTML formatted content
   highlights: string[]; // Important points / AI Summary key points
   aiSummary?: string[];

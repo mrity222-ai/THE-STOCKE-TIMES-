@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { StorageService } from '../../services/storageService';
 import { Article } from '../../types';
-import { Clock, Eye, Sparkles, ArrowRight, TrendingUp } from 'lucide-react';
+import { Calendar, Clock, Eye, Sparkles, ArrowRight, TrendingUp } from 'lucide-react';
 
 interface LatestArticlesSectionProps {
   title?: string;
@@ -72,13 +72,9 @@ export const LatestArticlesSection: React.FC<LatestArticlesSectionProps> = ({
                 <h4 className="text-xs font-bold text-slate-900 group-hover:text-[#155EEF] line-clamp-2 leading-snug font-serif transition-colors">
                   {art.title}
                 </h4>
-                <div className="flex items-center gap-3 text-[10px] text-slate-400 font-mono">
-                  <span className="flex items-center gap-1">
-                    <Clock className="w-3 h-3 text-slate-400" /> {art.readTimeMinutes} min
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <Eye className="w-3 h-3 text-slate-400" /> {art.views || 0}
-                  </span>
+                <div className="flex items-center gap-1.5 text-[10px] text-slate-400 font-mono">
+                  <Calendar className="w-3 h-3 text-[#16A34A]" />
+                  <span>{new Date(art.publishedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
                 </div>
               </div>
             </div>
@@ -148,10 +144,10 @@ export const LatestArticlesSection: React.FC<LatestArticlesSectionProps> = ({
             </div>
 
             <div className="flex items-center justify-between text-xs text-slate-400 font-mono pt-3 border-t border-slate-700/60">
-              <span className="flex items-center gap-1 text-slate-300">
-                <Clock className="w-3.5 h-3.5 text-[#16A34A]" /> {art.readTimeMinutes} min read
+              <span className="flex items-center gap-1.5 text-slate-300">
+                <Calendar className="w-3.5 h-3.5 text-[#16A34A]" /> {new Date(art.publishedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
               </span>
-              <span className="text-emerald-400 font-bold group-hover:translate-x-1 transition-transform inline-flex items-center gap-1">
+              <span className="text-emerald-400 font-bold group-hover:translate-x-1 transition-transform inline-flex items-center gap-1 font-sans">
                 Read Article →
               </span>
             </div>

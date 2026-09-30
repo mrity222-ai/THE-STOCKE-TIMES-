@@ -48,9 +48,27 @@ export const AdminArticles: React.FC<AdminArticlesProps> = ({ onNavigateSub, onE
   const [editingScheduleArticle, setEditingScheduleArticle] = useState<Article | null>(null);
   const [scheduleDateInput, setScheduleDateInput] = useState('');
 
-  const refreshArticles = () => {
+  const refreshArticles = async () => {
+    // 1. Fetch from backend API to ensure freshly auto-published AI articles appear immediately
+    try {
+      const res = await fetch('/api/articles');
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data) && data.length > 0) {
+          StorageService.setArticles(data);
+          setArticles(data);
+          return;
+        }
+      }
+    } catch {
+      // Fallback to local storage
+    }
     setArticles(StorageService.getArticles());
   };
+
+  React.useEffect(() => {
+    refreshArticles();
+  }, []);
 
   const showToast = (msg: string) => {
     setToastMsg(msg);

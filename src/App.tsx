@@ -32,6 +32,12 @@ export function App() {
   const [currentRoute, setCurrentRoute] = useState<string>('home');
   const [routeParam, setRouteParam] = useState<string | undefined>(undefined);
   const [seoModalOpen, setSeoModalOpen] = useState<boolean>(false);
+  const [isReadingMode, setIsReadingMode] = useState<boolean>(false);
+
+  // Automatically reset reading mode whenever route or article changes
+  useEffect(() => {
+    setIsReadingMode(false);
+  }, [currentRoute, routeParam]);
 
   // Parse location pathname or route on initial load and popstate
   useEffect(() => {
@@ -441,7 +447,14 @@ export function App() {
         return <CategoryPage categoryId={currentRoute as CategoryId} onNavigate={navigateTo} />;
 
       case 'article':
-        return <ArticleDetailPage slug={routeParam || 'nifty-50-hits-all-time-high-key-sectors-driving-bull-run'} onNavigate={navigateTo} />;
+        return (
+          <ArticleDetailPage
+            slug={routeParam || 'nifty-50-hits-all-time-high-key-sectors-driving-bull-run'}
+            onNavigate={navigateTo}
+            isReadingMode={isReadingMode}
+            onToggleReadingMode={(active) => setIsReadingMode(prev => typeof active === 'boolean' ? active : !prev)}
+          />
+        );
 
       case 'author':
         return <AuthorProfilePage authorId={routeParam || 'auth-1'} onNavigate={navigateTo} />;
@@ -475,11 +488,11 @@ export function App() {
     }
   };
 
-  const isFullWidthPage = currentRoute === 'admin';
+  const isFullWidthPage = currentRoute === 'admin' || isReadingMode;
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col font-sans text-slate-900 selection:bg-emerald-500 selection:text-white">
-      {!isFullWidthPage && (
+    <div className={`min-h-screen flex flex-col font-sans selection:bg-emerald-500 selection:text-white ${isReadingMode ? '' : 'bg-slate-50 text-slate-900'}`}>
+      {!isFullWidthPage && !isReadingMode && (
         <Header activeTab={currentRoute} onNavigate={navigateTo} />
       )}
 
@@ -487,12 +500,12 @@ export function App() {
         {renderActiveView()}
       </main>
 
-      {!isFullWidthPage && (
+      {!isFullWidthPage && !isReadingMode && (
         <Footer onNavigate={navigateTo} onOpenSeoModal={() => setSeoModalOpen(true)} />
       )}
 
-      <CookieConsentBanner />
-      {!isFullWidthPage && <PopupNotificationAd />}
+      {!isReadingMode && <CookieConsentBanner />}
+      {!isFullWidthPage && !isReadingMode && <PopupNotificationAd />}
 
       {/* Admin SEO Manager Inspector Modal */}
       <SeoModal isOpen={seoModalOpen} onClose={() => setSeoModalOpen(false)} />

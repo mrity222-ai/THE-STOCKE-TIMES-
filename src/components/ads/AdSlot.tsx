@@ -255,6 +255,36 @@ export const AdSlot: React.FC<AdSlotProps> = ({ placement, className = '' }) => 
     );
   }
 
+  const isInsideFixedWrapper = className.includes('border-0') || className.includes('bg-transparent');
+
+  if (isInsideFixedWrapper) {
+    // Inside fixed-height wrapper: Fill container cleanly to adhere strictly to AdSense CLS layout policy
+    return (
+      <div ref={googleAdRef} data-ad-placement={placement} className="w-full h-full flex flex-col justify-center items-center relative overflow-hidden">
+        {canRenderGoogleUnit ? (
+          <ins
+            className="adsbygoogle"
+            style={{ display: 'block', width: '100%', height: '100%', minHeight: isSidebar ? '250px' : '90px' }}
+            data-ad-client={effectiveClient}
+            data-ad-slot={effectiveSlot}
+            data-ad-format={snippetFormat || (activeUnit?.type === 'in-article' ? 'fluid' : 'auto')}
+            data-full-width-responsive={snippetResponsive || 'true'}
+          />
+        ) : (
+          <div className="w-full h-full flex flex-col items-center justify-center text-center p-2 text-slate-400 select-none">
+            <span className="text-[11px] font-mono font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1.5">
+              <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
+              <span>Google AdSense Responsive Unit</span>
+            </span>
+            <span className="text-[10px] font-mono text-slate-400 mt-0.5">
+              Slot ID: {effectiveSlot || '8845697109'} • Publisher: {effectiveClient}
+            </span>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   if (!canRenderGoogleUnit || adSenseCollapsed) {
     return null;
   }

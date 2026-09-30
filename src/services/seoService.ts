@@ -286,10 +286,15 @@ export class SeoService {
       { path: '/search', priority: '0.7', changefreq: 'weekly' },
       { path: '/about', priority: '0.8', changefreq: 'monthly' },
       { path: '/contact', priority: '0.8', changefreq: 'monthly' },
-      { path: '/legal/privacy', priority: '0.5', changefreq: 'monthly' },
+      { path: '/legal/privacy', priority: '0.6', changefreq: 'monthly' },
       { path: '/legal/terms', priority: '0.5', changefreq: 'monthly' },
-      { path: '/legal/disclaimer', priority: '0.5', changefreq: 'monthly' },
-      { path: '/legal/cookie', priority: '0.5', changefreq: 'monthly' },
+      { path: '/legal/disclaimer', priority: '0.6', changefreq: 'monthly' },
+      { path: '/disclaimer', priority: '0.5', changefreq: 'monthly' },
+      { path: '/legal/cookies', priority: '0.5', changefreq: 'monthly' },
+      { path: '/legal/editorial', priority: '0.5', changefreq: 'monthly' },
+      { path: '/legal/corrections', priority: '0.5', changefreq: 'monthly' },
+      { path: '/legal/guidelines', priority: '0.5', changefreq: 'monthly' },
+      { path: '/legal/refund', priority: '0.5', changefreq: 'monthly' },
 
       // 20 Financial Calculators
       { path: '/financial-tools/emi-calculator', priority: '0.85', changefreq: 'weekly' },
@@ -337,10 +342,43 @@ export class SeoService {
   }
 
   /**
-   * Generate Robots.txt (Disallows /admin and /admin)
+   * Generate Robots.txt (Disallows /admin and /api with crawl-delay rules)
    */
   static generateRobotsTxt(): string {
     const domain = window.location.origin;
-    return `User-agent: *\nAllow: /\nDisallow: /admin\nDisallow: /admin\n\nSitemap: ${domain}/sitemap.xml`;
+    return `# ==========================================
+# TheStockTimes.online - robots.txt
+# Comprehensive SEO & Crawl Budget Optimization
+# ==========================================
+
+User-agent: *
+Allow: /
+Allow: /article/
+Allow: /stock-market/
+Allow: /ipo/
+Allow: /personal-finance/
+Allow: /banking/
+Allow: /investment/
+Allow: /finance-news/
+Allow: /financial-tools/
+Allow: /comparison-tools/
+
+Disallow: /admin
+Disallow: /admin/
+Disallow: /api/
+Disallow: /*?*preview=true
+Disallow: /*?*draft=true
+
+Crawl-delay: 2
+
+User-agent: Googlebot
+Allow: /
+Crawl-delay: 1
+
+User-agent: Bingbot
+Allow: /
+Crawl-delay: 2
+
+Sitemap: ${domain}/sitemap.xml`;
   }
 }

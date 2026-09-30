@@ -20,23 +20,8 @@ export default defineConfig({
     }
   },
   server: {
-    proxy: {
-      '/sitemap.xml': {
-        target: 'http://localhost:5000',
-        changeOrigin: true,
-      },
-      '/robots.txt': {
-        target: 'http://localhost:5000',
-        changeOrigin: true,
-      },
-      '/ads.txt': {
-        target: 'http://localhost:5000',
-        changeOrigin: true,
-      },
-      '/api': {
-        target: 'http://localhost:5000',
-        changeOrigin: true,
-      }
-    }
+    host: '0.0.0.0',
+    port: 3000,
+    cors: true
   }
 });

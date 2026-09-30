@@ -1,7 +1,63 @@
+# ==========================================
+# TheStockTimes.online - robots.txt
+# Comprehensive SEO & Crawl Budget Optimization
+# ==========================================
+
+# 1. Default Rules for All Search Engine Crawlers & Bots
 User-agent: *
 Allow: /
-Disallow: /admin
-Disallow: /api/
+Allow: /article/
+Allow: /stock-market/
+Allow: /ipo/
+Allow: /personal-finance/
+Allow: /banking/
+Allow: /investment/
+Allow: /finance-news/
+Allow: /financial-tools/
+Allow: /comparison-tools/
 
-# Sitemap Location
+# Protect Private & Dynamic System Endpoints
+Disallow: /admin
+Disallow: /admin/
+Disallow: /api/
+Disallow: /*?*preview=true
+Disallow: /*?*draft=true
+
+# Moderate Crawl-Delay to prevent server overload while ensuring fast indexing
+Crawl-delay: 2
+
+# 2. Dedicated Directives for Major Search Engine Bots
+User-agent: Googlebot
+Allow: /
+Crawl-delay: 1
+
+User-agent: Googlebot-News
+Allow: /
+Crawl-delay: 1
+
+User-agent: Googlebot-Image
+Allow: /
+Crawl-delay: 1
+
+User-agent: Bingbot
+Allow: /
+Crawl-delay: 2
+
+User-agent: YandexBot
+Allow: /
+Crawl-delay: 3
+
+User-agent: Applebot
+Allow: /
+Crawl-delay: 2
+
+User-agent: DuckDuckBot
+Allow: /
+Crawl-delay: 2
+
+User-agent: Baiduspider
+Allow: /
+Crawl-delay: 3
+
+# 3. Dynamic XML Sitemap Reference
 Sitemap: https://thestocktimes.online/sitemap.xml

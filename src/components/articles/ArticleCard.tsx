@@ -81,22 +81,12 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({ article, onNavigate, l
               <span className="font-semibold text-slate-700 text-xs">The Stock Times</span>
             </div>
 
-            <div className="flex items-center gap-3 font-mono text-xs text-slate-400">
-              <span className="flex items-center gap-1">
-                <Eye className="w-3.5 h-3.5" />
-                {(article.views || 0).toLocaleString()} views
+            {article.showPublishedDate !== false && (
+              <span className="flex items-center gap-1.5 font-mono text-xs text-slate-400">
+                <Calendar className="w-3.5 h-3.5 text-[#16A34A]" />
+                {formattedDate}
               </span>
-              {article.showPublishedDate !== false && (
-                <span className="flex items-center gap-1">
-                  <Calendar className="w-3.5 h-3.5" />
-                  {formattedDate}
-                </span>
-              )}
-              <span className="flex items-center gap-1">
-                <Clock className="w-3.5 h-3.5" />
-                {article.readTimeMinutes} min read
-              </span>
-            </div>
+            )}
           </div>
         </div>
       </div>
@@ -126,9 +116,7 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({ article, onNavigate, l
             {article.title}
           </h4>
           <span className="text-xs text-slate-400 mt-1 flex items-center gap-1 font-mono">
-            <Eye className="w-3 h-3" /> {(article.views || 0).toLocaleString()} views
-            <span>•</span>
-            <Clock className="w-3 h-3" /> {article.readTimeMinutes} min read
+            <Calendar className="w-3 h-3 text-[#16A34A]" /> {formattedDate}
           </span>
         </div>
       </div>
@@ -179,16 +167,12 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({ article, onNavigate, l
             <span className="font-semibold text-slate-700 text-xs">The Stock Times</span>
           </div>
 
-          <div className="flex items-center gap-1.5 text-xs text-slate-400 font-mono">
-            <span className="inline-flex items-center gap-1">
-              <Eye className="w-3.5 h-3.5" />
-              {(article.views || 0).toLocaleString()}
+          {article.showPublishedDate !== false && (
+            <span className="inline-flex items-center gap-1 text-xs text-slate-400 font-mono">
+              <Calendar className="w-3.5 h-3.5 text-[#16A34A]" />
+              {formattedDate}
             </span>
-            <span>•</span>
-            <span>{formattedDate}</span>
-            <span>•</span>
-            <span>{article.readTimeMinutes}m</span>
-          </div>
+          )}
         </div>
       </div>
     </div>

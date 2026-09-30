@@ -93,15 +93,10 @@ export const SidebarRecommendedArticles: React.FC<SidebarRecommendedArticlesProp
                   {art.title}
                 </h4>
 
-                {/* Date & Reading Time Metadata Row */}
-                <div className="flex items-center gap-2.5 text-xs text-slate-400 font-mono pt-0.5">
-                  <span className="flex items-center gap-1">
-                    <Calendar className="w-3.5 h-3.5 text-slate-400" /> {publishedDate}
-                  </span>
-                  <span>•</span>
-                  <span className="flex items-center gap-1">
-                    <Clock className="w-3.5 h-3.5 text-slate-400" /> {art.readTimeMinutes || 5}m read
-                  </span>
+                {/* Date Metadata Row */}
+                <div className="flex items-center gap-1.5 text-xs text-slate-400 font-mono pt-0.5">
+                  <Calendar className="w-3.5 h-3.5 text-[#16A34A]" />
+                  <span>{publishedDate}</span>
                 </div>
               </div>
 

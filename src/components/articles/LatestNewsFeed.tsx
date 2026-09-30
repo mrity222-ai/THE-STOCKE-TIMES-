@@ -153,21 +153,9 @@ export const LatestNewsFeed: React.FC<LatestNewsFeedProps> = ({
                     <span className="font-semibold text-slate-700">The Stock Times</span>
                   </div>
 
-                  <div className="flex items-center gap-3 font-mono text-xs text-slate-400">
-                    <span className="flex items-center gap-1">
-                      <Eye className="w-3.5 h-3.5" />
-                      {(art.views || 0).toLocaleString()} views
-                    </span>
-                    <span>•</span>
-                    <span className="flex items-center gap-1">
-                      <Calendar className="w-3.5 h-3.5" />
-                      {publishedDate}
-                    </span>
-                    <span>•</span>
-                    <span className="flex items-center gap-1">
-                      <Clock className="w-3.5 h-3.5" />
-                      {art.readTimeMinutes} min read
-                    </span>
+                  <div className="flex items-center gap-2 font-mono text-xs text-slate-400">
+                    <Calendar className="w-3.5 h-3.5 text-[#16A34A]" />
+                    <span>{publishedDate}</span>
                   </div>
                 </div>
               </div>

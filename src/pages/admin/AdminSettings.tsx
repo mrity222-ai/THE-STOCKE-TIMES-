@@ -314,8 +314,55 @@ export const AdminSettings: React.FC = () => {
         )}
 
         {activeTab === 'seo' && (
-          <div className="space-y-4 max-w-2xl">
-            <h3 className="font-extrabold text-slate-900 text-sm border-b pb-2">Global SEO & Tracking Credentials</h3>
+          <div className="space-y-6 max-w-2xl">
+            <div className="flex items-center justify-between border-b pb-2">
+              <h3 className="font-extrabold text-slate-900 text-sm">Global SEO & Tracking Credentials</h3>
+              <a
+                href="/sitemap.xml"
+                target="_blank"
+                rel="noreferrer"
+                className="text-[11px] font-bold text-[#16A34A] hover:underline flex items-center gap-1"
+              >
+                <span>Live sitemap.xml ↗</span>
+              </a>
+            </div>
+
+            {/* AUTOMATED SITEMAP & GOOGLE INDEXING WIDGET */}
+            <div className="p-4 rounded-2xl bg-gradient-to-br from-slate-900 to-[#0B1F33] text-white space-y-3 border border-slate-800 shadow-sm">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-lg bg-[#16A34A]/20 text-[#16A34A] flex items-center justify-center font-bold">
+                    XML
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-xs text-white">Automated XML Sitemap Engine</h4>
+                    <p className="text-[10px] text-slate-300">Live dynamic sitemap updates whenever new articles or tools are added.</p>
+                  </div>
+                </div>
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-bold">
+                  ACTIVE
+                </span>
+              </div>
+
+              <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-800 text-[11px]">
+                <span className="font-mono text-slate-300">Target: /sitemap.xml</span>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      const res = await fetch('/api/sitemap/ping', { method: 'POST' });
+                      const data = await res.json();
+                      alert(data.message || 'Sitemap ping dispatches triggered!');
+                    } catch (e: any) {
+                      alert('Ping dispatched: ' + e.message);
+                    }
+                  }}
+                  className="px-3 py-1.5 rounded-lg bg-[#16A34A] hover:bg-[#15803D] text-white font-extrabold text-[11px] cursor-pointer transition-colors shadow-sm"
+                >
+                  🚀 Ping Google & Bing for Fast Indexing
+                </button>
+              </div>
+            </div>
 
             <div>
               <label className="font-bold text-slate-700 block mb-1">Default Meta Title</label>

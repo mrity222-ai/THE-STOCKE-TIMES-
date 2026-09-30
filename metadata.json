@@ -1,0 +1,7 @@
+{
+  "name": "TheStockTimes.online",
+  "description": "TheStockTimes.online provides finance news, investment insights, banking updates, personal finance guides, 20 financial calculators and 6 comparison tools for smarter financial decisions.",
+  "capabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

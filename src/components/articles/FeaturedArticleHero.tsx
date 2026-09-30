@@ -72,16 +72,12 @@ export const FeaturedArticleHero: React.FC<FeaturedArticleHeroProps> = ({ articl
                 <span className="text-white font-bold">The Stock Times</span>
               </div>
 
-              <div className="flex items-center gap-4 text-slate-400 font-mono text-[11px]">
-                {mainArticle.showPublishedDate !== false && (
-                  <span className="flex items-center gap-1">
-                    <Calendar className="w-3.5 h-3.5 text-emerald-400" />
-                    {formattedDate}
-                  </span>
-                )}
-                <span className="flex items-center gap-1"><Eye className="w-3.5 h-3.5 text-emerald-400" /> {(mainArticle.views || 0).toLocaleString()} views</span>
-                <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5 text-emerald-400" /> {mainArticle.readTimeMinutes} min read</span>
-              </div>
+              {mainArticle.showPublishedDate !== false && (
+                <div className="flex items-center gap-2 text-slate-300 font-mono text-[11px]">
+                  <Calendar className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>{formattedDate}</span>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -103,8 +99,8 @@ export const FeaturedArticleHero: React.FC<FeaturedArticleHeroProps> = ({ articl
               <div className="space-y-2 flex-1 min-w-0">
                 <div className="flex items-center justify-between text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
                   <span className="text-[#155EEF]">{art.subCategory || art.categoryId}</span>
-                  <span className="font-mono inline-flex items-center gap-1">
-                    <Eye className="w-3 h-3" /> {(art.views || 0).toLocaleString()}
+                  <span className="font-mono text-slate-500">
+                    {new Date(art.publishedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                   </span>
                 </div>
 
