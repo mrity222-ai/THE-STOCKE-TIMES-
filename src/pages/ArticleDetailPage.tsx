@@ -11,6 +11,7 @@ import { LatestArticlesSection } from '../components/articles/LatestArticlesSect
 import { SidebarRecommendedArticles } from '../components/articles/SidebarRecommendedArticles';
 import { TrendingArticles } from '../components/articles/TrendingArticles';
 import { NewsletterBox } from '../components/widgets/NewsletterBox';
+import { TopGainersLosersWidget } from '../components/TopGainersLosersWidget';
 import {
   Calendar,
   Clock,
@@ -37,7 +38,8 @@ import {
   BookOpen,
   X,
   Maximize2,
-  Minimize2
+  Minimize2,
+  ShieldCheck
 } from 'lucide-react';
 import { Article } from '../types';
 import { apiFetch } from '../services/apiConfig';
@@ -567,18 +569,24 @@ export const ArticleDetailPage: React.FC<ArticleDetailPageProps> = ({
           {/* Publication Metadata Row */}
           <div className="max-w-4xl flex flex-wrap items-center justify-between gap-4 pt-4 mt-6 border-t border-white/10 text-xs sm:text-sm font-sans">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full border-2 border-[#16A34A] bg-white/10 text-[#16A34A] flex items-center justify-center shadow-sm shrink-0">
-                <User className="w-5 h-5" />
+              <div className="w-10 h-10 rounded-full border-2 border-[#16A34A] bg-[#16A34A]/20 text-[#16A34A] flex items-center justify-center shadow-sm shrink-0">
+                <User className="w-5 h-5 text-emerald-400" />
               </div>
               <div>
-                <span className="font-bold text-white block text-sm sm:text-base">
-                  The Stock Times
+                <span className="font-bold text-white block text-sm sm:text-base flex items-center gap-2">
+                  <span>The Stock Times Research Desk</span>
+                  <span className="text-[10px] bg-emerald-500/20 text-emerald-300 font-extrabold px-2 py-0.5 rounded border border-emerald-500/30">VERIFIED ANALYST</span>
                 </span>
-                <span className="text-slate-400 text-xs font-mono block">Editorial Desk</span>
+                <span className="text-slate-400 text-xs font-mono block">Senior Equity & Macroeconomic Research Desk</span>
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-slate-300 font-medium font-mono text-xs sm:text-sm">
+            <div className="flex flex-wrap items-center gap-3 text-slate-300 font-medium font-mono text-xs sm:text-sm">
+              <span className="inline-flex items-center gap-1.5 bg-emerald-950/80 text-emerald-300 border border-emerald-500/30 px-3 py-1 rounded-full text-xs font-bold font-sans">
+                <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                <span>Editorial Fact-Checked & Reviewed</span>
+              </span>
+
               {article.showPublishedDate !== false && (
                 <span className="flex items-center gap-1.5">
                   <Calendar className="w-3.5 h-3.5 text-[#16A34A]" />
@@ -948,6 +956,9 @@ export const ArticleDetailPage: React.FC<ArticleDetailPageProps> = ({
 
               {/* Top Sidebar Responsive Ad Unit in Fixed-Height Wrapper */}
               <ResponsiveAdContainer placement="article_sidebar" format="sidebar" label="ADVERTISEMENT" />
+
+              {/* Real-Time Stock Market Movers Widget (Top Gainers / Losers / Crypto) */}
+              <TopGainersLosersWidget onSelectStockNews={(symbol) => onNavigate('search', symbol)} />
 
               {/* Trending Articles Component (Positioned Directly Beneath Sidebar Ad Placement) */}
               <TrendingArticles

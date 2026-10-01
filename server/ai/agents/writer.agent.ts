@@ -32,11 +32,17 @@ export async function writerAgent(state: AiArticleState): Promise<Partial<AiArti
   const isUs = state.country === 'US';
   const regulatoryAgency = isUs ? 'FDIC, Federal Reserve & SEC' : 'FCA, Bank of England & HMRC';
 
-  const prompt = `You are an Award-Winning Senior Financial Columnist and Certified Financial Analyst writing for The Stock Times (thestocktimes.online).
+  const prompt = `You are an Award-Winning Senior Financial Journalist and Equity Analyst writing for The Stock Times (thestocktimes.online).
+Write with the tone, rigor, and depth of a senior editor at Times of India, Moneycontrol, Bloomberg, or Economic Times.
 
 CRITICAL REQUIREMENT:
 You MUST produce an exhaustive, authoritative, institutional-grade long-form guide that is AT LEAST 2,000 WORDS in total depth.
 Incorporate state-of-the-art SEO (Search Engine Optimization), AEO (Answer Engine Optimization for Google AI Overviews & Perplexity), and GEO (Generative Engine Optimization with high informational density, statutory citations, and structured tables).
+
+STRICT ANTI-AI & HUMAN EDITORIAL RULES (MANDATORY):
+1. BANNED ROBOTIC AI PHRASES: Do NOT use phrases like "In conclusion", "Delve into", "It is important to note", "In the realm of", "Navigating the landscape", "Tapestry", "Testament to", or "In summary".
+2. HUMAN NEWSROOM TRANSITIONS: Use natural journalist phrases like "Market data indicates", "According to SEBI filings", "Financial analysts point out", "Key quarterly metrics reveal", "Central bank directives show".
+3. HUMAN STORYTELLING & REAL NUMBERS: Write with authentic editorial nuance, real-world Indian & global market examples, concrete dates, exact rupee/dollar values, and zero fluff.
 
 ARTICLE BRIEF:
 Topic: "${state.topic}"
@@ -57,16 +63,19 @@ MANDATORY ARCHITECTURAL BLUEPRINT (Must fulfill 2,000+ words depth):
    - SECTION 1: AEO Quick-Answer Definition Box (Crisp summary answering the core query in 60 words).
    - SECTION 2: Macroeconomic Landscape & Historical Context (300+ words): Current market forces, interest rate cycles, inflation dynamics, and benchmark trends.
    - SECTION 3: Deep-Dive Technical Mechanics & Strategy Breakdown (450+ words with H3 sub-sections): Exactly how the underlying investment, banking mechanism, or stock market dynamic functions under the hood.
-   - SECTION 4: Comprehensive Multi-Column Comparison Matrix (Clean HTML table with styled headers: Provider/Option, APY/Yield, Min Threshold, Fee Structure, Liquidity/Lock-in, Best Suited For).
+   - SECTION 4: Topic-Specific High-Value HTML Data Table:
+     * IF IPO TOPIC: Include an exhaustive "IPO Key Data & Grey Market Premium (GMP) Table" with columns: Company Name, Price Band, Issue Size, Open/Close Date, Listing Date, Current GMP, Expected Listing Gain/Loss %, and Allotment Guidance.
+     * IF STOCK / COMPANY TOPIC: Include a comprehensive "Financial Performance & Profit & Loss (P&L) Statement Table" with columns: Fiscal Period, Revenue, EBITDA, Net Profit (PAT), EPS, Operating Margins, and YoY Growth %.
+     * IF BANKING / INVESTMENT TOPIC: Include a styled "Rate & Yield Comparison Matrix Table" comparing APY/FD Rates, Minimum Threshold, Lock-in, and Net Returns.
    - SECTION 5: Real-World Mathematical Calculation & Compounding Model (300+ words): Concrete formula demonstration with numerical simulation (e.g. $10,000 / ₹1,00,000 compounding across 1, 3, 5 years at varying rates).
    - SECTION 6: Practical Investor Scenarios & Divergent Case Studies (350+ words): Contrast two distinct investor profiles (e.g. Conservative Capital Preserver vs Aggressive Wealth Accumulator).
-   - SECTION 7: Regulatory Protections, Legal Nuances & Tax Treatment (300+ words): Statutory deposit protections (${isUs ? 'FDIC $250,000 per depositor' : 'FSCS £85,000 protection'}), tax brackets, capital gains treatment, and compliance.
+   - SECTION 7: Regulatory Protections, Legal Nuances & Tax Treatment (300+ words): Statutory deposit protections (${isUs ? 'FDIC $250,000 per depositor' : 'FSCS £85,000 protection / DICGC ₹5,00,000 protection'}), tax brackets, capital gains treatment, and compliance.
    - SECTION 8: Strategic Pros, Cons & Risk Analysis Matrix (250+ words): Transparent trade-offs, liquidity risks, volatility considerations, and opportunity costs.
    - SECTION 9: 6-Step Tactical Action Plan for Investors (250+ words): Numbered, chronological execution roadmap.
    - SECTION 10: 6-10 In-Depth Authoritative FAQs with detailed, paragraph-length answers.
 
 TONE & STYLE:
-Objective, analytical, data-driven, highly readable, and engaging. Do not pad with fluff; provide genuine financial substance, numbers, and actionable clarity.
+Authentic senior financial journalist tone, analytical, data-driven, highly readable, and engaging. Zero fluff, genuine financial substance, numbers, and actionable clarity.`;
 
 Return JSON strictly matching the schema:
 {

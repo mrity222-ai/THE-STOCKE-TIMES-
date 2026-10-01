@@ -68,86 +68,38 @@ Return JSON strictly matching schema.`;
         searchSummary: liveSearchResult.text ? liveSearchResult.text.slice(0, 300) + '...' : 'Live internet scan complete.'
       };
     } catch (parseErr: any) {
-      console.warn('AutoPilot fallback trends:', parseErr.message);
+      console.warn('[AutoPilot] Dynamic trend generation fallback:', parseErr.message);
 
-      // Rotating pools across categories and markets so each scan produces fresh, different topics
-      const TREND_POOLS = [
-        // Batch 1: Equities & Indexes
-        {
-          topic: searchQuery ? `Breaking Market Update: ${searchQuery}` : 'Nifty 50, Sensex & Wall Street: Benchmark Rally, Valuations & FII Inflows',
-          category: 'stock-market',
-          country: (market === 'IN' ? 'IN' : 'GLOBAL') as any,
-          rationale: 'Massive intraday volume, option chain shifts, and global institutional capital allocation.',
-          urgency: 'HIGH' as const,
-          suggestedTags: ['Nifty50', 'Sensex', 'StockMarket', 'TradingStrategy', 'FII']
-        },
-        // Batch 2: Banking & Savings
-        {
-          topic: searchQuery ? `Banking & Yield Analysis: ${searchQuery}` : 'Top High-Yield Savings Accounts & Fixed Deposits: New 2026 Rate Hikes vs Fed Outlook',
-          category: 'banking',
-          country: (market === 'US' ? 'US' : 'GLOBAL') as any,
-          rationale: 'Investors locking in peak risk-free rates before anticipated monetary policy pivots.',
-          urgency: 'HIGH' as const,
-          suggestedTags: ['Banking', 'HighYieldSavings', 'FixedDeposits', 'InterestRates', 'FDIC']
-        },
-        // Batch 3: Mutual Funds & Wealth Building
-        {
-          topic: 'SIP vs Lumpsum Compounding Blueprint: Maximizing Long-Term Alpha in Volatile Markets',
-          category: 'investment',
-          country: 'GLOBAL' as any,
-          rationale: 'Retail systematic investment plans scaling to historic monthly inflows.',
-          urgency: 'MEDIUM' as const,
-          suggestedTags: ['SIP', 'MutualFunds', 'WealthCreation', 'Compounding', 'IndexFunds']
-        },
-        // Batch 4: Gold & Commodities
-        {
-          topic: 'Gold vs Silver Price Outlook: Central Bank Bullion Reserves & Inflation Hedge Dynamics',
-          category: 'investment',
-          country: 'GLOBAL' as any,
-          rationale: 'Precious metals testing record technical breakout levels amidst currency realignments.',
-          urgency: 'HIGH' as const,
-          suggestedTags: ['Gold', 'Silver', 'Commodities', 'InflationHedge', 'CentralBanks']
-        },
-        // Batch 5: IPOs & Grey Market
-        {
-          topic: 'Upcoming IPO Watch & Grey Market Premium (GMP): Valuation Metrics & Allotment Strategy',
-          category: 'ipo',
-          country: (market === 'IN' ? 'IN' : 'US') as any,
-          rationale: 'High retail subscription rates and institutional QIB anchor book bids.',
-          urgency: 'HIGH' as const,
-          suggestedTags: ['IPO', 'GMP', 'StockListing', 'GreyMarket', 'PrimaryMarket']
-        },
-        // Batch 6: Real Estate & Mortgages
-        {
-          topic: 'Commercial REITs vs Residential Property: Yield Comparison & Tax Advantages in 2026',
-          category: 'personal-finance',
-          country: 'GLOBAL' as any,
-          rationale: 'Institutional real estate investment trusts offering attractive passive dividend yields.',
-          urgency: 'MEDIUM' as const,
-          suggestedTags: ['RealEstate', 'REITs', 'PassiveIncome', 'Mortgages', 'Property']
-        },
-        // Batch 7: Tax Planning
-        {
-          topic: 'New Tax Regime vs Old Tax Regime: Deductions, Slabs & Optimal Salary Restructuring',
-          category: 'personal-finance',
-          country: (market === 'IN' ? 'IN' : 'US') as any,
-          rationale: 'Fiscal year-end tax optimization and statutory wealth preservation strategies.',
-          urgency: 'HIGH' as const,
-          suggestedTags: ['TaxPlanning', 'IncomeTax', '80C', 'Deductions', 'FinancialPlanning']
-        }
-      ];
+      const dynamicFallbackPrompt = `Generate 5 fresh, high-intent breaking financial topic headlines for ${market} market right now across categories: stock-market, banking, investment, ipo, personal-finance.
+Query: "${queryToUse}"
+Return JSON matching schema.`;
 
-      // Shuffle trends based on timestamp so every click shows fresh different articles
-      const shuffled = [...TREND_POOLS].sort(() => Math.random() - 0.5);
-
-      return {
-        trends: shuffled.slice(0, 5),
-        rawSources: liveSearchResult.sources || [
-          { title: 'Global Financial Markets & Exchange Feed', url: 'https://finance.yahoo.com' },
-          { title: 'Central Bank Statutory Filings', url: 'https://www.reuters.com/markets' }
-        ],
-        searchSummary: 'Real-time financial trends curated across equities, banking, commodities, and wealth building.'
-      };
+      try {
+        const dynamicStructured = await GeminiService.generateStructuredJson(dynamicFallbackPrompt, DiscoveredTrendSchema, 'Dynamic Trend Generator');
+        return {
+          trends: dynamicStructured.data.trends,
+          rawSources: liveSearchResult.sources || [],
+          searchSummary: 'Real-time financial trends generated dynamically.'
+        };
+      } catch (innerErr: any) {
+        // Fallback to dynamic headline constructed from search query or timestamp
+        const timeStamp = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        const cleanQuery = searchQuery ? searchQuery.trim() : 'Global Market Intelligence';
+        return {
+          trends: [
+            {
+              topic: `${cleanQuery}: ${timeStamp} Key Stock & Financial Breakdown`,
+              category: category !== 'all' ? category : 'stock-market',
+              country: market,
+              rationale: 'Real-time financial market movement and investment analysis.',
+              urgency: 'HIGH',
+              suggestedTags: ['MarketUpdate', 'StockMarket', 'Finance', 'Investment']
+            }
+          ],
+          rawSources: liveSearchResult.sources || [],
+          searchSummary: 'Dynamic trend generated.'
+        };
+      }
     }
   }
 

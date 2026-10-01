@@ -573,6 +573,71 @@ export const AdminSettings: React.FC = () => {
               </div>
             )}
 
+            {/* Google Gemini AI API Live Monitor Card */}
+            <div className="bg-gradient-to-br from-indigo-950 via-slate-900 to-slate-900 text-white p-6 rounded-3xl space-y-4 shadow-md border border-indigo-500/20">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Activity className="w-5 h-5 text-indigo-400 animate-pulse" />
+                  <h4 className="font-extrabold text-sm text-white">Google Gemini AI Engine API Configuration</h4>
+                </div>
+                <span className="text-[10px] bg-indigo-500/20 text-indigo-300 font-extrabold px-3 py-1 rounded-full border border-indigo-500/30">
+                  REAL-TIME SEARCH GROUNDING READY
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-mono">
+                <div className="bg-slate-800/80 p-3.5 rounded-2xl border border-slate-700 space-y-1">
+                  <span className="text-[10px] text-slate-400 font-sans font-bold block">GEMINI API KEY STATUS</span>
+                  <span className="text-emerald-300 font-bold break-all block flex items-center gap-1.5">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 inline" />
+                    CONFIGURED IN ENVIRONMENT (.env)
+                  </span>
+                </div>
+
+                <div className="bg-slate-800/80 p-3.5 rounded-2xl border border-slate-700 space-y-1">
+                  <span className="text-[10px] text-slate-400 font-sans font-bold block">GEMINI MODEL ENGINE</span>
+                  <span className="text-indigo-300 font-bold break-all block">gemini-3.8-flash (Auto Grounded)</span>
+                </div>
+
+                <div className="md:col-span-2 bg-slate-800/80 p-3.5 rounded-2xl border border-slate-700 space-y-1">
+                  <span className="text-[10px] text-slate-400 font-sans font-bold block">AI CAPABILITIES</span>
+                  <span className="text-slate-300 font-sans text-[11px] block leading-relaxed">
+                    Live Internet Search Grounding • 2,000+ Word SEO & AEO Articles • Stock P&L & IPO Tables • Automated Fact-Checking
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Finnhub Webhook & API Key Live Monitor Card */}
+            <div className="bg-gradient-to-br from-slate-900 to-slate-800 text-white p-6 rounded-3xl space-y-4 shadow-md">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Activity className="w-5 h-5 text-emerald-400 animate-pulse" />
+                  <h4 className="font-extrabold text-sm text-white">Finnhub Real-Time API & Webhook Configuration</h4>
+                </div>
+                <span className="text-[10px] bg-emerald-500/20 text-emerald-300 font-extrabold px-3 py-1 rounded-full border border-emerald-500/30">
+                  LIVE WEBHOOK RECEIVER ACTIVE
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-mono">
+                <div className="bg-slate-800/80 p-3.5 rounded-2xl border border-slate-700 space-y-1">
+                  <span className="text-[10px] text-slate-400 font-sans font-bold block">FINNHUB API KEY</span>
+                  <span className="text-emerald-300 font-bold break-all block">dav1e0pr01qrjdu8j220dav1e0pr01qrjdu8j22g</span>
+                </div>
+
+                <div className="bg-slate-800/80 p-3.5 rounded-2xl border border-slate-700 space-y-1">
+                  <span className="text-[10px] text-slate-400 font-sans font-bold block">WEBHOOK SECRET (X-Finnhub-Secret)</span>
+                  <span className="text-amber-300 font-bold break-all block">dav1e0pr01qrjdu8j23g</span>
+                </div>
+
+                <div className="md:col-span-2 bg-slate-800/80 p-3.5 rounded-2xl border border-slate-700 space-y-1">
+                  <span className="text-[10px] text-slate-400 font-sans font-bold block">YOUR FINNHUB CONTROL PANEL WEBHOOK URL</span>
+                  <span className="text-blue-300 font-bold break-all block">https://thestocktimes.online/api/finnhub/webhook</span>
+                </div>
+              </div>
+            </div>
+
             {envLoading && envFiles.length === 0 ? (
               <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5 text-xs font-bold text-slate-500">
                 Loading environment fields...

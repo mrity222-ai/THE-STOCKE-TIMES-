@@ -9,6 +9,7 @@
     "server": "tsx server/index.ts",
     "dev:full": "tsx server.ts",
     "build": "tsc && vite build",
+    "db:init": "tsx -e \"import { initializeDatabaseTablesAndSeeds } from './server/config/dbInit'; initializeDatabaseTablesAndSeeds();\"",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview"
   },

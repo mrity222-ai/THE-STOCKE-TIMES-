@@ -746,6 +746,42 @@ export const AdminArticleEditor: React.FC<AdminArticleEditorProps> = ({ initialA
             </div>
           </div>
 
+          {/* Featured Cover Image Card (Manual Upload & Edit Option) */}
+          <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+            <h3 className="font-extrabold text-slate-900 text-sm border-b border-slate-100 pb-3 flex items-center gap-2">
+              <Globe className="w-4 h-4 text-blue-600" /> Featured Cover Image
+            </h3>
+
+            <div className="space-y-3 text-xs">
+              <div>
+                <label className="font-bold text-slate-700 block mb-1">Manual Featured Image URL / Upload</label>
+                <input
+                  type="text"
+                  value={formData.featuredImage || ''}
+                  onChange={(e) => setFormData({ ...formData, featuredImage: e.target.value })}
+                  placeholder="Paste Image URL (e.g. https://images.unsplash.com/...)"
+                  className="w-full p-2.5 rounded-xl border border-slate-300 font-mono text-[11px]"
+                />
+                <p className="text-[10px] text-slate-500 mt-1">
+                  Optional. Leave blank to auto-use dynamic topic cover photo.
+                </p>
+              </div>
+
+              {formData.featuredImage && (
+                <div className="mt-2 rounded-2xl overflow-hidden border border-slate-200 max-h-40 bg-slate-100">
+                  <img
+                    src={formData.featuredImage}
+                    alt="Featured Cover Preview"
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&w=1200&q=80';
+                    }}
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+
           {/* Tags Card */}
           <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
             <h3 className="font-extrabold text-slate-900 text-sm border-b border-slate-100 pb-3 flex items-center gap-2">

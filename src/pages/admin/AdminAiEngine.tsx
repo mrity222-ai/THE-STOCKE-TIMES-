@@ -30,7 +30,7 @@ import { StorageService } from '../../services/storageService';
 interface AiJobItem {
   id: string;
   topic: string;
-  country: 'US' | 'UK';
+  country: 'IN' | 'GLOBAL' | 'US' | 'UK';
   category: string;
   status: string;
   currentAgent: string;
@@ -52,9 +52,9 @@ export const AdminAiEngine: React.FC<AdminAiEngineProps> = ({ onNavigateToEditor
   const [jobs, setJobs] = useState<AiJobItem[]>([]);
   const [selectedJob, setSelectedJob] = useState<AiJobItem | null>(null);
   const [loading, setLoading] = useState(false);
-  const [manualTopic, setManualTopic] = useState('Best High-Yield Savings Accounts in the US 2026');
+  const [manualTopic, setManualTopic] = useState('');
   const [manualCategory, setManualCategory] = useState('personal-finance');
-  const [manualCountry, setManualCountry] = useState<'US' | 'UK'>('US');
+  const [manualCountry, setManualCountry] = useState<'IN' | 'GLOBAL' | 'US' | 'UK'>('IN');
   const [activeTab, setActiveTab] = useState<'preview' | 'shorts' | 'sources' | 'faqs' | 'seo'>('preview');
   const [toastMsg, setToastMsg] = useState('');
 
@@ -339,11 +339,11 @@ export const AdminAiEngine: React.FC<AdminAiEngineProps> = ({ onNavigateToEditor
   };
 
   const TRENDING_SUGGESTIONS = [
-    { title: "Best High-Yield Savings Accounts in US 2026", cat: "banking", country: "US" as const },
-    { title: "Fed Interest Rate Cut Impact on Mortgage & Loans", cat: "personal-finance", country: "US" as const },
-    { title: "Top 5 Cashback Credit Cards for Beginners 2026", cat: "credit-cards", country: "US" as const },
-    { title: "UK ISA Tax-Free Savings Allowance Guide 2026", cat: "personal-finance", country: "UK" as const },
-    { title: "Bank Fixed Deposits vs Equity Mutual Funds 2026", cat: "investment", country: "US" as const }
+    { title: "NIFTY 50 Record High & Indian Stock Market Trends 2026", cat: "stock-market", country: "IN" as const },
+    { title: "Upcoming Mainboard IPO Live GMP & Allotment Status", cat: "ipo", country: "IN" as const },
+    { title: "SIP Mutual Funds vs Fixed Deposit (FD) Yields 2026", cat: "investment", country: "IN" as const },
+    { title: "Corporate Q2 Earnings Net Profit (PAT) & Revenue Growth", cat: "finance-news", country: "IN" as const },
+    { title: "Indian Income Tax New Tax Regime vs Old Slabs Guide", cat: "personal-finance", country: "IN" as const }
   ];
 
   const handleTriggerPipeline = async (e: React.FormEvent) => {
@@ -902,7 +902,7 @@ export const AdminAiEngine: React.FC<AdminAiEngineProps> = ({ onNavigateToEditor
         <div className="bg-slate-900/60 p-3 rounded-2xl border border-slate-700/60 space-y-2">
           <div className="flex items-center justify-between text-[11px] font-bold text-slate-300">
             <span className="flex items-center gap-1.5 text-amber-400">
-              <Search className="w-3.5 h-3.5" /> ⚡ Quick Search Intent Themes (US & UK)
+              <Search className="w-3.5 h-3.5" /> ⚡ Quick Search Intent Themes (Indian & Global Markets)
             </span>
             <span className="text-[10px] text-slate-400 font-mono">1-Click Pick Topic</span>
           </div>
@@ -918,7 +918,7 @@ export const AdminAiEngine: React.FC<AdminAiEngineProps> = ({ onNavigateToEditor
                 }}
                 className="bg-slate-800/80 hover:bg-emerald-600/30 text-slate-200 hover:text-white border border-slate-700 hover:border-emerald-500/50 px-3 py-1 rounded-xl text-[11px] font-medium transition-all text-left truncate max-w-[280px]"
               >
-                {item.country === 'US' ? '🇺🇸' : '🇬🇧'} {item.title}
+                {item.country === 'IN' ? '🇮🇳' : item.country === 'GLOBAL' ? '🌐' : item.country === 'US' ? '🇺🇸' : '🇬🇧'} {item.title}
               </button>
             ))}
           </div>
@@ -932,7 +932,7 @@ export const AdminAiEngine: React.FC<AdminAiEngineProps> = ({ onNavigateToEditor
               required
               value={manualTopic}
               onChange={(e) => setManualTopic(e.target.value)}
-              placeholder="Enter finance topic (e.g. Best High-Yield Savings Accounts in US 2026)..."
+              placeholder="Enter market topic (e.g. Tata Motors Q2 Results, Mainboard IPO Live GMP, Nifty 50 Target)..."
               className="w-full bg-slate-900/90 text-white text-xs font-semibold px-4 py-2.5 rounded-xl border border-slate-700 placeholder-slate-400 focus:outline-none focus:border-emerald-500"
             />
           </div>
@@ -947,6 +947,7 @@ export const AdminAiEngine: React.FC<AdminAiEngineProps> = ({ onNavigateToEditor
             <option value="stock-market">Stock Market</option>
             <option value="investment">Investment & SIP</option>
             <option value="finance-news">Finance News</option>
+            <option value="ipo">IPO News</option>
           </select>
 
           <select
@@ -954,6 +955,8 @@ export const AdminAiEngine: React.FC<AdminAiEngineProps> = ({ onNavigateToEditor
             onChange={(e) => setManualCountry(e.target.value as any)}
             className="bg-slate-900/90 text-white text-xs font-bold px-3 py-2.5 rounded-xl border border-slate-700"
           >
+            <option value="IN">🇮🇳 India Market (NSE/BSE)</option>
+            <option value="GLOBAL">🌐 Global Market</option>
             <option value="US">🇺🇸 US Market</option>
             <option value="UK">🇬🇧 UK Market</option>
           </select>

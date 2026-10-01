@@ -6,7 +6,9 @@ import crypto from 'crypto';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { pool, testConnection } from './config/db';
+import { initializeDatabaseTablesAndSeeds } from './config/dbInit';
 import { SitemapService } from './sitemapService';
+import { IndexingService } from './services/indexingService';
 import { INITIAL_ARTICLES, INITIAL_CATEGORIES } from '../src/data/initialData';
 import { EXTRA_DATABASE_ARTICLES } from './seeds/extraDatabaseArticles';
 
@@ -716,6 +718,8 @@ async function initializeTables() {
   try {
     const isConnected = await testConnection();
     if (!isConnected) return;
+
+    await initializeDatabaseTablesAndSeeds();
 
     const ensureColumns = async (tableName: string, columns: Record<string, string>) => {
       const [existingRows]: any = await pool.query(
@@ -1476,14 +1480,29 @@ app.post('/api/articles/:id/view', async (req: Request, res: Response) => {
 
 
 
-app.delete('/api/articles/:id', async (req: Request, res: Response) => {
+const handleDeleteArticle = async (req: Request, res: Response) => {
   try {
-    await pool.query('DELETE FROM articles WHERE id = ?', [req.params.id]);
-    res.json({ message: 'Article deleted from MySQL' });
+    const { id } = req.params;
+    const targetId = String(id || '').trim();
+    if (targetId) {
+      deletedArticleIds.add(targetId);
+      const targetArticle = inMemoryArticlesStore.find(a => a.id === targetId || a.slug === targetId);
+      if (targetArticle?.slug) deletedArticleIds.add(targetArticle.slug);
+      if (targetArticle?.id) deletedArticleIds.add(targetArticle.id);
+
+      inMemoryArticlesStore = inMemoryArticlesStore.filter(a => a.id !== targetId && a.slug !== targetId);
+      try {
+        await pool.query('DELETE FROM articles WHERE id = ? OR slug = ?', [targetId, targetId]);
+      } catch (e) { }
+    }
+    res.json({ success: true, message: 'Article deleted successfully.' });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ success: false, message: err.message });
   }
-});
+};
+
+app.delete('/api/articles/:id', handleDeleteArticle);
+app.delete('/api/admin/articles/:id', handleDeleteArticle);
 
 app.post('/api/users', async (req: Request, res: Response) => {
   try {
@@ -1767,6 +1786,27 @@ app.get('/api/finnhub/us-quote/:symbol', async (req: Request, res: Response) => 
     });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+// FINNHUB REAL-TIME WEBHOOK RECEIVER ENDPOINT
+app.post('/api/finnhub/webhook', (req: Request, res: Response) => {
+  try {
+    const receivedSecret = String(req.headers['x-finnhub-secret'] || '');
+    const configuredSecret = process.env.FINNHUB_WEBHOOK_SECRET || 'dav1e0pr01qrjdu8j23g';
+
+    if (configuredSecret && receivedSecret && receivedSecret !== configuredSecret) {
+      console.warn('⚠️ Finnhub Webhook secret mismatch:', receivedSecret);
+    }
+
+    // Immediately acknowledge event with HTTP 200 OK status to prevent Finnhub timeouts/disabling
+    res.status(200).json({ success: true, received: true, timestamp: new Date().toISOString() });
+    
+    if (req.body) {
+      console.log('⚡ Finnhub Real-Time Webhook Event Received:', JSON.stringify(req.body).slice(0, 200));
+    }
+  } catch (err: any) {
+    res.status(200).json({ success: true, error: err.message });
   }
 });
 
@@ -2443,6 +2483,12 @@ export async function saveArticleRecord(article: any) {
     console.warn('MySQL article save unavailable; using in-memory article fallback:', dbErr.message);
   }
 
+  // Instant Search Engine Auto-Indexing Trigger
+  if (articleToSave.slug && articleToSave.status === 'published') {
+    const fullUrl = `https://thestocktimes.online/article/${articleToSave.slug}`;
+    void IndexingService.notifySearchEnginesOfNewContent(fullUrl);
+  }
+
   return articleToSave;
 }
 
@@ -2471,31 +2517,6 @@ const handleSaveArticle = async (req: Request, res: Response) => {
 
 app.post('/api/articles', handleSaveArticle);
 app.post('/api/admin/articles', handleSaveArticle);
-
-// DELETE ARTICLE
-const handleDeleteArticle = async (req: Request, res: Response) => {
-  try {
-    const { id } = req.params;
-    const targetId = String(id || '').trim();
-    if (targetId) {
-      deletedArticleIds.add(targetId);
-      const targetArticle = inMemoryArticlesStore.find(a => a.id === targetId || a.slug === targetId);
-      if (targetArticle?.slug) deletedArticleIds.add(targetArticle.slug);
-      if (targetArticle?.id) deletedArticleIds.add(targetArticle.id);
-
-      inMemoryArticlesStore = inMemoryArticlesStore.filter(a => a.id !== targetId && a.slug !== targetId);
-      try {
-        await pool.query('DELETE FROM articles WHERE id = ? OR slug = ?', [targetId, targetId]);
-      } catch (e) { }
-    }
-    res.json({ success: true, message: 'Article deleted successfully.' });
-  } catch (err: any) {
-    res.status(500).json({ success: false, message: err.message });
-  }
-};
-
-app.delete('/api/articles/:id', handleDeleteArticle);
-app.delete('/api/admin/articles/:id', handleDeleteArticle);
 
 // AI CONTENT ENGINE REST ENDPOINTS
 import { GeminiService } from './ai/services/geminiService';

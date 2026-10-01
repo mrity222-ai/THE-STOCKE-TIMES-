@@ -75,15 +75,10 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({ onSuccess, onC
 
       if (data.success && data.requiresOtp) {
         setTempToken(data.tempToken);
-        setOtpDebugCode(data.otpDebug || '');
-        if (data.otpDebug) {
-          setOtpCode(data.otpDebug); // Auto-fill so user is never stuck if SMTP is delayed
-        }
+        setOtpCode(''); // Keep blank so user manually enters code sent to email
         setViewMode('otp');
         setCooldown(60);
-        setSuccessMessage(data.otpDebug 
-          ? `Login OTP generated: ${data.otpDebug} (auto-filled below)` 
-          : `Login OTP code sent to ${username}`);
+        setSuccessMessage(`Security OTP code sent to ${username}. Please check your email inbox.`);
       } else {
         const localRes = StorageService.loginAdmin(username, password);
         if (localRes.success) {
@@ -385,20 +380,6 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({ onSuccess, onC
               <label className="text-[11px] font-extrabold text-slate-300 uppercase tracking-wider block text-center">
                 Enter 6-Digit Login OTP Code
               </label>
-
-              {otpDebugCode && (
-                <div className="p-3 bg-emerald-950/70 border border-emerald-500/50 rounded-xl text-center space-y-1">
-                  <span className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider block">
-                    ⚡ Instant Security OTP
-                  </span>
-                  <div className="text-xl font-mono font-extrabold text-emerald-300 tracking-widest">
-                    {otpDebugCode}
-                  </div>
-                  <p className="text-[10px] text-slate-400">
-                    Auto-filled in the box below for your convenience.
-                  </p>
-                </div>
-              )}
 
               <input
                 type="text"

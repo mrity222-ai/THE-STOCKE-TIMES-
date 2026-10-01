@@ -10,6 +10,7 @@ import { SipCalculatorWidget } from '../components/widgets/SipCalculatorWidget';
 import { NewsletterBox } from '../components/widgets/NewsletterBox';
 import { AdSlot } from '../components/ads/AdSlot';
 import { ResponsiveAdContainer } from '../components/ads/ResponsiveAdContainer';
+import { TopGainersLosersWidget } from '../components/TopGainersLosersWidget';
 import { TrendingUp, Wallet, Building2, PieChart, Newspaper, ArrowRight, Flame, Calculator, Sparkles, Clock, Layers } from 'lucide-react';
 
 interface HomePageProps {
@@ -269,6 +270,9 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
 
         {/* Right Sidebar (4 Cols - Supporting Module Stack) */}
         <aside className="lg:col-span-4 space-y-6 lg:sticky lg:top-24 self-start">
+
+          {/* Module 0: Live Top Gainers & Losers Market Movers Widget */}
+          <TopGainersLosersWidget onSelectStockNews={(symbol) => onNavigate('search', symbol)} />
 
           {/* Module 1: MOST READ STORIES (Spacious layout, optional thumbnails, font readability) */}
           <div className="bg-white rounded-2xl p-6 border border-[#E2E8F0] shadow-sm space-y-4">
