@@ -234,7 +234,7 @@ app.use('/api/smtp-config', requireAdminAuth);
 app.use('/api/users', requireAdminAuth);
 app.use('/api/subscribers/notify-article', requireAdminAuth);
 app.use('/api/articles', (req, res, next) => {
-  if (req.method === 'GET' || req.method === 'POST') return next();
+  if (req.method === 'GET' || req.method === 'POST' || req.method === 'DELETE') return next();
   return requireAdminAuth(req, res, next);
 });
 app.use('/api/financial-rules', (req, res, next) => {
@@ -2292,6 +2292,8 @@ app.post('/api/subscribers/notify-article', async (req: Request, res: Response) 
 
 const CODE_ARTICLE_SEEDS = [...INITIAL_ARTICLES, ...EXTRA_DATABASE_ARTICLES];
 
+const deletedArticleIds = new Set<string>();
+
 // IN-MEMORY ARTICLES STORE WITH MYSQL DATABASE SYNC
 let inMemoryArticlesStore: any[] = [...CODE_ARTICLE_SEEDS];
 
@@ -2326,10 +2328,12 @@ const mergeArticlesForPublicFeed = (articles: any[] = []) => {
   [...CODE_ARTICLE_SEEDS, ...articles].forEach((article) => {
     const key = getArticleMergeKey(article);
     if (!key) return;
+    if (deletedArticleIds.has(String(article.id)) || deletedArticleIds.has(String(article.slug))) return;
     merged.set(key, article);
   });
 
   return Array.from(merged.values())
+    .filter(article => !deletedArticleIds.has(String(article.id)) && !deletedArticleIds.has(String(article.slug)))
     .filter(isPublicReadyArticle)
     .sort((a, b) => getArticleSortTime(b) - getArticleSortTime(a));
 };
@@ -2472,10 +2476,18 @@ app.post('/api/admin/articles', handleSaveArticle);
 const handleDeleteArticle = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    inMemoryArticlesStore = inMemoryArticlesStore.filter(a => a.id !== id);
-    try {
-      await pool.query('DELETE FROM articles WHERE id = ?', [id]);
-    } catch (e) { }
+    const targetId = String(id || '').trim();
+    if (targetId) {
+      deletedArticleIds.add(targetId);
+      const targetArticle = inMemoryArticlesStore.find(a => a.id === targetId || a.slug === targetId);
+      if (targetArticle?.slug) deletedArticleIds.add(targetArticle.slug);
+      if (targetArticle?.id) deletedArticleIds.add(targetArticle.id);
+
+      inMemoryArticlesStore = inMemoryArticlesStore.filter(a => a.id !== targetId && a.slug !== targetId);
+      try {
+        await pool.query('DELETE FROM articles WHERE id = ? OR slug = ?', [targetId, targetId]);
+      } catch (e) { }
+    }
     res.json({ success: true, message: 'Article deleted successfully.' });
   } catch (err: any) {
     res.status(500).json({ success: false, message: err.message });

@@ -91,16 +91,16 @@ export const AdminArticles: React.FC<AdminArticlesProps> = ({ onNavigateSub, onE
     }
   };
 
-  const handleBulkDelete = () => {
+  const handleBulkDelete = async () => {
     if (selectedIds.length === 0) return;
     if (isAuthorRole) {
       showToast('Authors cannot bulk delete articles.');
       return;
     }
     if (window.confirm(`Delete ${selectedIds.length} selected articles?`)) {
-      StorageService.bulkDeleteArticles(selectedIds);
+      await StorageService.bulkDeleteArticles(selectedIds);
       setSelectedIds([]);
-      refreshArticles();
+      await refreshArticles();
       showToast(`${selectedIds.length} articles deleted.`);
     }
   };
@@ -125,14 +125,14 @@ export const AdminArticles: React.FC<AdminArticlesProps> = ({ onNavigateSub, onE
     showToast(`${selectedIds.length} articles moved to draft.`);
   };
 
-  const handleDeleteSingle = (id: string) => {
+  const handleDeleteSingle = async (id: string) => {
     if (isAuthorRole) {
       showToast('Authors cannot delete articles.');
       return;
     }
     if (window.confirm('Delete this article?')) {
-      StorageService.deleteArticle(id);
-      refreshArticles();
+      await StorageService.deleteArticle(id);
+      await refreshArticles();
       showToast('Article deleted.');
     }
   };

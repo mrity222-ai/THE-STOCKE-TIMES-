@@ -292,20 +292,23 @@ export class StorageService {
     return updatedArticle;
   }
 
-  static deleteArticle(id: string): boolean {
+  static async deleteArticle(id: string): Promise<boolean> {
     try {
-      const articles = this.getArticles().filter(a => a.id !== id);
+      const articles = this.getArticles().filter(a => a.id !== id && a.slug !== id);
       localStorage.setItem(ARTICLES_STORAGE_KEY, JSON.stringify(articles));
-      adminApiFetch(`/articles/${id}`, { method: 'DELETE' }).catch(() => { });
+      await adminApiFetch(`/articles/${id}`, { method: 'DELETE' }).catch(() => { });
       return true;
     } catch (e) {
       return false;
     }
   }
 
-  static bulkDeleteArticles(ids: string[]): void {
-    const articles = this.getArticles().filter(a => !ids.includes(a.id));
+  static async bulkDeleteArticles(ids: string[]): Promise<void> {
+    const articles = this.getArticles().filter(a => !ids.includes(a.id) && !ids.includes(a.slug));
     localStorage.setItem(ARTICLES_STORAGE_KEY, JSON.stringify(articles));
+    await Promise.all(
+      ids.map(id => adminApiFetch(`/articles/${id}`, { method: 'DELETE' }).catch(() => { }))
+    );
   }
 
   static bulkUpdateStatus(ids: string[], status: 'published' | 'draft' | 'scheduled'): void {
