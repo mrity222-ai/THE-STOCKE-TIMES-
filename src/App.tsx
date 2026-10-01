@@ -127,10 +127,10 @@ export function App() {
         `${calcMeta.name} — Free Financial Calculator | The Stock Times`,
         calcMeta.description,
         'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&w=1200&q=80',
-        `${domain}/financial-tools/${calcMeta.id}`
+        `${domain}/${calcMeta.id}`
       );
       SeoService.injectJsonLd([
-        SeoService.generateWebApplicationSchema(calcMeta.name, calcMeta.description, `${domain}/financial-tools/${calcMeta.id}`),
+        SeoService.generateWebApplicationSchema(calcMeta.name, calcMeta.description, `${domain}/${calcMeta.id}`),
         SeoService.generateFaqSchema([
           {
             question: `What is the ${calcMeta.name}?`,
@@ -143,7 +143,7 @@ export function App() {
         ])!,
         SeoService.generateBreadcrumbSchema([
           { name: 'Financial Tools', url: '/financial-tools' },
-          { name: calcMeta.name, url: `/financial-tools/${calcMeta.id}` }
+          { name: calcMeta.name, url: `/${calcMeta.id}` }
         ])
       ]);
       return;
@@ -154,10 +154,10 @@ export function App() {
         `${compMeta.name} — Comparison Tool | The Stock Times`,
         compMeta.shortDescription,
         'https://images.unsplash.com/photo-1590283603385-17ffb3a7f29f?auto=format&fit=crop&w=1200&q=80',
-        `${domain}/comparison-tools/${compMeta.id}`
+        `${domain}/${compMeta.id}`
       );
       SeoService.injectJsonLd([
-        SeoService.generateWebApplicationSchema(compMeta.name, compMeta.shortDescription, `${domain}/comparison-tools/${compMeta.id}`),
+        SeoService.generateWebApplicationSchema(compMeta.name, compMeta.shortDescription, `${domain}/${compMeta.id}`),
         SeoService.generateFaqSchema([
           {
             question: `What does ${compMeta.name} compare?`,
@@ -170,7 +170,7 @@ export function App() {
         ])!,
         SeoService.generateBreadcrumbSchema([
           { name: 'Comparison Tools', url: '/comparison-tools' },
-          { name: compMeta.name, url: `/comparison-tools/${compMeta.id}` }
+          { name: compMeta.name, url: `/${compMeta.id}` }
         ])
       ]);
       return;
@@ -404,9 +404,9 @@ export function App() {
     } else if (route === 'comparison-tools') {
       pathStr = '/comparison-tools';
     } else if (getCalculatorMetaById(route as CalculatorId)) {
-      pathStr = `/financial-tools/${route}`;
+      pathStr = `/${route}`;
     } else if (getComparisonMetaById(route as ComparisonToolId)) {
-      pathStr = `/comparison-tools/${route}`;
+      pathStr = `/${route}`;
     } else if (route !== 'home') {
       pathStr = `/${route}`;
     }

@@ -5,7 +5,7 @@ export const CALCULATORS_REGISTRY: CalculatorMeta[] = [
   {
     id: 'emi-calculator',
     name: 'EMI Calculator',
-    url: '/financial-tools/emi-calculator',
+    url: '/emi-calculator',
     category: 'Loans & EMI',
     description: 'Calculate your monthly loan EMI, total interest, and complete repayment schedule for Home, Personal, Car, or Education loans.',
     iconName: 'Calculator',
@@ -14,7 +14,7 @@ export const CALCULATORS_REGISTRY: CalculatorMeta[] = [
   {
     id: 'loan-eligibility-calculator',
     name: 'Loan Eligibility Calculator',
-    url: '/financial-tools/loan-eligibility-calculator',
+    url: '/loan-eligibility-calculator',
     category: 'Loans & EMI',
     description: 'Determine the maximum loan amount you can borrow based on your monthly income, existing EMIs, and debt-to-income ratio.',
     iconName: 'Building2',
@@ -25,7 +25,7 @@ export const CALCULATORS_REGISTRY: CalculatorMeta[] = [
   {
     id: 'sip-calculator',
     name: 'SIP Calculator',
-    url: '/financial-tools/sip-calculator',
+    url: '/sip-calculator',
     category: 'Investment',
     description: 'Calculate potential mutual fund wealth accumulation and compounding growth through Systematic Investment Plans (SIP).',
     iconName: 'TrendingUp',
@@ -34,7 +34,7 @@ export const CALCULATORS_REGISTRY: CalculatorMeta[] = [
   {
     id: 'lumpsum-calculator',
     name: 'Lumpsum Calculator',
-    url: '/financial-tools/lumpsum-calculator',
+    url: '/lumpsum-calculator',
     category: 'Investment',
     description: 'Estimate future returns and portfolio value for one-time lumpsum mutual fund or stock investments.',
     iconName: 'PieChart',
@@ -43,7 +43,7 @@ export const CALCULATORS_REGISTRY: CalculatorMeta[] = [
   {
     id: 'cagr-calculator',
     name: 'CAGR Calculator',
-    url: '/financial-tools/cagr-calculator',
+    url: '/cagr-calculator',
     category: 'Investment',
     description: 'Calculate the Compound Annual Growth Rate (CAGR) of your investments over any period of time.',
     iconName: 'BarChart3',
@@ -52,7 +52,7 @@ export const CALCULATORS_REGISTRY: CalculatorMeta[] = [
   {
     id: 'swp-calculator',
     name: 'SWP Calculator',
-    url: '/financial-tools/swp-calculator',
+    url: '/swp-calculator',
     category: 'Investment',
     description: 'Plan systematic monthly withdrawals from your mutual fund investments while tracking remaining corpus growth.',
     iconName: 'ArrowUpRight',
@@ -61,7 +61,7 @@ export const CALCULATORS_REGISTRY: CalculatorMeta[] = [
   {
     id: 'sip-vs-lumpsum',
     name: 'SIP vs Lumpsum Calculator',
-    url: '/financial-tools/sip-vs-lumpsum',
+    url: '/sip-vs-lumpsum',
     category: 'Investment',
     description: 'Compare Systematic Investment Plans (SIP) side-by-side with Lumpsum investments to evaluate optimal wealth strategies.',
     iconName: 'SlidersHorizontal',
@@ -72,7 +72,7 @@ export const CALCULATORS_REGISTRY: CalculatorMeta[] = [
   {
     id: 'fd-calculator',
     name: 'FD Calculator',
-    url: '/financial-tools/fd-calculator',
+    url: '/fd-calculator',
     category: 'Savings',
     description: 'Calculate Fixed Deposit maturity amount, compounding interest earnings, and payout options across cumulative & non-cumulative schemes.',
     iconName: 'Vault',
@@ -81,7 +81,7 @@ export const CALCULATORS_REGISTRY: CalculatorMeta[] = [
   {
     id: 'rd-calculator',
     name: 'RD Calculator',
-    url: '/financial-tools/rd-calculator',
+    url: '/rd-calculator',
     category: 'Savings',
     description: 'Compute total deposits, interest accrued, and final maturity payout for bank Recurring Deposits (RD).',
     iconName: 'Clock',
@@ -90,7 +90,7 @@ export const CALCULATORS_REGISTRY: CalculatorMeta[] = [
   {
     id: 'ppf-calculator',
     name: 'PPF Calculator',
-    url: '/financial-tools/ppf-calculator',
+    url: '/ppf-calculator',
     category: 'Savings',
     description: 'Project your Public Provident Fund (PPF) tax-free maturity corpus, yearly interest, and 15-year wealth growth.',
     iconName: 'ShieldCheck',
@@ -99,7 +99,7 @@ export const CALCULATORS_REGISTRY: CalculatorMeta[] = [
   {
     id: 'epf-calculator',
     name: 'EPF Calculator',
-    url: '/financial-tools/epf-calculator',
+    url: '/epf-calculator',
     category: 'Savings',
     description: 'Estimate your Employee Provident Fund retirement balance incorporating employee contribution, employer share, and annual salary increments.',
     iconName: 'Briefcase',
@@ -108,7 +108,7 @@ export const CALCULATORS_REGISTRY: CalculatorMeta[] = [
   {
     id: 'nps-calculator',
     name: 'NPS Calculator',
-    url: '/financial-tools/nps-calculator',
+    url: '/nps-calculator',
     category: 'Savings',
     description: 'Calculate National Pension System retirement corpus, 60% lump-sum payout, and monthly annuity pension stream.',
     iconName: 'Award',
@@ -119,7 +119,7 @@ export const CALCULATORS_REGISTRY: CalculatorMeta[] = [
   {
     id: 'income-tax-calculator',
     name: 'Income Tax Calculator',
-    url: '/financial-tools/income-tax-calculator',
+    url: '/income-tax-calculator',
     category: 'Tax & Salary',
     description: 'Calculate total tax liability, cess, and compare Old Tax Regime vs New Tax Regime for current Financial Years.',
     iconName: 'Receipt',
@@ -128,7 +128,7 @@ export const CALCULATORS_REGISTRY: CalculatorMeta[] = [
   {
     id: 'salary-calculator',
     name: 'Salary Calculator',
-    url: '/financial-tools/salary-calculator',
+    url: '/salary-calculator',
     category: 'Tax & Salary',
     description: 'Calculate your monthly in-hand take-home salary from gross CTC after EPF, Professional Tax, and allowance deductions.',
     iconName: 'DollarSign',
@@ -137,7 +137,7 @@ export const CALCULATORS_REGISTRY: CalculatorMeta[] = [
   {
     id: 'gst-calculator',
     name: 'GST Calculator',
-    url: '/financial-tools/gst-calculator',
+    url: '/gst-calculator',
     category: 'Tax & Salary',
     description: 'Calculate GST amounts for 5%, 12%, 18%, and 28% tax slabs in Add GST and Remove GST modes.',
     iconName: 'Percent',
@@ -148,7 +148,7 @@ export const CALCULATORS_REGISTRY: CalculatorMeta[] = [
   {
     id: 'retirement-calculator',
     name: 'Retirement Calculator',
-    url: '/financial-tools/retirement-calculator',
+    url: '/retirement-calculator',
     category: 'Financial Planning',
     description: 'Determine the total retirement nest egg required to maintain your lifestyle after accounting for inflation and life expectancy.',
     iconName: 'Sun',
@@ -157,7 +157,7 @@ export const CALCULATORS_REGISTRY: CalculatorMeta[] = [
   {
     id: 'inflation-calculator',
     name: 'Inflation Calculator',
-    url: '/financial-tools/inflation-calculator',
+    url: '/inflation-calculator',
     category: 'Financial Planning',
     description: 'Calculate how inflation erodes purchasing power and compute future costs of living.',
     iconName: 'Flame',
@@ -166,7 +166,7 @@ export const CALCULATORS_REGISTRY: CalculatorMeta[] = [
   {
     id: 'compound-interest-calculator',
     name: 'Compound Interest Calculator',
-    url: '/financial-tools/compound-interest-calculator',
+    url: '/compound-interest-calculator',
     category: 'Financial Planning',
     description: 'Calculate compound interest accrued on savings across Daily, Monthly, Quarterly, and Yearly compounding frequencies.',
     iconName: 'Sparkles',
@@ -175,7 +175,7 @@ export const CALCULATORS_REGISTRY: CalculatorMeta[] = [
   {
     id: 'simple-interest-calculator',
     name: 'Simple Interest Calculator',
-    url: '/financial-tools/simple-interest-calculator',
+    url: '/simple-interest-calculator',
     category: 'Financial Planning',
     description: 'Calculate basic simple interest and total repayment amounts effortlessly using SI = P × R × T / 100.',
     iconName: 'Divide',
@@ -184,7 +184,7 @@ export const CALCULATORS_REGISTRY: CalculatorMeta[] = [
   {
     id: 'net-worth-calculator',
     name: 'Net Worth Calculator',
-    url: '/financial-tools/net-worth-calculator',
+    url: '/net-worth-calculator',
     category: 'Financial Planning',
     description: 'Compute your total personal net worth by subtracting total liabilities (debts/loans) from total financial and physical assets.',
     iconName: 'Landmark',

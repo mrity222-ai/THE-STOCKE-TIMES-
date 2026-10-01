@@ -126,6 +126,10 @@ Return JSON strictly matching the schema:
       enrichedBody += `\n\n<h2 class="text-xl font-bold text-[#0B1F33] mt-8 mb-4">Strategic Advantages & Risk Trade-Offs</h2>\n${result.data.prosAndConsHtml}`;
     }
 
+    if (!enrichedBody.includes('/sip-calculator')) {
+      enrichedBody += `\n\n<div class="my-8 p-6 rounded-3xl bg-slate-900 text-white shadow-xl"><h3 class="text-lg font-bold text-emerald-400 mb-2">💡 Interactive Financial Calculators & Tools</h3><p class="text-sm text-slate-300 mb-4">Plan your personal finance and investment goals using our free calculators:</p><div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs font-semibold"><a href="/sip-calculator" class="p-3 bg-slate-800 hover:bg-slate-700 rounded-xl text-center text-emerald-300 transition">📈 SIP Calculator</a><a href="/fd-calculator" class="p-3 bg-slate-800 hover:bg-slate-700 rounded-xl text-center text-emerald-300 transition">🏦 FD Calculator</a><a href="/emi-calculator" class="p-3 bg-slate-800 hover:bg-slate-700 rounded-xl text-center text-emerald-300 transition">🧮 EMI Calculator</a><a href="/cagr-calculator" class="p-3 bg-slate-800 hover:bg-slate-700 rounded-xl text-center text-emerald-300 transition">📊 CAGR Calculator</a></div></div>`;
+    }
+
     return {
       articleContent: {
         h1Title: result.data.h1Title,
